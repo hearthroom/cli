@@ -249,15 +249,36 @@ func (a *App) walletCommand() *cobra.Command {
 			if a.Out.JSON {
 				return a.Out.JSONValue(raw)
 			}
-			var m map[string]any
-			_ = json.Unmarshal(raw, &m)
-			keys := make([]string, 0, len(m))
-			for k := range m {
-				keys = append(keys, k)
+			var w struct {
+				Available int64 `json:"available"`
+				Permanent int64 `json:"permanent"`
+				Expiring  int64 `json:"expiring"`
+				Reserved  int64 `json:"reserved"`
+				Ledger    []struct {
+					Amount int64  `json:"amount"`
+					At     string `json:"at"`
+					Reason string `json:"reason"`
+				} `json:"ledger"`
 			}
-			sortStrings(keys)
-			for _, k := range keys {
-				a.Out.Line("%-24s %s", k+":", clip(flat(m[k]), 80))
+			if err := json.Unmarshal(raw, &w); err != nil {
+				return err
+			}
+			a.Out.Line("Available credits: %d", w.Available)
+			if w.Expiring > 0 {
+				a.Out.Line("  expiring:        %d", w.Expiring)
+			}
+			if w.Reserved > 0 {
+				a.Out.Line("  reserved:        %d (in-progress turns)", w.Reserved)
+			}
+			if len(w.Ledger) > 0 {
+				a.Out.Line("Recent activity:")
+				for i, e := range w.Ledger {
+					if i >= 5 {
+						break
+					}
+					when := strings.Replace(clip(e.At, 16), "T", " ", 1)
+					a.Out.Line("  %s  %+d  %s", when, e.Amount, e.Reason)
+				}
 			}
 			return nil
 		},
@@ -269,16 +290,18 @@ type modelGroup struct {
 	Families []struct {
 		Family   string `json:"family"`
 		Variants []struct {
-			Name      string `json:"name"`
-			Value     string `json:"value"`
-			CostScore int    `json:"costScore"`
-			IsMember  bool   `json:"isMember"`
-			Channel   string `json:"channel"`
-			Status    *struct {
+			Name        string `json:"name"`
+			Value       string `json:"value"`
+			CostScore   int    `json:"costScore"`
+			BillingType string `json:"billingType"`
+			EstMinScore int    `json:"estMinScore"`
+			EstMaxScore int    `json:"estMaxScore"`
+			IsMember    bool   `json:"isMember"`
+			Channel     string `json:"channel"`
+			Status      *struct {
 				Status string `json:"status"`
 			} `json:"status"`
-			SupportsMultiPass bool   `json:"supportsMultiPass"`
-			BillingType       string `json:"billingType"`
+			SupportsMultiPass bool `json:"supportsMultiPass"`
 		} `json:"variants"`
 	} `json:"families"`
 }
@@ -314,11 +337,16 @@ func (a *App) modelsCommand() *cobra.Command {
 						if v.IsMember {
 							member = "member"
 						}
-						rows = append(rows, []string{v.Value, clip(v.Name, 28), g.Group, strconv.Itoa(v.CostScore), member, v.Channel, status})
+						cost := strconv.Itoa(v.CostScore)
+						if v.BillingType == "dynamic" || v.CostScore == 0 && v.EstMaxScore > 0 {
+							cost = fmt.Sprintf("~%d–%d", v.EstMinScore, v.EstMaxScore)
+						}
+						rows = append(rows, []string{v.Value, clip(v.Name, 28), g.Group, cost, member, v.Channel, status})
 					}
 				}
 			}
-			a.Out.Table([]string{"MODEL", "NAME", "GROUP", "COST", "PLAN", "LANE", "STATUS"}, rows)
+			a.Out.Table([]string{"MODEL", "NAME", "GROUP", "COST/TURN", "PLAN", "LANE", "STATUS"}, rows)
+			a.Out.Line("Cost is in credits per turn; ~min–max is an estimate for usage-billed models.")
 			return nil
 		},
 	}

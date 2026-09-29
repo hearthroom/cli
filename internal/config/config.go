@@ -40,6 +40,9 @@ type ClientReg struct {
 	ClientID     string   `json:"client_id"`
 	RedirectURIs []string `json:"redirect_uris"`
 	Scope        string   `json:"scope"`
+	// Dynamic marks a client the CLI registered itself; it is replaced when a
+	// known first-party client for the API base becomes available.
+	Dynamic bool `json:"dynamic,omitempty"`
 }
 
 // Credential is one stored token set for an API base.

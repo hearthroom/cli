@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/media"
 	"github.com/hearthroom/cli/internal/output"
 )
@@ -164,7 +166,15 @@ image first.`,
 				if err != nil {
 					failed = true
 					entry["error"] = err.Error()
-					if !a.Out.JSON {
+					if cards := cardsUsing(err); len(cards) > 0 {
+						entry["usedBy"] = cards
+						if !a.Out.JSON {
+							a.Out.Line("%s: still used by %d card(s); change their image first:", id, len(cards))
+							for _, c := range cards {
+								a.Out.Line("    %s  %s", c["roleId"], c["name"])
+							}
+						}
+					} else if !a.Out.JSON {
 						a.Out.Line("%s: FAILED: %v", id, err)
 					}
 				} else if !a.Out.JSON {
@@ -185,4 +195,20 @@ image first.`,
 	}
 	cmd.AddCommand(up, ls, rm)
 	return cmd
+}
+
+// cardsUsing extracts detail.cards from an image_in_use error.
+func cardsUsing(err error) []map[string]string {
+	var e *api.Error
+	if !errors.As(err, &e) || e.Code != "image_in_use" {
+		return nil
+	}
+	detail, _ := e.Detail.(map[string]any)
+	raw, _ := detail["cards"].([]any)
+	var out []map[string]string
+	for _, r := range raw {
+		m, _ := r.(map[string]any)
+		out = append(out, map[string]string{"roleId": fmt.Sprint(m["roleId"]), "name": fmt.Sprint(m["name"])})
+	}
+	return out
 }

@@ -43,7 +43,7 @@ The scripts download the build for your platform from [GitHub Releases](https://
 
 </details>
 
-`hearthroom` checks for a newer release at most once a day and tells you which command upgrades it. `hearthroom upgrade` updates in place; `HEARTHROOM_NO_UPDATE_NOTIFIER=1` silences the check.
+The installer also sets up tab completion for your shell (bash, zsh or fish; `hearthroom completion install` does the same later, `completion uninstall` removes it). `hearthroom` checks for a newer release at most once a day and tells you which command upgrades it. `hearthroom upgrade` updates in place; `HEARTHROOM_NO_UPDATE_NOTIFIER=1` silences the check.
 
 ## Quickstart
 
@@ -68,7 +68,8 @@ The import report lists every field that had no place to go. Nothing is dropped 
 ## How it works
 
 - **Cards are folders.** Long text in Markdown (`definition.md`, `welcome.md`, `openings/*.md`), short fields in `card.json`, the Lorebook in `lorebook.json`, display rules in `rules.json`, media under `assets/`. The format is versioned and documented in [docs/card-folder.md](docs/card-folder.md), so you can keep cards in git and let agents edit them.
-- **Push is one command.** Assets referenced from the folder are uploaded once and rewritten to their served URLs; the card is written in sections and only changed sections travel. The default target is a private, auto-expiring trial card. `--to <id>` or `--create` writes to a card you own.
+- **Push is one command.** Assets referenced from the folder are uploaded once and rewritten to their served URLs; the card is written in sections and only changed sections travel.
+- **Trial cards are a sandbox.** By default `push` writes to a private *trial card*: it expires three days after the last push, the provider keeps at most five per account (`--evict` frees the oldest), and the website's card inventory does not list it, though the play link works. When the card is ready to keep, `push --create` makes a real private card that shows up on the site and can be submitted for review, and later pushes update it; `push --to <id>` writes into a card you already own, for example one you pulled.
 - **Validate is the provider's word.** Character limits and quality checks come from the server per card language; the CLI shows them next to your counts and exits non-zero on blockers.
 - **Play is opt-in.** Starting a conversation and reading history are free. Sending a message spends credits, so it runs only with `--allow-spend`, streams the reply, and reports what was settled.
 - **Everything speaks JSON.** Add `--json` to any command for stable machine output; `play --json` emits one event per line.

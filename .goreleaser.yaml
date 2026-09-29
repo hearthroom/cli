@@ -5,6 +5,7 @@ project_name: hearthroom
 before:
   hooks:
     - go mod tidy
+    - sh scripts/completions.sh
 
 builds:
   - id: hearthroom
@@ -30,6 +31,7 @@ archives:
     files:
       - LICENSE
       - README.md
+      - completions/*
 
 checksum:
   name_template: checksums.txt
@@ -82,6 +84,10 @@ homebrew_casks:
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
     # The binaries are not notarized; strip the quarantine flag Homebrew adds
     # to cask downloads so Gatekeeper does not block the first run.
+    completions:
+      bash: completions/hearthroom.bash
+      zsh: completions/hearthroom.zsh
+      fish: completions/hearthroom.fish
     hooks:
       post:
         install: |

@@ -22,7 +22,7 @@ type TokenSource func(ctx context.Context) (string, error)
 
 // ErrNoToken is wrapped by a TokenSource when nothing is stored; optional-auth
 // calls then proceed anonymously while required-auth calls fail.
-var ErrNoToken = errors.New("no token available")
+var ErrNoToken = errors.New("not signed in")
 
 type authMode int
 

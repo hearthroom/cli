@@ -34,7 +34,7 @@ export type Strings = {
 const en: Strings = {
   skip: "Skip to content", navLabel: "Site", language: "Language", theme: "Toggle light and dark", viewMarkdown: "View as Markdown",
   nav: { manual: "Manual", guides: "Guides", releases: "Releases", developers: "Developer docs" },
-  hero: { title: "Write cards from the command line.", lead: "Hearthroom for your terminal and your AI agent. Free and open source." },
+  hero: { title: "Write cards from the command line", lead: "Hearthroom for your terminal and your AI agent. Free and open source." },
   install: {
     os: { mac: "macOS", linux: "Linux", windows: "Windows" }, copy: "Copy", copied: "Copied",
     other: "Other ways to install", agent: "Using an agent? Give it", version: (v) => `Latest release ${v}`,
@@ -59,7 +59,7 @@ const en: Strings = {
 const zhHant: Strings = {
   skip: "跳到主要內容", navLabel: "網站", language: "語言", theme: "切換深淺色", viewMarkdown: "以 Markdown 檢視",
   nav: { manual: "手冊", guides: "指南", releases: "版本", developers: "開發者文件" },
-  hero: { title: "在命令列裡寫卡。", lead: "給你的終端機、也給你的 AI agent 用的 Hearthroom。免費、開源。" },
+  hero: { title: "在命令列裡寫卡", lead: "給你的終端機、也給你的 AI agent 用的 Hearthroom。免費、開源。" },
   install: {
     os: { mac: "macOS", linux: "Linux", windows: "Windows" }, copy: "複製", copied: "已複製",
     other: "其他安裝方式", agent: "帶著 agent 用？把這個給它", version: (v) => `最新版本 ${v}`,
@@ -84,7 +84,7 @@ const zhHant: Strings = {
 const zhHans: Strings = {
   skip: "跳到主要内容", navLabel: "网站", language: "语言", theme: "切换深浅色", viewMarkdown: "以 Markdown 查看",
   nav: { manual: "手册", guides: "指南", releases: "版本", developers: "开发者文档" },
-  hero: { title: "在命令行里写卡。", lead: "给你的终端、也给你的 AI agent 用的 Hearthroom。免费、开源。" },
+  hero: { title: "在命令行里写卡", lead: "给你的终端、也给你的 AI agent 用的 Hearthroom。免费、开源。" },
   install: {
     os: { mac: "macOS", linux: "Linux", windows: "Windows" }, copy: "复制", copied: "已复制",
     other: "其他安装方式", agent: "带着 agent 用？把这个给它", version: (v) => `最新版本 ${v}`,
@@ -109,7 +109,7 @@ const zhHans: Strings = {
 const ja: Strings = {
   skip: "本文へスキップ", navLabel: "サイト", language: "言語", theme: "ライト／ダーク切替", viewMarkdown: "Markdown で表示",
   nav: { manual: "マニュアル", guides: "ガイド", releases: "リリース", developers: "開発者ドキュメント" },
-  hero: { title: "コマンドラインでカードを書く。", lead: "ターミナルと AI エージェントのための Hearthroom。無料でオープンソース。" },
+  hero: { title: "コマンドラインでカードを書く", lead: "ターミナルと AI エージェントのための Hearthroom。無料でオープンソース。" },
   install: {
     os: { mac: "macOS", linux: "Linux", windows: "Windows" }, copy: "コピー", copied: "コピー済み",
     other: "その他のインストール方法", agent: "エージェントと使うなら、これを渡す", version: (v) => `最新リリース ${v}`,
@@ -134,7 +134,7 @@ const ja: Strings = {
 const ko: Strings = {
   skip: "본문으로 건너뛰기", navLabel: "사이트", language: "언어", theme: "라이트/다크 전환", viewMarkdown: "Markdown으로 보기",
   nav: { manual: "매뉴얼", guides: "가이드", releases: "릴리스", developers: "개발자 문서" },
-  hero: { title: "명령줄에서 카드를 쓰세요.", lead: "터미널과 AI 에이전트를 위한 Hearthroom. 무료, 오픈 소스." },
+  hero: { title: "명령줄에서 카드를 쓰세요", lead: "터미널과 AI 에이전트를 위한 Hearthroom. 무료, 오픈 소스." },
   install: {
     os: { mac: "macOS", linux: "Linux", windows: "Windows" }, copy: "복사", copied: "복사됨",
     other: "다른 설치 방법", agent: "에이전트와 함께 쓴다면 이걸 건네세요", version: (v) => `최신 릴리스 ${v}`,

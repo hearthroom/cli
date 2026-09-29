@@ -60,6 +60,9 @@ try {
 
   Write-Host "Installed $target"
   & $target version
+  Write-Host ""
+  Write-Host "Tab completion: add this line to your PowerShell profile (notepad `$PROFILE):"
+  Write-Host "  hearthroom completion powershell | Out-String | Invoke-Expression"
 }
 finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue

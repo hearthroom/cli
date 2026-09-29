@@ -113,6 +113,10 @@ back, or import cards from SillyTavern and MMD. Every command accepts --json.`,
 	for _, reg := range extraCommands {
 		root.AddCommand(reg(a)...)
 	}
+	// cobra adds `completion` lazily at execution; create it now so the
+	// install/uninstall subcommands can hang off it.
+	root.InitDefaultCompletionCmd()
+	a.addCompletionInstall(root)
 	return root
 }
 

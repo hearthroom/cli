@@ -80,12 +80,14 @@ func (a *App) cardPush() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "push [dir]",
 		Short: "Sync the folder to the provider (a private trial card by default)",
-		Long: `Uploads referenced assets, then writes the card in sections. Without --to
-the target is an auto-expiring private trial card keyed to this folder, which
-is the fastest way to play what you just edited. With --to <roleId> (or
---create) the folder is written to a private card you own.
+		Long: `Uploads referenced assets, then writes the card in sections.
 
-Only sections whose content changed since the last push are sent.`,
+Without --to or --create the target is a trial card: a private card the
+provider keeps for three days after the last push (five per account; --evict
+frees the oldest). It is the fastest way to play what you just edited, but the
+website's card inventory does not list trial cards. To keep the card, push with
+--create once; the folder then remembers the new private card and later pushes
+update it. --to <roleId> writes into a card you already own.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {

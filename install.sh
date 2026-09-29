@@ -83,3 +83,7 @@ case ":$PATH:" in
   *) say "Add $dir to your PATH, for example:  export PATH=\"$dir:\$PATH\"" ;;
 esac
 "$dir/$BIN" version >&2 || true
+# Tab completion for the current shell (bash/zsh/fish). Safe to re-run; skip with HEARTHROOM_NO_COMPLETION=1.
+if [ -z "${HEARTHROOM_NO_COMPLETION:-}" ]; then
+  "$dir/$BIN" completion install >&2 || say "Tab completion was not set up; run: $BIN completion install"
+fi

@@ -33,6 +33,13 @@ Set `HEARTHROOM_TOKEN` to a provider access token and no browser is needed. Inte
 
 `card render` asks the provider to run the card's display rules over one opening with the same engine the play page uses. The JSON carries the text the renderer receives (`rendered`), each rule's outcome (`applied`, `unmatched`, `disabled`, `empty`, `rolled_back` with a reason), a static scan (tags, `hc-*` components, scripts, inline handlers, external URLs) and `report.unsupported`: author-API identifiers the card's chat page does not provide, each with a `hint` (a classic-page card calling the sandbox `sdk`, for example, should switch to the sandbox page). Layout, contrast and Markdown are only visible on the play page; `previewUrl` points there. An agent with a browser should open it at a phone and a desktop width.
 
+## Writing a good card, not just moving one
+
+The CLI moves files and brings evidence back; it does not know what makes a card good. Two open-source skill sets do:
+
+- [hearthroom/skills](https://github.com/hearthroom/skills) teaches the writing craft for Hearthroom cards: premise, character, Lorebook, openings, voice, state, diagnosis and iteration, and it drives this CLI for every check. Install it into Claude Code or Codex, or point any agent at its router skill.
+- [yofengi/tavern-mmd](https://github.com/yofengi/tavern-mmd) builds status bars, themes, floating panels and full custom chat pages for SillyTavern and Meimo Island (MMD). Hearthroom's sandbox chat page runs the same author API as MMD's new-style sandbox, so its `/mmdsandbox` output imports with `hearthroom card import` and runs as is; `card render --json` confirms it (only `sdk.vars` should appear under `report.unsupported`).
+
 ## Spending is opt-in
 
 Starting a conversation, reading history, pushing, validating, rendering, importing and browsing are free. Only `play -m` generates a reply and spends credits on the provider, and it refuses to run without `--allow-spend`. An agent cannot spend credits by accident.

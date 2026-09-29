@@ -1,5 +1,6 @@
 name = "hearthroom-cli-site"
 compatibility_date = "2026-09-01"
+account_id = "e1448ac973e62649758da2498fc9df5a"
 
 # The main Hearthroom Worker owns the wildcard routes (*.hearthroom.club/*,
 # *.sukisuki.ai/*, *.sukisuki.chat/*). A more specific route wins, so the CLI

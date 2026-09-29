@@ -91,7 +91,7 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
 .lang-menu > ul { left: auto; right: 0; min-width: 160px; }
 
 /* hero -------------------------------------------------------------------- */
-.hero { width: min(720px, 100% - 32px); margin: 0 auto; padding: clamp(48px, 8vw, 96px) 0 8px; }
+.hero { width: min(880px, 100% - 32px); margin: 0 auto; padding: clamp(48px, 8vw, 96px) 0 8px; }
 .hero h1 { margin-bottom: 0.4em; }
 .hero .lead { font-size: clamp(1.15rem, 2.2vw, 1.5rem); line-height: 1.35; color: var(--text-2); margin: 0 0 2rem; }
 
@@ -102,6 +102,8 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
 .install-menu > ul { min-width: 260px; }
 .install-bar > code { flex: 1; display: flex; align-items: center; min-width: 0; padding: 14px 20px; background: none; font-size: 16px; line-height: 24px; color: var(--text-2); white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
 .install-bar > code::-webkit-scrollbar { display: none; }
+/* A command that does not fit wraps instead of being cut off. */
+.install-bar > code.long { white-space: normal; word-break: break-all; font-size: 14px; line-height: 20px; }
 .copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; cursor: pointer; }
 .copy-btn .ic-check, .copy-btn.is-copied .ic-copy { display: none; }
 .copy-btn.is-copied .ic-check { display: inline-block; }
@@ -123,11 +125,9 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
 
 /* demo terminal ------------------------------------------------------------ */
 .demo { position: relative; width: min(1080px, 100% - 32px); margin: 0 auto; padding: 56px 0 8px; text-align: center; }
-/* The lamp behind the window: light radiates outward from the terminal, as on cli.github.com. */
-.demo::before { content: ""; position: absolute; inset: -40px -25vw -100px; z-index: 0; pointer-events: none; background:
-  radial-gradient(55% 50% at 50% 55%, rgba(239, 79, 111, 0.26), transparent 70%),
-  radial-gradient(38% 35% at 18% 70%, rgba(139, 92, 246, 0.22), transparent 70%),
-  radial-gradient(38% 35% at 82% 40%, rgba(56, 189, 248, 0.16), transparent 70%); }
+/* The lamp behind the window: public/glow.svg, three blurred ellipses shaped
+   to the wide terminal so the light falls off evenly on all sides. */
+.demo::before { content: ""; position: absolute; left: 50%; top: 50%; width: max(1400px, 130vw); height: 900px; transform: translate(-50%, -50%); z-index: 0; pointer-events: none; background: url(/glow.svg) center / 100% 100% no-repeat; }
 .demo > * { position: relative; z-index: 1; }
 .scene-cmd { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: clamp(1.1rem, 2.4vw, 1.5rem); font-weight: 400; letter-spacing: 0; line-height: 1.5; margin: 0 0 4px; word-break: break-word; }
 .scene-cmd .p { color: var(--accent-text); }
@@ -142,7 +142,7 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
 .term-pause[aria-pressed="true"] .ic-play { display: inline-block; }
 .term pre { margin: 0; padding: 8px 24px 24px; overflow-x: auto; font-size: 16px; line-height: 24px; }
 .term pre code { font-size: inherit; }
-.term-hero { min-height: 400px; }
+.term-hero { max-width: 1000px; margin: 0 auto; min-height: 480px; }
 .term .p { color: #e6e6ee; user-select: none; }
 .term .cmd { color: #fff; }
 .term .b { color: #fff; font-weight: 600; }
@@ -152,7 +152,7 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
 .term .cursor { display: inline-block; width: 0.6em; height: 1.1em; background: #fff; vertical-align: text-bottom; margin-left: 1px; animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .term .cursor { animation: none; } }
-@media (max-width: 720px) { .term pre { font-size: 14px; line-height: 22px; padding: 4px 16px 16px; } .term-hero { min-height: 320px; } }
+@media (max-width: 720px) { .term pre { font-size: 14px; line-height: 22px; padding: 4px 16px 16px; } .term-hero { min-height: 360px; } }
 .demo .all { margin: 40px 0 0; }
 .demo .all a { color: var(--text); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 800; letter-spacing: -0.01em; }
 
@@ -171,10 +171,10 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
   radial-gradient(60% 60% at 50% 50%, transparent 30%, var(--bg) 100%),
   repeating-linear-gradient(0deg, var(--line) 0 1px, transparent 1px 24px),
   repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 24px); }
-.again-card { max-width: 640px; margin: 0 auto; padding: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }
+.again-card { max-width: 800px; margin: 0 auto; padding: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }
 .again-card h2 { font-size: 2rem; margin-bottom: 8px; }
 .again-card > p { color: var(--text-2); margin-bottom: 20px; }
-.again-card .install-bar > code { font-size: 14px; padding: 14px 14px; }
+.again-card .install-bar > code { font-size: 15px; padding: 14px 16px; }
 .again-card .copy-btn.cta { min-width: 0; padding: 14px 16px; }
 @media (max-width: 720px) { .again-card { padding: 24px; } }
 

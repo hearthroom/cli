@@ -1,0 +1,15 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- The lamp behind the terminal window: three blurred ellipses, as on
+       cli.github.com, so the falloff is Gaussian rather than linear and the
+       shape follows the wide window instead of a circle. -->
+  <g opacity="0.62">
+    <g filter="url(#blur)"><ellipse cx="700" cy="480" rx="460" ry="190" fill="#ef4f6f"/></g>
+    <g filter="url(#blur)"><ellipse cx="330" cy="520" rx="230" ry="300" transform="rotate(-12 330 520)" fill="#8b5cf6"/></g>
+    <g filter="url(#blur)"><ellipse cx="1090" cy="430" rx="200" ry="280" transform="rotate(14 1090 430)" fill="#38bdf8"/></g>
+  </g>
+  <defs>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="90"/>
+    </filter>
+  </defs>
+</svg>

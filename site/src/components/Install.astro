@@ -65,7 +65,7 @@ const llms = "https://cli.hearthroom.club/llms.txt";
     document.querySelectorAll("[data-install]").forEach(function (bar) {
       var commands = JSON.parse(bar.dataset.commands), labels = JSON.parse(bar.dataset.labels);
       var menu = bar.querySelector("details"), label = bar.querySelector("[data-label]"), code = bar.querySelector("[data-cmd]"), copy = bar.querySelector("[data-copy]");
-      function apply(m) { label.textContent = labels[m]; code.textContent = commands[m]; copy.setAttribute("data-copy", commands[m]); }
+      function apply(m) { label.textContent = labels[m]; code.textContent = commands[m]; code.classList.toggle("long", commands[m].length > 44); copy.setAttribute("data-copy", commands[m]); }
       apply(os);
       bar.querySelectorAll("[data-method]").forEach(function (b) {
         b.addEventListener("click", function () { apply(b.dataset.method); menu.open = false; });

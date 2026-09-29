@@ -69,7 +69,7 @@ const en: Strings = {
 const zhHant: Strings = {
   skip: "跳到主要內容", navLabel: "網站", language: "語言", theme: "切換深色與淺色", viewMarkdown: "以 Markdown 檢視",
   nav: { manual: "手冊", guides: "指南", releases: "版本", developers: "開發者文件" },
-  hero: { title: "把 Hearthroom 帶進終端機", lead: "Hearthroom CLI 讓你在終端機裡管理角色卡，也能交給 AI Agent 代勞。免費、開源。" },
+  hero: { title: "把 Hearthroom 帶進終端機", lead: "Hearthroom CLI 讓你在終端機裡管理酒館角色卡，也能交給 AI Agent 代勞。免費、開源。" },
   install: {
     label: { brew: "用 Homebrew 安裝", sh: "用安裝腳本安裝", ps: "用 PowerShell 安裝", scoop: "用 Scoop 安裝" },
     method: { brewMac: "macOS — Homebrew", shMac: "macOS — 安裝腳本", shLinux: "Linux — 安裝腳本", ps: "Windows — PowerShell", scoop: "Windows — Scoop", download: "下載執行檔" },
@@ -78,27 +78,27 @@ const zhHant: Strings = {
   },
   terminal: { pause: "暫停動畫", play: "播放動畫", all: "查看全部指令" },
   scenes: {
-    import: "把 SillyTavern 或 MMD 的角色卡匯入成一個資料夾。",
-    push: "把角色卡推送到私人試玩卡，並檢查內容。",
+    import: "把 SillyTavern 或 MMD 匯出的酒館角色卡，匯入成一個資料夾。",
+    push: "把酒館角色卡推送到私人試玩卡，並檢查內容。",
     play: "不用離開終端機，就能試玩一回合。",
-    pull: "把你的角色卡下載成檔案。",
+    pull: "把你的酒館角色卡下載成檔案。",
     search: "搜尋社群榜單。",
     media: "管理資源庫裡的圖片。",
   },
-  headline: "像寫程式一樣寫角色卡。",
+  headline: "像寫程式一樣寫酒館角色卡。",
   props: [
-    { title: "用你自己的編輯器寫", text: "角色卡就是一個放 Markdown 和 JSON 的資料夾。用你習慣的編輯器改，每個版本都留在 git 裡，也能直接把檔案交給別人。", link: "認識卡片資料夾", href: "/guides/card-folder/" },
+    { title: "用你自己的編輯器寫", text: "酒館角色卡就是一個放 Markdown 和 JSON 的資料夾。用你習慣的編輯器改，每個版本都留在 git 裡，也能直接把檔案交給別人。", link: "認識卡片資料夾", href: "/guides/card-folder/" },
     { title: "AI Agent 也能直接操作", text: "每個指令都能輸出 JSON，登入不需要瀏覽器，沒有明確加上參數就不會扣點數。", link: "搭配 AI Agent 使用", href: "/guides/agents/" },
     { title: "先自己玩過，再給別人看", text: "每次推送都會先放到只有你看得到的試玩卡，馬上就能試玩；你不說，就不會公開。", link: "認識試玩卡", href: "/guides/trial-cards/" },
     { title: "免費、開源", text: "AGPL-3.0 授權，單一執行檔，只需要你的 Hearthroom 帳號。", link: "到 GitHub 參與開發", href: "https://github.com/hearthroom/cli" },
   ],
-  again: { title: "在終端機裡試試 Hearthroom", text: "Hearthroom CLI 讓你在終端機裡管理角色卡。免費、開源。" },
+  again: { title: "在終端機裡試試 Hearthroom", text: "Hearthroom CLI 讓你在終端機裡管理酒館角色卡。免費、開源。" },
 };
 
 const zhHans: Strings = {
   skip: "跳到主要内容", navLabel: "网站", language: "语言", theme: "切换深色与浅色", viewMarkdown: "以 Markdown 查看",
   nav: { manual: "手册", guides: "指南", releases: "版本", developers: "开发者文档" },
-  hero: { title: "把 Hearthroom 带进终端", lead: "Hearthroom CLI 让你在终端里管理角色卡，也能交给 AI Agent 代劳。免费、开源。" },
+  hero: { title: "把 Hearthroom 带进终端", lead: "Hearthroom CLI 让你在终端里管理酒馆角色卡，也能交给 AI Agent 代劳。免费、开源。" },
   install: {
     label: { brew: "用 Homebrew 安装", sh: "用安装脚本安装", ps: "用 PowerShell 安装", scoop: "用 Scoop 安装" },
     method: { brewMac: "macOS — Homebrew", shMac: "macOS — 安装脚本", shLinux: "Linux — 安装脚本", ps: "Windows — PowerShell", scoop: "Windows — Scoop", download: "下载可执行文件" },
@@ -107,21 +107,21 @@ const zhHans: Strings = {
   },
   terminal: { pause: "暂停动画", play: "播放动画", all: "查看全部命令" },
   scenes: {
-    import: "把 SillyTavern 或 MMD 的角色卡导入成一个文件夹。",
-    push: "把角色卡推送到私人试玩卡，并检查内容。",
+    import: "把 SillyTavern 或 MMD 导出的酒馆角色卡，导入成一个文件夹。",
+    push: "把酒馆角色卡推送到私人试玩卡，并检查内容。",
     play: "不用离开终端，就能试玩一回合。",
-    pull: "把你的角色卡下载成文件。",
+    pull: "把你的酒馆角色卡下载成文件。",
     search: "搜索社区榜单。",
     media: "管理资源库里的图片。",
   },
-  headline: "像写代码一样写角色卡。",
+  headline: "像写代码一样写酒馆角色卡。",
   props: [
-    { title: "用你自己的编辑器写", text: "角色卡就是一个放 Markdown 和 JSON 的文件夹。用你习惯的编辑器改，每个版本都留在 git 里，也能直接把文件交给别人。", link: "了解卡片文件夹", href: "/guides/card-folder/" },
+    { title: "用你自己的编辑器写", text: "酒馆角色卡就是一个放 Markdown 和 JSON 的文件夹。用你习惯的编辑器改，每个版本都留在 git 里，也能直接把文件交给别人。", link: "了解卡片文件夹", href: "/guides/card-folder/" },
     { title: "AI Agent 也能直接操作", text: "每个命令都能输出 JSON，登录不需要浏览器，没有明确加上参数就不会扣点数。", link: "搭配 AI Agent 使用", href: "/guides/agents/" },
     { title: "先自己玩过，再给别人看", text: "每次推送都会先放到只有你能看到的试玩卡，马上就能试玩；你不说，就不会公开。", link: "了解试玩卡", href: "/guides/trial-cards/" },
     { title: "免费、开源", text: "AGPL-3.0 许可，单个可执行文件，只需要你的 Hearthroom 账号。", link: "到 GitHub 参与开发", href: "https://github.com/hearthroom/cli" },
   ],
-  again: { title: "在终端里试试 Hearthroom", text: "Hearthroom CLI 让你在终端里管理角色卡。免费、开源。" },
+  again: { title: "在终端里试试 Hearthroom", text: "Hearthroom CLI 让你在终端里管理酒馆角色卡。免费、开源。" },
 };
 
 const ja: Strings = {

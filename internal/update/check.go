@@ -80,18 +80,39 @@ func Start(ctx context.Context, dir, currentVersion string, timeout time.Duratio
 	return ch
 }
 
+// PackageManager reports which package manager installed the binary at
+// installPath (after symlinks are resolved): "brew", "scoop" or "" for a
+// script, manual or source install. Homebrew keeps casks under
+// <prefix>/Caskroom and formulae under <prefix>/Cellar; the prefix is
+// /opt/homebrew on Apple silicon but /usr/local on Intel Macs, so the
+// prefix alone is not a signal. Scoop keeps apps under <root>/scoop/apps.
+func PackageManager(installPath string) string {
+	p := strings.ToLower(strings.ReplaceAll(installPath, "\\", "/"))
+	switch {
+	case strings.Contains(p, "/caskroom/") || strings.Contains(p, "/cellar/") || strings.Contains(p, "/homebrew/"):
+		return "brew"
+	case strings.Contains(p, "/scoop/"):
+		return "scoop"
+	}
+	return ""
+}
+
+// UpgradeCommand is what the user should run to update an install of the
+// given kind (see PackageManager).
+func UpgradeCommand(pkg string) string {
+	switch pkg {
+	case "brew":
+		return "brew upgrade hearthroom"
+	case "scoop":
+		return "scoop update hearthroom"
+	}
+	return "hearthroom upgrade"
+}
+
 // Notice is the line printed when a newer release exists. installPath lets
 // package-manager installs point at their own upgrade command.
 func Notice(r Result, installPath string) string {
-	cmd := "hearthroom upgrade"
-	lower := strings.ToLower(installPath)
-	switch {
-	case strings.Contains(lower, "/cellar/") || strings.Contains(lower, "/homebrew/"):
-		cmd = "brew upgrade hearthroom"
-	case strings.Contains(lower, string(filepath.Separator)+"scoop"+string(filepath.Separator)):
-		cmd = "scoop update hearthroom"
-	}
-	return "A new release of hearthroom is available: " + r.Current + " → " + r.Latest + ". Run `" + cmd + "`."
+	return "A new release of hearthroom is available: " + r.Current + " → " + r.Latest + ". Run `" + UpgradeCommand(PackageManager(installPath)) + "`."
 }
 
 func fetchLatest(ctx context.Context) (string, error) {

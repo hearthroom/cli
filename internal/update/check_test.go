@@ -101,4 +101,26 @@ func TestNotice(t *testing.T) {
 	if got := Notice(r, `C:\Users\me\scoop\apps\hearthroom\current\hearthroom.exe`); !strings.Contains(got, "scoop update") && filepath.Separator == '\\' {
 		t.Fatal(got)
 	}
+	// The cask on an Intel Mac lives under /usr/local/Caskroom, with no
+	// "homebrew" or "Cellar" in the path.
+	if got := Notice(r, "/usr/local/Caskroom/hearthroom/0.1.5/hearthroom"); !strings.Contains(got, "brew upgrade") {
+		t.Fatal(got)
+	}
+}
+
+func TestPackageManager(t *testing.T) {
+	cases := map[string]string{
+		"/usr/local/bin/hearthroom":                                "",
+		"/Users/me/.local/bin/hearthroom":                          "",
+		"/opt/homebrew/Caskroom/hearthroom/0.1.5/hearthroom":       "brew",
+		"/usr/local/Caskroom/hearthroom/0.1.5/hearthroom":          "brew",
+		"/opt/homebrew/Cellar/hearthroom/0.1.5/bin/hearthroom":     "brew",
+		`C:\Users\me\scoop\apps\hearthroom\current\hearthroom.exe`: "scoop",
+		"/home/me/scoop/apps/hearthroom/current/hearthroom":        "scoop",
+	}
+	for path, want := range cases {
+		if got := PackageManager(path); got != want {
+			t.Errorf("PackageManager(%q) = %q, want %q", path, got, want)
+		}
+	}
 }

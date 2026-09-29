@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/hearthroom/cli/internal/output"
+	"github.com/hearthroom/cli/internal/update"
 )
 
 const releasesLatest = "https://github.com/hearthroom/cli/releases/latest"
@@ -46,11 +47,11 @@ manager's upgrade command instead; this command will tell you when it notices.`,
 			if real, err := filepath.EvalSymlinks(exe); err == nil {
 				exe = real
 			}
-			if strings.Contains(exe, "/Cellar/") || strings.Contains(exe, "/homebrew/") {
-				return output.Exitf(2, "installed with Homebrew; run `brew upgrade hearthroom`")
-			}
-			if strings.Contains(strings.ToLower(exe), string(filepath.Separator)+"scoop"+string(filepath.Separator)) {
-				return output.Exitf(2, "installed with Scoop; run `scoop update hearthroom`")
+			switch pkg := update.PackageManager(exe); pkg {
+			case "brew":
+				return output.Exitf(2, "installed with Homebrew; run `%s`", update.UpgradeCommand(pkg))
+			case "scoop":
+				return output.Exitf(2, "installed with Scoop; run `%s`", update.UpgradeCommand(pkg))
 			}
 			hc := &http.Client{Timeout: 5 * time.Minute}
 			tag, err := latestTag(cmd.Context(), a.userAgent())

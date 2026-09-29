@@ -24,9 +24,10 @@ import (
 	"github.com/hearthroom/cli/internal/config"
 )
 
-// Scopes requested at registration and login. Deliberately excludes
-// email.read, referral and model.invoke: the CLI does not need them.
-const Scopes = "profile.read role.read role.write chat.play"
+// Scopes requested at registration and login. email.read is included only so
+// the CLI can say which account is signed in (providers have no mandatory
+// nickname); referral and model.invoke are deliberately excluded.
+const Scopes = "profile.read email.read role.read role.write chat.play"
 
 // LoopbackPorts are the fixed redirect ports registered with the provider.
 // The provider matches loopback redirect URIs exactly, port included, so the

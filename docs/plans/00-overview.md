@@ -59,8 +59,9 @@ field names stay as the API defines them.
 - Language: Go. Single static binary, no runtime, cross-compiles in CI.
 - License: AGPL-3.0, matching the other Hearthroom repositories.
 - CLI output language: English for v0.1. Localized READMEs are a follow-up.
-- Scopes requested: `profile.read role.read role.write chat.play`. Not
-  `email.read`, `referral` or `model.invoke`.
+- Scopes requested: `profile.read email.read role.read role.write chat.play`.
+  `email.read` only identifies the signed-in account in messages. Not
+  `referral` or `model.invoke`.
 - Trial cards are the default push target: they are private, auto-expiring
   and keyed by a local id, which is exactly the "edit locally, try it now" loop.
 - Spending credits is opt-in per invocation (`--allow-spend`).

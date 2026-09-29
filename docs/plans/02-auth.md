@@ -11,7 +11,7 @@ and lets non-interactive callers supply a token instead.
 1. Discover endpoints from `<api>/.well-known/oauth-authorization-server`.
 2. Register a public client once per API base with `POST /oauth/register`
    (`token_endpoint_auth_method: none`) and cache `client_id` in config.
-   Registration requests the scopes `profile.read role.read role.write chat.play`.
+   Registration requests the scopes `profile.read email.read role.read role.write chat.play`.
 3. The provider matches loopback redirect URIs **exactly, including the port**.
    So the client is registered with a fixed list of loopback redirect URIs
    (`http://127.0.0.1:<port>/callback` for ports 41777, 41778, 41779, 41780,

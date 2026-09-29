@@ -76,26 +76,31 @@ func RedirectURIs() []string {
 // lands in the provider's open tenant and cannot see cards made on the site.
 // The entry is a public client (PKCE, no secret) and only ever redirects to
 // the fixed loopback ports, so publishing it here is safe.
-var KnownClients = map[string]string{}
+var KnownClients = map[string]string{
+	"https://api.harperharbor.com": "hh_client_Z40oH2vHYZrjNEvfrUm2DGEHyD-5WhubUj_cuxAXZCU",
+}
 
 // EnsureClient returns the client to use for the API base: a stored one that
 // still matches, then a known first-party client, then a fresh dynamic
 // registration.
 func EnsureClient(ctx context.Context, c *api.Client, store *config.Store, cfg *config.Config, d Discovery) (config.ClientReg, error) {
 	want := RedirectURIs()
-	if reg, ok := cfg.Clients[c.API]; ok && reg.ClientID != "" && reg.Scope == Scopes && equalStrings(reg.RedirectURIs, want) && !reg.Dynamic {
-		return reg, nil
+	if cfg.Clients == nil {
+		cfg.Clients = map[string]config.ClientReg{}
 	}
+	stored, hasStored := cfg.Clients[c.API]
+	// A first-party client wins over anything the CLI registered itself, so
+	// existing installs move to the community tenant on their next login.
 	if id, ok := KnownClients[c.API]; ok && id != "" {
-		reg := config.ClientReg{ClientID: id, RedirectURIs: want, Scope: Scopes}
-		if cfg.Clients == nil {
-			cfg.Clients = map[string]config.ClientReg{}
+		if hasStored && stored.ClientID == id && stored.Scope == Scopes && equalStrings(stored.RedirectURIs, want) {
+			return stored, nil
 		}
+		reg := config.ClientReg{ClientID: id, RedirectURIs: want, Scope: Scopes}
 		cfg.Clients[c.API] = reg
 		return reg, store.SaveConfig(*cfg)
 	}
-	if reg, ok := cfg.Clients[c.API]; ok && reg.ClientID != "" && reg.Scope == Scopes && equalStrings(reg.RedirectURIs, want) {
-		return reg, nil
+	if hasStored && stored.ClientID != "" && stored.Scope == Scopes && equalStrings(stored.RedirectURIs, want) {
+		return stored, nil
 	}
 	if d.RegistrationEndpoint == "" {
 		return config.ClientReg{}, errors.New("provider does not offer dynamic client registration; set the client id in config.json")

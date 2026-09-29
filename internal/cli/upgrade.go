@@ -5,9 +5,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,18 +22,10 @@ import (
 	"github.com/hearthroom/cli/internal/output"
 )
 
-const releasesAPI = "https://api.github.com/repos/hearthroom/cli/releases/latest"
+const releasesLatest = "https://github.com/hearthroom/cli/releases/latest"
 
 func init() {
 	extraCommands = append(extraCommands, func(a *App) []*cobra.Command { return []*cobra.Command{a.upgradeCommand()} })
-}
-
-type release struct {
-	TagName string `json:"tag_name"`
-	Assets  []struct {
-		Name string `json:"name"`
-		URL  string `json:"browser_download_url"`
-	} `json:"assets"`
 }
 
 func (a *App) upgradeCommand() *cobra.Command {
@@ -61,22 +53,11 @@ manager's upgrade command instead; this command will tell you when it notices.`,
 				return output.Exitf(2, "installed with Scoop; run `scoop update hearthroom`")
 			}
 			hc := &http.Client{Timeout: 5 * time.Minute}
-			req, _ := http.NewRequestWithContext(cmd.Context(), http.MethodGet, releasesAPI, nil)
-			req.Header.Set("Accept", "application/vnd.github+json")
-			req.Header.Set("User-Agent", a.userAgent())
-			resp, err := hc.Do(req)
+			tag, err := latestTag(cmd.Context(), a.userAgent())
 			if err != nil {
 				return fmt.Errorf("check releases: %w", err)
 			}
-			defer resp.Body.Close()
-			if resp.StatusCode != 200 {
-				return fmt.Errorf("check releases: GitHub returned %d", resp.StatusCode)
-			}
-			var rel release
-			if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
-				return err
-			}
-			latest := strings.TrimPrefix(rel.TagName, "v")
+			latest := strings.TrimPrefix(tag, "v")
 			current := strings.TrimPrefix(a.Info.Version, "v")
 			if a.Out.JSON && check {
 				return a.Out.JSONValue(map[string]any{"current": current, "latest": latest, "upToDate": latest == current})
@@ -97,18 +78,8 @@ manager's upgrade command instead; this command will tell you when it notices.`,
 				ext = "zip"
 			}
 			want := fmt.Sprintf("hearthroom_%s_%s_%s.%s", latest, runtime.GOOS, runtime.GOARCH, ext)
-			var assetURL, sumsURL string
-			for _, as := range rel.Assets {
-				switch as.Name {
-				case want:
-					assetURL = as.URL
-				case "checksums.txt":
-					sumsURL = as.URL
-				}
-			}
-			if assetURL == "" || sumsURL == "" {
-				return fmt.Errorf("release %s has no asset for %s/%s", rel.TagName, runtime.GOOS, runtime.GOARCH)
-			}
+			base := "https://github.com/hearthroom/cli/releases/download/" + tag + "/"
+			assetURL, sumsURL := base+want, base+"checksums.txt"
 			a.Out.Note("Downloading %s…", want)
 			archive, err := fetch(hc, assetURL, a.userAgent())
 			if err != nil {
@@ -139,6 +110,24 @@ manager's upgrade command instead; this command will tell you when it notices.`,
 	return c
 }
 
+// latestTag follows the releases/latest redirect; no GitHub API, no rate limit.
+func latestTag(ctx context.Context, ua string) (string, error) {
+	hc := &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, releasesLatest, nil)
+	req.Header.Set("User-Agent", ua)
+	resp, err := hc.Do(req)
+	if err != nil {
+		return "", err
+	}
+	resp.Body.Close()
+	loc := resp.Header.Get("Location")
+	i := strings.LastIndex(loc, "/tag/")
+	if resp.StatusCode/100 != 3 || i < 0 {
+		return "", fmt.Errorf("no release found (GitHub returned %d)", resp.StatusCode)
+	}
+	return loc[i+len("/tag/"):], nil
+}
+
 func fetch(hc *http.Client, url, ua string) ([]byte, error) {
 	req, _ := http.NewRequest(http.MethodGet, url, nil)
 	req.Header.Set("User-Agent", ua)
@@ -147,6 +136,9 @@ func fetch(hc *http.Client, url, ua string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 404 {
+		return nil, fmt.Errorf("the release has no asset at %s (no build for this platform?)", url)
+	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("download %s: %d", url, resp.StatusCode)
 	}

@@ -70,11 +70,30 @@ func RedirectURIs() []string {
 	return out
 }
 
-// EnsureClient returns the registered client for the API base, registering
-// one when the config has none or the stored one requests different scopes
-// or redirect URIs.
+// KnownClients maps an API base to a client id the provider's operator
+// created for this CLI under the community's application, so tokens share
+// the same data namespace as the web editor. A dynamically registered client
+// lands in the provider's open tenant and cannot see cards made on the site.
+// The entry is a public client (PKCE, no secret) and only ever redirects to
+// the fixed loopback ports, so publishing it here is safe.
+var KnownClients = map[string]string{}
+
+// EnsureClient returns the client to use for the API base: a stored one that
+// still matches, then a known first-party client, then a fresh dynamic
+// registration.
 func EnsureClient(ctx context.Context, c *api.Client, store *config.Store, cfg *config.Config, d Discovery) (config.ClientReg, error) {
 	want := RedirectURIs()
+	if reg, ok := cfg.Clients[c.API]; ok && reg.ClientID != "" && reg.Scope == Scopes && equalStrings(reg.RedirectURIs, want) && !reg.Dynamic {
+		return reg, nil
+	}
+	if id, ok := KnownClients[c.API]; ok && id != "" {
+		reg := config.ClientReg{ClientID: id, RedirectURIs: want, Scope: Scopes}
+		if cfg.Clients == nil {
+			cfg.Clients = map[string]config.ClientReg{}
+		}
+		cfg.Clients[c.API] = reg
+		return reg, store.SaveConfig(*cfg)
+	}
 	if reg, ok := cfg.Clients[c.API]; ok && reg.ClientID != "" && reg.Scope == Scopes && equalStrings(reg.RedirectURIs, want) {
 		return reg, nil
 	}
@@ -98,7 +117,7 @@ func EnsureClient(ctx context.Context, c *api.Client, store *config.Store, cfg *
 	if resp.ClientID == "" {
 		return config.ClientReg{}, errors.New("register client: no client_id in response")
 	}
-	reg := config.ClientReg{ClientID: resp.ClientID, RedirectURIs: want, Scope: Scopes}
+	reg := config.ClientReg{ClientID: resp.ClientID, RedirectURIs: want, Scope: Scopes, Dynamic: true}
 	if cfg.Clients == nil {
 		cfg.Clients = map[string]config.ClientReg{}
 	}

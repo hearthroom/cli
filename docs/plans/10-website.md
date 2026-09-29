@@ -89,6 +89,12 @@ commands, bold white headline lines, grey secondary, green/red status. The
 tight tracking and 800 weight are Latin choices; CJK headings on this site use
 normal tracking, weight 700 and a looser line-height.
 
+Bands, as on gh: the header, hero and terminal sit on a fixed near-black
+band; the light radiates outward from behind the terminal window (a lamp
+behind the window, not a wash over the hero); the headline, reasons, install
+card and footer sit on a fixed white band. The landing therefore hides the
+mode toggle; manual and guide pages keep it.
+
 ## Packages
 
 - Homebrew: `hearthroom/homebrew-tap`, cask `hearthroom` (binary plus shell

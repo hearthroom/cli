@@ -1,0 +1,77 @@
+---
+/**
+ * The one animated terminal on the landing page. Scene 1 is rendered on the
+ * server so the page reads without JavaScript and under prefers-reduced-motion;
+ * the script cycles through the scenes: type the command, print the output
+ * line by line, hold, clear, next. Pauses when hidden or scrolled away.
+ */
+import { heroScenes } from "../demos";
+import { t, type Locale } from "../i18n";
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const s = t(locale);
+const scenes = heroScenes.map((sc) => ({ ...sc, desc: s.scenes[sc.key] }));
+const first = scenes[0];
+const longest = Math.max(...scenes.map((sc) => sc.out.length + 1));
+---
+<section class="demo" aria-label="Demo">
+  <h2 class="scene-cmd"><span class="p">$</span> <span id="scene-cmd">{first.cmd}</span></h2>
+  <p class="scene-desc" id="scene-desc">{first.desc}</p>
+  <div class="term term-hero" style={`--rows:${longest}`}>
+    <div class="term-bar">
+      <span class="dots"><i></i><i></i><i></i></span>
+      <button class="copy" type="button" id="term-pause" aria-pressed="false" data-pause={s.terminal.pause} data-play={s.terminal.play}>{s.terminal.pause}</button>
+    </div>
+    <pre aria-live="off"><code id="term-body"><span class="p">$ </span><span class="typed">{first.cmd}</span>{"\n"}{first.out.map((l) => <><span class="o">{l}</span>{"\n"}</>)}</code></pre>
+  </div>
+  <p class="all"><a href="/manual/">{s.terminal.all} →</a></p>
+</section>
+<script is:inline define:vars={{ scenes }}>
+  (function () {
+    var body = document.getElementById("term-body");
+    var cmdEl = document.getElementById("scene-cmd");
+    var descEl = document.getElementById("scene-desc");
+    var btn = document.getElementById("term-pause");
+    if (!body || !btn) return;
+    var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var paused = reduced, visible = true, i = 0, timer = null, gen = 0;
+    function setLabel() { btn.textContent = paused ? btn.dataset.play : btn.dataset.pause; btn.setAttribute("aria-pressed", String(paused)); }
+    setLabel();
+    if (reduced) return; // static scene 1; nothing cycles
+    var esc = function (t) { return t.replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); };
+    var wait = function (ms, g) { return new Promise(function (r) { timer = setTimeout(function () { if (g === gen) r(); }, ms); }); };
+    async function run(g) {
+      while (g === gen) {
+        while (paused || !visible) { await wait(250, g); if (g !== gen) return; }
+        var sc = scenes[i];
+        cmdEl.textContent = sc.cmd; descEl.textContent = sc.desc;
+        body.innerHTML = '<span class="p">$ </span><span class="typed"></span><span class="cursor"></span>';
+        var typed = body.querySelector(".typed");
+        for (var c = 0; c < sc.cmd.length; c++) {
+          while (paused || !visible) { await wait(250, g); if (g !== gen) return; }
+          typed.textContent = sc.cmd.slice(0, c + 1);
+          await wait(28 + Math.random() * 22, g); if (g !== gen) return;
+        }
+        await wait(350, g); if (g !== gen) return;
+        body.querySelector(".cursor").remove();
+        body.insertAdjacentHTML("beforeend", "\n");
+        for (var k = 0; k < sc.out.length; k++) {
+          while (paused || !visible) { await wait(250, g); if (g !== gen) return; }
+          body.insertAdjacentHTML("beforeend", '<span class="o">' + esc(sc.out[k]) + "</span>\n");
+          await wait(k === 0 ? 260 : 70 + Math.random() * 60, g); if (g !== gen) return;
+        }
+        await wait(3600, g); if (g !== gen) return;
+        i = (i + 1) % scenes.length;
+      }
+    }
+    btn.addEventListener("click", function () { paused = !paused; setLabel(); });
+    document.addEventListener("visibilitychange", function () { visible = !document.hidden && inView; });
+    var inView = true;
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (es) { inView = es[0].isIntersecting; visible = inView && !document.hidden; }, { threshold: 0 }).observe(body);
+    }
+    // Start on the second scene so the static first one is not retyped at once.
+    i = 1;
+    setTimeout(function () { run(++gen); }, 2200);
+  })();
+</script>

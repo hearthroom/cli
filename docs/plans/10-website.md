@@ -7,6 +7,35 @@ this" to a working `hearthroom` in one screen, and gives both people and AI
 agents the complete manual. Served on `cli.hearthroom.club`,
 `cli.sukisuki.ai` and `cli.sukisuki.chat`.
 
+## Who this is for, and what that does to the page
+
+The people who reach this page are (1) authors who already run a coding
+agent and want to hand it the tool, (2) authors comfortable in a terminal,
+and (3) agents themselves, which arrive through `llms.txt`. The first two
+decide in seconds; the third needs everything and reads Markdown.
+
+So the site has two densities from one source. The HTML landing is sparse:
+about the same word count as cli.github.com (one hero line, one install
+control, one animated demo, three one-sentence reasons). The `.md` twins
+and `llms-full.txt` are complete. Nothing is written twice; the guides and
+manual hold every detail that was cut from the landing.
+
+Copy rules for the landing, applied line by line: one job per block, one
+sentence per block, the reader's action before the feature, no numbers
+(limits and counts live in the manual), no adjective that does not change
+the install decision, and one link per block to the page that goes deeper.
+
+Level 1 (landing): hero, install control with the agent handoff line, the
+animated terminal cycling six commands with a one-line description each,
+three reasons with links, install again, footer.
+Level 2 (guides): installing, the card folder format, trial cards versus
+real cards, using it with agents. Level 3 (manual): every command, generated.
+
+Demo data is invented (cards, authors, ids), never a real account or card.
+The search transcript follows the interface language because the board is
+split into language zones; the rest of the terminal is English because the
+CLI speaks English.
+
 ## Information architecture (after cli.github.com)
 
 | Section | Content | Source |

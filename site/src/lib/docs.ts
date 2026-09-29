@@ -11,5 +11,5 @@ export function manualBySlug(slug: string) {
 
 const guideFiles = import.meta.glob<MarkdownInstance<{ title: string }>>("../content/guides/*.md", { eager: true });
 export const guides = Object.entries(guideFiles).map(([file, mod]) => ({ slug: file.split("/").pop()!.replace(/\.md$/, ""), mod }));
-export const guideOrder = ["install", "card-folder", "agents"];
+export const guideOrder = ["install", "card-folder", "trial-cards", "agents"];
 export const guidesSorted = [...guides].sort((a, b) => guideOrder.indexOf(a.slug) - guideOrder.indexOf(b.slug));

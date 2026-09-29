@@ -1,0 +1,12 @@
+---
+import DocShell from "../../components/DocShell.astro";
+import { manualPages } from "../../lib/docs";
+export function getStaticPaths() {
+  return manualPages.filter((m) => m.frontmatter.slug !== "hearthroom").map((m) => ({ params: { slug: m.frontmatter.slug }, props: { page: m } }));
+}
+const { page } = Astro.props;
+const { Content, frontmatter } = page;
+---
+<DocShell title={frontmatter.command} description={frontmatter.short} path={`/manual/${frontmatter.slug}/`} markdown={`/manual/${frontmatter.slug}.md`} section="manual" current={`manual/${frontmatter.slug}`}>
+  <Content />
+</DocShell>

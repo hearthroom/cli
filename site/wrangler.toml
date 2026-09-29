@@ -1,0 +1,17 @@
+name = "hearthroom-cli-site"
+compatibility_date = "2026-09-01"
+
+# The main Hearthroom Worker owns the wildcard routes (*.hearthroom.club/*,
+# *.sukisuki.ai/*, *.sukisuki.chat/*). A more specific route wins, so the CLI
+# site takes exactly these three hosts; custom_domain cannot coexist with the
+# wildcards. The proxied wildcard DNS records already exist.
+routes = [
+  { pattern = "cli.hearthroom.club/*", zone_name = "hearthroom.club" },
+  { pattern = "cli.sukisuki.ai/*", zone_name = "sukisuki.ai" },
+  { pattern = "cli.sukisuki.chat/*", zone_name = "sukisuki.chat" },
+]
+
+[assets]
+directory = "./dist"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"

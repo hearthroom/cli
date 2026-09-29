@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://cli.hearthroom.club/sitemap-index.xml

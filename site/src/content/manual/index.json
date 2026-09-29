@@ -1,0 +1,248 @@
+[
+  {
+    "slug": "auth",
+    "command": "hearthroom auth",
+    "short": "Sign in to the connected card provider",
+    "parent": "hearthroom",
+    "children": [
+      "auth/login",
+      "auth/logout",
+      "auth/status"
+    ]
+  },
+  {
+    "slug": "auth/login",
+    "command": "hearthroom auth login",
+    "short": "Sign in with your browser (OAuth with PKCE)",
+    "parent": "auth"
+  },
+  {
+    "slug": "auth/logout",
+    "command": "hearthroom auth logout",
+    "short": "Forget the stored sign-in for this provider",
+    "parent": "auth"
+  },
+  {
+    "slug": "auth/status",
+    "command": "hearthroom auth status",
+    "short": "Show who you are signed in as",
+    "parent": "auth"
+  },
+  {
+    "slug": "author",
+    "command": "hearthroom author",
+    "short": "Show a community author",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "card",
+    "command": "hearthroom card",
+    "short": "Work with card folders: init, push, validate, pull, import, list",
+    "parent": "hearthroom",
+    "children": [
+      "card/import",
+      "card/init",
+      "card/list",
+      "card/pull",
+      "card/push",
+      "card/status",
+      "card/validate",
+      "card/view"
+    ]
+  },
+  {
+    "slug": "card/import",
+    "command": "hearthroom card import",
+    "short": "Convert a SillyTavern PNG/JSON/CHARX card or an MMD file set into a card folder",
+    "parent": "card"
+  },
+  {
+    "slug": "card/init",
+    "command": "hearthroom card init",
+    "short": "Create a new card folder",
+    "parent": "card"
+  },
+  {
+    "slug": "card/list",
+    "command": "hearthroom card list",
+    "short": "List your cards on the provider",
+    "parent": "card"
+  },
+  {
+    "slug": "card/pull",
+    "command": "hearthroom card pull",
+    "short": "Write one of your cards to a folder",
+    "parent": "card"
+  },
+  {
+    "slug": "card/push",
+    "command": "hearthroom card push",
+    "short": "Sync the folder to the provider (a private trial card by default)",
+    "parent": "card"
+  },
+  {
+    "slug": "card/status",
+    "command": "hearthroom card status",
+    "short": "Show what a folder is linked to and which sections changed",
+    "parent": "card"
+  },
+  {
+    "slug": "card/validate",
+    "command": "hearthroom card validate",
+    "short": "Show the provider's pre-publish validation for the pushed card",
+    "parent": "card"
+  },
+  {
+    "slug": "card/view",
+    "command": "hearthroom card view",
+    "short": "Show a community card",
+    "parent": "card"
+  },
+  {
+    "slug": "completion",
+    "command": "hearthroom completion",
+    "short": "Shell completion: install, uninstall, or print the script",
+    "parent": "hearthroom",
+    "children": [
+      "completion/bash",
+      "completion/fish",
+      "completion/install",
+      "completion/powershell",
+      "completion/uninstall",
+      "completion/zsh"
+    ]
+  },
+  {
+    "slug": "completion/bash",
+    "command": "hearthroom completion bash",
+    "short": "Generate the autocompletion script for bash",
+    "parent": "completion"
+  },
+  {
+    "slug": "completion/fish",
+    "command": "hearthroom completion fish",
+    "short": "Generate the autocompletion script for fish",
+    "parent": "completion"
+  },
+  {
+    "slug": "completion/install",
+    "command": "hearthroom completion install",
+    "short": "Set up tab completion for your shell",
+    "parent": "completion"
+  },
+  {
+    "slug": "completion/powershell",
+    "command": "hearthroom completion powershell",
+    "short": "Generate the autocompletion script for powershell",
+    "parent": "completion"
+  },
+  {
+    "slug": "completion/uninstall",
+    "command": "hearthroom completion uninstall",
+    "short": "Remove the completion files and rc block written by install",
+    "parent": "completion"
+  },
+  {
+    "slug": "completion/zsh",
+    "command": "hearthroom completion zsh",
+    "short": "Generate the autocompletion script for zsh",
+    "parent": "completion"
+  },
+  {
+    "slug": "hearthroom",
+    "command": "hearthroom",
+    "short": "Write, push, validate and import character cards for Hearthroom",
+    "children": [
+      "auth",
+      "author",
+      "card",
+      "completion",
+      "media",
+      "models",
+      "play",
+      "search",
+      "tags",
+      "upgrade",
+      "version",
+      "wallet",
+      "whoami"
+    ]
+  },
+  {
+    "slug": "media",
+    "command": "hearthroom media",
+    "short": "Upload and list files in your media library",
+    "parent": "hearthroom",
+    "children": [
+      "media/ls",
+      "media/rm",
+      "media/upload"
+    ]
+  },
+  {
+    "slug": "media/ls",
+    "command": "hearthroom media ls",
+    "short": "List files in your media library",
+    "parent": "media"
+  },
+  {
+    "slug": "media/rm",
+    "command": "hearthroom media rm",
+    "short": "Delete files from your media library by id (see `media ls`)",
+    "parent": "media"
+  },
+  {
+    "slug": "media/upload",
+    "command": "hearthroom media upload",
+    "short": "Upload files to your media library",
+    "parent": "media"
+  },
+  {
+    "slug": "models",
+    "command": "hearthroom models",
+    "short": "List models the provider offers",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "play",
+    "command": "hearthroom play",
+    "short": "Talk to a card from the terminal (experimental)",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "search",
+    "command": "hearthroom search",
+    "short": "Browse or search the community board (no sign-in needed)",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "tags",
+    "command": "hearthroom tags",
+    "short": "List community tags",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "upgrade",
+    "command": "hearthroom upgrade",
+    "short": "Update hearthroom to the latest release",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "version",
+    "command": "hearthroom version",
+    "short": "Print the version",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "wallet",
+    "command": "hearthroom wallet",
+    "short": "Show your credit balance and plans",
+    "parent": "hearthroom"
+  },
+  {
+    "slug": "whoami",
+    "command": "hearthroom whoami",
+    "short": "Show the signed-in account on the provider and the community site",
+    "parent": "hearthroom"
+  }
+]

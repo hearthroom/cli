@@ -1,0 +1,20 @@
+{
+  "name": "hearthroom-cli-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "deploy": "sh scripts/deploy.sh"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.3.2"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11",
+    "wrangler": "^4"
+  }
+}

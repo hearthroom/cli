@@ -7,22 +7,27 @@ interface Props { locale: Locale; version: string }
 const { locale, version } = Astro.props;
 const s = t(locale);
 ---
-<Base title="Hearthroom CLI" description={`${s.hero.title} ${s.hero.lead}`} locale={locale} markdown="/index.md" path={localePath(locale, "/")} section="home">
+<Base title="Hearthroom CLI" description={`${s.hero.title}. ${s.hero.lead}`} locale={locale} markdown="/index.md" path={localePath(locale, "/")} section="home">
   <section class="hero">
     <h1>{s.hero.title}</h1>
     <p class="lead">{s.hero.lead}</p>
-    <Install locale={locale} version={version} />
+    <Install locale={locale} version={version} agent />
   </section>
 
   <HeroTerminal locale={locale} />
 
-  <section class="props">
-    {s.props.map((p) => <div class="prop"><h3>{p.title}</h3><p>{p.text}</p><a href={p.href}>{p.link} →</a></div>)}
+  <section class="why">
+    <h2>{s.headline}</h2>
+    <div class="props">
+      {s.props.map((p) => <div class="prop"><h3>{p.title}</h3><p>{p.text}</p><a href={p.href} rel={p.href.startsWith("http") ? "noopener" : undefined}>{p.link} →</a></div>)}
+    </div>
   </section>
 
   <section class="again">
-    <h2>{s.again.title}</h2>
-    <p>{s.again.text}</p>
-    <Install locale={locale} version={version} id="install-again" />
+    <div class="again-card">
+      <h2>{s.again.title}</h2>
+      <p>{s.again.text}</p>
+      <Install locale={locale} version={version} id="install-again" />
+    </div>
   </section>
 </Base>

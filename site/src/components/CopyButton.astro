@@ -1,0 +1,14 @@
+---
+/**
+ * A copy button with an icon, as on cli.github.com. The handler in Base.astro
+ * swaps the label and shows the check for a moment. `min-width` keeps the
+ * button the same size while the label changes.
+ */
+interface Props { text: string; label: string; copied: string; class?: string }
+const { text, label, copied, class: cls = "" } = Astro.props;
+---
+<button type="button" class={`copy-btn ${cls}`} data-copy={text} data-copied={copied} data-label={label}>
+  <span class="copy-label">{label}</span>
+  <svg class="ic ic-copy" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M5.5 1A1.5 1.5 0 0 0 4 2.5V4H2.5A1.5 1.5 0 0 0 1 5.5v8A1.5 1.5 0 0 0 2.5 15h8a1.5 1.5 0 0 0 1.5-1.5V12h1.5a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 13.5 1h-8ZM12 10.5h1.5V2.5h-8V4h5A1.5 1.5 0 0 1 12 5.5v5Zm-9.5-5h8v8h-8v-8Z"/></svg>
+  <svg class="ic ic-check" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+</button>

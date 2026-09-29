@@ -18,15 +18,22 @@ title: Hearthroom CLI
 
 ## Install
 
-macOS and Linux:
+macOS (Homebrew):
+
+```sh
+brew install hearthroom/tap/hearthroom
+```
+
+macOS and Linux (shell script):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/hearthroom/cli/main/install.sh | sh
 ```
 
-Windows (PowerShell):
+Windows (Scoop, or the PowerShell script):
 
 ```powershell
+scoop bucket add hearthroom https://github.com/hearthroom/scoop-bucket; scoop install hearthroom
 irm https://raw.githubusercontent.com/hearthroom/cli/main/install.ps1 | iex
 ```
 

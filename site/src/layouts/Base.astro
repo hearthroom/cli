@@ -1,6 +1,6 @@
 ---
 import "../styles/site.css";
-import { LOCALES, t, type Locale, localePath } from "../i18n";
+import { LOCALES, LANG_NAMES, t, type Locale, localePath } from "../i18n";
 
 interface Props {
   title: string;
@@ -13,9 +13,12 @@ interface Props {
   section?: "home" | "manual" | "guides";
 }
 const { title, description, locale = "en", markdown, path, section } = Astro.props;
-const canonical = new URL(path, "https://cli.hearthroom.club").href;
+const site = "https://cli.hearthroom.club";
+const canonical = new URL(path, site).href;
 const s = t(locale);
-const langNames: Record<Locale, string> = { en: "English", "zh-Hant": "繁體中文", "zh-Hans": "简体中文", ja: "日本語", ko: "한국어" };
+// The landing exists in every locale; other pages are English only.
+const localized = section === "home";
+const basePath = path.replace(/^\/(zh-Hant|zh-Hans|ja|ko)(?=\/)/, "");
 ---
 <!doctype html>
 <html lang={locale} data-mode="light">
@@ -25,6 +28,8 @@ const langNames: Record<Locale, string> = { en: "English", "zh-Hant": "繁體中
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={canonical} />
+    {localized && LOCALES.map((l) => <link rel="alternate" hreflang={l} href={new URL(localePath(l, basePath), site).href} />)}
+    {localized && <link rel="alternate" hreflang="x-default" href={new URL(basePath, site).href} />}
     <link rel="icon" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     {markdown && <link rel="alternate" type="text/markdown" href={markdown} title="Markdown" />}
@@ -41,6 +46,28 @@ const langNames: Record<Locale, string> = { en: "English", "zh-Hant": "繁體中
         document.documentElement.dataset.mode = m;
       })();
     </script>
+    {path === "/" && (
+      // First visit to the English landing: follow the browser language, with
+      // English as the fallback. A language the visitor picked in the menu is
+      // stored and wins. Agents and crawlers run no script and stay on "/".
+      <script is:inline>
+        (function () {
+          var pick = null;
+          try { pick = localStorage.getItem("lang"); } catch (e) {}
+          if (!pick) {
+            var ls = navigator.languages || [navigator.language || ""];
+            for (var i = 0; i < ls.length && !pick; i++) {
+              var l = String(ls[i]).toLowerCase();
+              if (l.indexOf("zh") === 0) pick = /hant|tw|hk|mo/.test(l) ? "zh-Hant" : "zh-Hans";
+              else if (l.indexOf("ja") === 0) pick = "ja";
+              else if (l.indexOf("ko") === 0) pick = "ko";
+              else if (l.indexOf("en") === 0) pick = "en";
+            }
+          }
+          if (pick && pick !== "en" && /^(zh-Hant|zh-Hans|ja|ko)$/.test(pick)) location.replace("/" + pick + "/" + location.search + location.hash);
+        })();
+      </script>
+    )}
   </head>
   <body>
     <a class="skip" href="#main">{s.skip}</a>
@@ -50,18 +77,22 @@ const langNames: Record<Locale, string> = { en: "English", "zh-Hant": "繁體中
         <nav class="nav" aria-label={s.navLabel}>
           <a href="/manual/" aria-current={section === "manual" ? "page" : undefined}>{s.nav.manual}</a>
           <a href="/guides/install/" aria-current={section === "guides" ? "page" : undefined}>{s.nav.guides}</a>
-          <a class="ext" href="https://github.com/hearthroom/cli/releases" rel="noopener">{s.nav.releases}</a>
-          <a class="ext" href="https://github.com/hearthroom/cli" rel="noopener">GitHub</a>
-          <div class="ctl">
-            <select id="lang" aria-label={s.language}>
-              {LOCALES.map((l) => <option value={l} selected={l === locale}>{langNames[l]}</option>)}
-            </select>
-            <button id="mode" type="button" aria-label={s.theme}>◐</button>
-          </div>
+          <a href="https://github.com/hearthroom/cli/releases" rel="noopener">{s.nav.releases}</a>
+          <a href="https://github.com/hearthroom/cli" rel="noopener">GitHub</a>
+          <details class="menu lang-menu">
+            <summary aria-label={s.language}><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M1.75 8h12.5M8 1.75c2.2 2.1 2.2 10.4 0 12.5M8 1.75c-2.2 2.1-2.2 10.4 0 12.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>{LANG_NAMES[locale]}</span><svg class="caret" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M4 6h8l-4 4.5z"/></svg></summary>
+            <ul>
+              {LOCALES.map((l) => <li><a href={localized ? localePath(l, basePath) : localePath(l, "/")} hreflang={l} lang={l} data-lang={l} aria-current={l === locale ? "true" : undefined}>{LANG_NAMES[l]}</a></li>)}
+            </ul>
+          </details>
+          <button id="mode" type="button" aria-label={s.theme}>
+            <svg class="ic-sun" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.4 1.4M11.55 11.55l1.4 1.4M3.05 12.95l1.4-1.4M11.55 4.45l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <svg class="ic-moon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M9.6 1.6a.75.75 0 0 1 .8-.2 7 7 0 1 1-8.9 8.9.75.75 0 0 1 .95-.95A5.5 5.5 0 0 0 9.4 2.4a.75.75 0 0 1 .2-.8Z"/></svg>
+          </button>
         </nav>
       </div>
     </header>
-    <main id="main" class="wrap">
+    <main id="main">
       <slot />
     </main>
     <footer class="site-footer">
@@ -75,34 +106,30 @@ const langNames: Record<Locale, string> = { en: "English", "zh-Hant": "繁體中
         {markdown && <a href={markdown} class="md-link">{s.viewMarkdown}</a>}
       </div>
     </footer>
-    <script is:inline define:vars={{ path, locale }}>
+    <script is:inline>
       document.getElementById("mode").addEventListener("click", function () {
         var next = document.documentElement.dataset.mode === "dark" ? "light" : "dark";
         document.documentElement.dataset.mode = next;
         try { localStorage.setItem("mode", next); } catch (e) {}
       });
-      document.getElementById("lang").addEventListener("change", function (e) {
-        var l = e.target.value;
-        var p = path.replace(/^\/(zh-Hant|zh-Hans|ja|ko)(?=\/)/, "");
-        if (p.indexOf("/manual") === 0) { location.href = p; return; }
-        location.href = l === "en" ? p : "/" + l + p;
+      // A language chosen here is remembered, so "/" stops redirecting away from it.
+      document.querySelectorAll("[data-lang]").forEach(function (a) {
+        a.addEventListener("click", function () { try { localStorage.setItem("lang", a.dataset.lang); } catch (e) {} });
       });
+      // Menus: one open at a time; Escape and clicks outside close them.
+      var menus = document.querySelectorAll("details.menu");
+      menus.forEach(function (m) {
+        m.addEventListener("toggle", function () { if (m.open) menus.forEach(function (o) { if (o !== m) o.open = false; }); });
+      });
+      document.addEventListener("click", function (e) { menus.forEach(function (m) { if (m.open && !m.contains(e.target)) m.open = false; }); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") menus.forEach(function (m) { m.open = false; }); });
       document.querySelectorAll("[data-copy]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          var text = btn.getAttribute("data-copy");
-          navigator.clipboard.writeText(text).then(function () {
-            var old = btn.textContent; btn.textContent = btn.getAttribute("data-copied") || "✓";
-            setTimeout(function () { btn.textContent = old; }, 1200);
-          });
-        });
-      });
-      document.querySelectorAll("[role=tablist]").forEach(function (list) {
-        var tabs = list.querySelectorAll("[role=tab]");
-        tabs.forEach(function (tab) {
-          tab.addEventListener("click", function () {
-            tabs.forEach(function (t) { t.setAttribute("aria-selected", "false"); document.getElementById(t.getAttribute("aria-controls")).hidden = true; });
-            tab.setAttribute("aria-selected", "true");
-            document.getElementById(tab.getAttribute("aria-controls")).hidden = false;
+          navigator.clipboard.writeText(btn.getAttribute("data-copy")).then(function () {
+            var label = btn.querySelector(".copy-label");
+            btn.classList.add("is-copied");
+            if (label) label.textContent = btn.getAttribute("data-copied");
+            setTimeout(function () { btn.classList.remove("is-copied"); if (label) label.textContent = btn.getAttribute("data-label"); }, 1500);
           });
         });
       });

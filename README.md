@@ -15,7 +15,7 @@
 
 `hearthroom` is the command-line client for [Hearthroom](https://hearthroom.club), the open community for AI character cards. A card is a folder of plain files. You edit it with any editor or any coding agent, push it to a private trial card to play it, validate it against the provider's rules, and browse the community, without leaving the shell.
 
-If you want the web editor, use [hearthroom.club](https://hearthroom.club). If you want an AI chat client to author cards through MCP, the connected provider offers that too. The CLI is for people and agents who already have a terminal.
+If you want the web editor, use [hearthroom.club](https://hearthroom.club). The CLI is for people and agents who already have a terminal.
 
 ## Install
 

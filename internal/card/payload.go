@@ -323,6 +323,9 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 			})
 		}
 		f.Lorebook = lb
+		for _, e := range entries {
+			f.State.LorebookEntryIDs = append(f.State.LorebookEntryIDs, e.EntryID)
+		}
 	}
 	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic") {
 		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat}

@@ -181,6 +181,12 @@ func TestOwnedPushCreatesAndUpdates(t *testing.T) {
 		t.Fatalf("ids not learned: book=%q entry=%q version=%d", f.Lorebook.ID, f.Lorebook.Entries[0].ID, f.State.AuthorAssetVersion)
 	}
 
+	// An entry written by another tool must survive the CLI's pushes.
+	foreign := map[string]any{"entries": []map[string]any{{"op": "create", "name": "Foreign", "content": "Written elsewhere.", "keywords": []string{"foreign"}}}}
+	if err := e.client.OpenPost(ctx, "/worldbook/"+f.State.LorebookID+"/document", foreign, nil); err != nil {
+		t.Fatalf("create foreign entry: %v", err)
+	}
+
 	// Remove one entry, edit another, push: update + delete, no duplicates.
 	f.Lorebook.Entries = f.Lorebook.Entries[:1]
 	f.Lorebook.Entries[0].Content = "A busy harbor."
@@ -208,7 +214,11 @@ func TestOwnedPushCreatesAndUpdates(t *testing.T) {
 	if err := e.client.OpenGet(ctx, "/worldbook/entry/list", map[string][]string{"worldbookId": {f.State.LorebookID}}, &entries); err != nil {
 		t.Fatal(err)
 	}
-	if len(entries.Entries) != 1 || entries.Entries[0].Content != "A busy harbor." {
+	byName := map[string]string{}
+	for _, en := range entries.Entries {
+		byName[en.Name] = en.Content
+	}
+	if len(entries.Entries) != 2 || byName["Harbor"] != "A busy harbor." || byName["Foreign"] != "Written elsewhere." || byName["Lamp"] != "" {
 		t.Fatalf("remote entries after push: %+v", entries.Entries)
 	}
 	var asset card.RemoteAsset

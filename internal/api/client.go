@@ -35,7 +35,7 @@ const (
 // Client talks to one provider API base and one community site.
 type Client struct {
 	API       string // e.g. https://api.harperharbor.com (no trailing slash)
-	Site      string // e.g. https://hearthroom.club
+	Site      string // e.g. https://sukisuki.ai
 	UserAgent string
 	Token     TokenSource
 	HTTP      *http.Client

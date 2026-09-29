@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	// DefaultSite is the community site.
-	DefaultSite = "https://hearthroom.club"
+	// DefaultSite is the community site: its primary domain (hearthroom.club and
+	// sukisuki.chat serve the same site). Override with --site or HEARTHROOM_SITE.
+	DefaultSite = "https://sukisuki.ai"
 	// DefaultAPI is the API base of the provider the community site lists as
 	// its default ("harbor"). Override with --api or HEARTHROOM_API.
 	DefaultAPI = "https://api.harperharbor.com"

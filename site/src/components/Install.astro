@@ -1,0 +1,27 @@
+---
+import Terminal from "./Terminal.astro";
+import { t, type Locale } from "../i18n";
+interface Props { locale: Locale; version: string }
+const { locale, version } = Astro.props;
+const s = t(locale).install;
+const sh = "curl -fsSL https://raw.githubusercontent.com/hearthroom/cli/main/install.sh | sh";
+const ps = "irm https://raw.githubusercontent.com/hearthroom/cli/main/install.ps1 | iex";
+const tabs = [
+  { id: "mac", label: s.mac, lines: [`$ ${sh}`, `Downloading hearthroom ${version} for darwin/arm64...`, `Installed ~/.local/bin/hearthroom`, `Updated ~/.zshrc`], copy: sh },
+  { id: "linux", label: s.linux, lines: [`$ ${sh}`, `Downloading hearthroom ${version} for linux/amd64...`, `Installed ~/.local/bin/hearthroom`, `Wrote ~/.local/share/bash-completion/completions/hearthroom`], copy: sh },
+  { id: "win", label: s.windows, lines: [`$ ${ps}`, `Downloading hearthroom ${version} for windows/amd64...`, `Installed C:\\Users\\you\\AppData\\Local\\Programs\\hearthroom\\hearthroom.exe`], copy: ps },
+];
+---
+<section class="install" id="install">
+  <h2>{s.title}</h2>
+  <div class="tabs" role="tablist">
+    {tabs.map((tab, i) => <button role="tab" id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={i === 0 ? "true" : "false"} type="button">{tab.label}</button>)}
+  </div>
+  {tabs.map((tab, i) => (
+    <div class="panel" id={`panel-${tab.id}`} role="tabpanel" aria-labelledby={`tab-${tab.id}`} hidden={i !== 0}>
+      <Terminal lines={tab.lines} copy={tab.copy} copyLabel={s.copy} copiedLabel={s.copied} />
+      <p class="alt">{s.verify} <a href="https://github.com/hearthroom/cli/releases/latest" rel="noopener">GitHub Releases</a> · <code>{s.upgrade}</code></p>
+    </div>
+  ))}
+  <p class="alt"><code>{s.source}</code></p>
+</section>

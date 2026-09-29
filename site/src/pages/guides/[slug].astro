@@ -1,0 +1,12 @@
+---
+import DocShell from "../../components/DocShell.astro";
+import { guides } from "../../lib/docs";
+export function getStaticPaths() {
+  return guides.map((g) => ({ params: { slug: g.slug }, props: { guide: g } }));
+}
+const { guide } = Astro.props;
+const { Content, frontmatter } = guide.mod;
+---
+<DocShell title={frontmatter.title} path={`/guides/${guide.slug}/`} markdown={`/guides/${guide.slug}.md`} section="guides" current={`guides/${guide.slug}`}>
+  <Content />
+</DocShell>

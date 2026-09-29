@@ -1,0 +1,10 @@
+---
+import DocShell from "../../components/DocShell.astro";
+import { manualBySlug } from "../../lib/docs";
+const page = manualBySlug("hearthroom")!;
+const { Content } = page;
+---
+<DocShell title="Manual" description="Every hearthroom command, generated from the CLI's own help." path="/manual/" markdown="/manual/index.md" section="manual" current="manual/hearthroom">
+  <p class="muted">Generated from the CLI's <code>--help</code> for the latest release; what you read here is what the binary prints.</p>
+  <Content />
+</DocShell>

@@ -1,0 +1,91 @@
+---
+import Base from "../layouts/Base.astro";
+import Terminal from "./Terminal.astro";
+import Install from "./Install.astro";
+import { t, type Locale, localePath } from "../i18n";
+interface Props { locale: Locale; version: string }
+const { locale, version } = Astro.props;
+const s = t(locale);
+// Real transcripts captured against production; not invented output.
+const demos: Record<string, string[]> = {
+  "hearthroom card import": [
+    "$ hearthroom card import mira.png",
+    'Imported chara_card_v3 card "Imported Mira" into Imported-Mira',
+    "  card.json", "  definition.md", "  welcome.md", "  openings/alt-01.md", "  lorebook.json", "  rules.json", "  assets/portrait.png",
+    "  Lorebook entries: 1", "  display rules: 1",
+    "Next: review the folder, then `hearthroom card push Imported-Mira`",
+  ],
+  "hearthroom card push --validate": [
+    "$ hearthroom card push Imported-Mira --validate",
+    "Pushed to new trial card 01a0ec47-6be6-79fa-b74e-2b39aedfdb6f",
+    "  asset assets/portrait.png            uploaded",
+    "  sections sent:      card, welcome, worldbook, authorAsset, media",
+    "  trial expires:      2026-10-02T16:28:18Z",
+    "Play: https://hearthroom.club/play/01a0ec47-6be6-79fa-b74e-2b39aedfdb6f",
+    "Validation: PASS",
+    "Budget (~48 tokens):", "  summary                  25 / 2500", "  definition              120 / 50000", "  opening                  44 / 10000",
+  ],
+  "hearthroom play": [
+    "$ hearthroom play Imported-Mira -m \"Say hello in one short sentence.\" --allow-spend",
+    "\"Hello.\"", "[finished: stop]",
+    "$ hearthroom play Imported-Mira --history --limit 3",
+    "Conversation 01a0ec86-… with Imported Mira (3 messages)", "", "[AI]", "The lamp flickers as you step onto the pier.", "", "[USER]", "Say hello in one short sentence.", "", "[AI]", "\"Hello.\"",
+  ],
+  "hearthroom card pull": [
+    "$ hearthroom card pull 01a0cf49-0de7-7c98-aa17-01658224c26d sakura --download",
+    "Pulled 01a0cf49-0de7-7c98-aa17-01658224c26d into sakura",
+    "  card.json", "  definition.md", "  welcome.md", "  lorebook.json",
+    "$ git -C sakura init -q && git -C sakura add -A",
+  ],
+  "hearthroom search": [
+    "$ hearthroom search --zone all --limit 3",
+    "ID      NAME              AUTHOR    TAGS                    SUMMARY",
+    "100146  末日·進化          hnqgpktp  世界模擬器,高自由度,進化,異變  末日前 1 小時 —— 全球腦內的神秘聲音…",
+    "100075  萬族創世錄        sofjwfup  世界模擬器,角色扮演,獸人,西幻  這是一個沒有「人族」的世界…",
+    "100003  区区小姨，随意拿捏  tktyhzrc  银狼（三创）              香草布朗尼（以银狼二创形象为原型…",
+  ],
+  "hearthroom media rm": [
+    "$ hearthroom media rm 01a0ecb7-1c9a-7b62-abdf-6246fa8c4434",
+    "01a0ecb7-1c9a-7b62-abdf-6246fa8c4434: still used by 1 card(s); change their image first:",
+    "    01a0ecb7-2949-7331-8ef4-e85a9061855a  In-use check",
+  ],
+};
+---
+<Base title="Hearthroom CLI" description={s.hero.lead} locale={locale} markdown="/index.md" path={localePath(locale, "/")} section="home">
+  <section class="hero">
+    <h1>{s.hero.title}</h1>
+    <p class="lead">{s.hero.lead}</p>
+    <div class="cta">
+      <a class="btn primary" href="#install">{s.hero.install}</a>
+      <a class="btn" href="/manual/">{s.hero.manual}</a>
+    </div>
+    <p class="version"><a href="https://github.com/hearthroom/cli/releases/latest" rel="noopener">{s.hero.version(version)}</a></p>
+  </section>
+
+  <Install locale={locale} version={version} />
+
+  <section>
+    <h2>{s.features.title}</h2>
+    <div class="features">
+      {s.features.items.map((f) => (
+        <article class="feature">
+          <div class="text">
+            <code class="cmd">{f.cmd}</code>
+            <h3>{f.title}</h3>
+            <p>{f.text}</p>
+          </div>
+          <Terminal lines={demos[f.cmd]} copyLabel={s.install.copy} copiedLabel={s.install.copied} />
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="props">
+    {s.props.map((p) => <div class="prop"><h3>{p.title}</h3><p>{p.text}</p></div>)}
+  </section>
+
+  <section class="prop" style="margin-bottom:48px">
+    <h3>{s.agents.title}</h3>
+    <p>{s.agents.text} <a href="/guides/agents/">{s.agents.link}</a> · <a href="/llms-full.txt">llms-full.txt</a></p>
+  </section>
+</Base>

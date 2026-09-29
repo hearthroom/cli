@@ -1,0 +1,130 @@
+/*
+ * 設計語彙。
+ *
+ * 內容是立繪加名字，讀者是來挑人聊天的。版面照著成熟的內容社群走：淺底、系統字、
+ * 卡片是白色的一塊、文字放在圖下面而不是壓在圖上——圖歸圖、字歸字，兩邊都乾淨。
+ *
+ * 色彩只有一個強調色，用在主要動作與「現在選的是這個」。名次的金銀銅是慣例色，
+ * 不算品牌色。其餘一律灰階。
+ *
+ * 字體用系統字：中日韓各平台自己的字最協調，網頁字體反而在混排時露餡。
+ *
+ * 深淺色由 <html data-mode="light|dark"> 決定，不直接讀 prefers-color-scheme——
+ * 使用者可以在站上自己選，也可以選「跟著系統」；index.html 的 inline script 在
+ * 第一次繪製前就把屬性寫好，所以不會先閃一下白再變黑。主題（換強調色與氛圍）
+ * 疊在 data-theme 上，見 themes.css；每套主題只覆寫這裡標 [theme] 的那幾個變數。
+ */
+:root {
+  color-scheme: light;
+
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f0f3;
+  --border: #e6e6eb;
+  --border-strong: #d2d2da;
+  /* 髮絲線：半透明的線在任何底色上都對，卡片壓在圖上、面板壓在底上都不會顯得死白 */
+  --line: rgba(16, 16, 24, 0.08);
+  --line-strong: rgba(16, 16, 24, 0.14);
+
+  --text: #17171c;
+  --text-2: #5c5c67;
+  /* 最淡的一階也要過 4.5:1——它承載的是時間、數量這些小字，不是裝飾 */
+  --text-3: #6b6b76;
+
+  /* [theme] 強調色三階：底色、深一階（hover 與漸層下緣）、當文字用的那一階 */
+  --accent: #ef4f6f;
+  --accent-deep: #cf2f52;
+  --accent-text: #c9224d;
+  /* 主要按鈕的填色：--accent 還要撐邊框、焦點環與氛圍，亮到壓不住白字；按鈕用深一點的這階 */
+  --accent-btn: #e6153f;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* 強調色文字要壓在上面的淡底：跟白紙混而不是跟透明混，才夠淡 */
+  --accent-tint: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --on-accent: #ffffff;
+  /* 主要按鈕用一點縱向漸層加頂部高光，平塗的色塊看起來像預設樣式 */
+  --accent-grad: linear-gradient(180deg, var(--accent-btn) 0%, var(--accent-deep) 100%);
+
+  /* [theme] 氛圍層的三團色暈 */
+  --ambient-1: rgba(239, 79, 111, 0.11);
+  --ambient-2: rgba(109, 63, 209, 0.09);
+  --ambient-3: rgba(31, 143, 168, 0.09);
+
+  --gold: #f2b01e;
+  --gold-light: #ffd35c;
+  --gold-dark: #f0a91a;
+  --gold-soft: rgba(242, 176, 30, 0.14);
+  --silver: #a6adb6;
+  --bronze: #cf8d55;
+  --success: #1f9d55;
+  --success-soft: rgba(31, 157, 85, 0.12);
+  --danger: #c22f2b;
+  --on-danger: #ffffff;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "PingFang TC", "Hiragino Sans GB",
+    "Hiragino Sans", "Apple SD Gothic Neo", "Microsoft YaHei", "Yu Gothic UI", "Malgun Gothic",
+    "Noto Sans CJK SC", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 16, 24, 0.06);
+  --shadow-md: 0 12px 32px -8px rgba(16, 16, 24, 0.22), 0 2px 6px rgba(16, 16, 24, 0.05);
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 72px;
+
+  /* 控件只有三種高度：小（列表裡的動作）、中（一般按鈕與輸入框）、大（頁面級的主要動作） */
+  --h-sm: 30px;
+  --h-md: 36px;
+  --h-lg: 44px;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur: 160ms;
+  --dur-slow: 360ms;
+
+  --page: 1200px;
+  --header-h: 60px;
+}
+
+/* 手機頁首矮一截；所有黏在頁首底下的東西（編輯頁的分區列等）都讀這個值，才不會留一道縫。 */
+@media (max-width: 860px) {
+  :root { --header-h: 52px; }
+}
+
+:root[data-mode="dark"] {
+  color-scheme: dark;
+
+  --bg: #101013;
+  --surface: #1a1a1f;
+  --surface-2: #24242b;
+  --border: #2b2b33;
+  --border-strong: #3b3b45;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: #f2f2f5;
+  --text-2: #a8a8b3;
+  --text-3: #8c8c97;
+
+  --accent-text: #ff6f8c;
+
+  --ambient-1: rgba(239, 79, 111, 0.14);
+  --ambient-2: rgba(139, 92, 246, 0.12);
+  --ambient-3: rgba(56, 189, 248, 0.10);
+
+  --gold-soft: rgba(242, 176, 30, 0.18);
+  --success: #3ddc84;
+  --success-soft: rgba(61, 220, 132, 0.16);
+  --danger: #ff6b66;
+  --on-danger: #17171c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+}

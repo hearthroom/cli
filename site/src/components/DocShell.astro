@@ -1,0 +1,34 @@
+---
+import Base from "../layouts/Base.astro";
+import { manualIndex, guidesSorted } from "../lib/docs";
+interface Props { title: string; description?: string; path: string; markdown: string; section: "manual" | "guides"; current: string }
+const { title, description, path, markdown, section, current } = Astro.props;
+const roots = manualIndex.filter((e) => e.parent === "hearthroom" || e.slug === "hearthroom");
+---
+<Base title={`${title} · Hearthroom CLI`} description={description} markdown={markdown} path={path} section={section}>
+  <div class="doc">
+    <nav class="toc" aria-label="Documentation">
+      <h4>Guides</h4>
+      <ul>
+        {guidesSorted.map((g) => <li><a href={`/guides/${g.slug}/`} aria-current={current === `guides/${g.slug}` ? "page" : undefined}>{g.mod.frontmatter.title}</a></li>)}
+      </ul>
+      <h4>Manual</h4>
+      <ul>
+        {roots.map((e) => (
+          <li>
+            <a href={e.slug === "hearthroom" ? "/manual/" : `/manual/${e.slug}/`} aria-current={current === `manual/${e.slug}` ? "page" : undefined}>{e.slug === "hearthroom" ? "hearthroom" : e.command.replace(/^hearthroom /, "")}</a>
+            {e.children && e.slug !== "hearthroom" && (
+              <ul class="sub">
+                {e.children.map((c) => { const child = manualIndex.find((x) => x.slug === c)!; return <li><a href={`/manual/${c}/`} aria-current={current === `manual/${c}` ? "page" : undefined}>{child.command.replace(/^hearthroom /, "")}</a></li>; })}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p class="md-link"><a href={markdown}>View this page as Markdown</a> · <a href="/llms-full.txt">llms-full.txt</a></p>
+    </nav>
+    <article class="prose">
+      <slot />
+    </article>
+  </div>
+</Base>

@@ -45,6 +45,7 @@
       "card/list",
       "card/pull",
       "card/push",
+      "card/render",
       "card/status",
       "card/validate",
       "card/view"
@@ -78,6 +79,12 @@
     "slug": "card/push",
     "command": "hearthroom card push",
     "short": "Sync the folder to the provider (a private trial card by default)",
+    "parent": "card"
+  },
+  {
+    "slug": "card/render",
+    "command": "hearthroom card render",
+    "short": "Show an opening after the card's display rules, as the player's renderer receives it",
     "parent": "card"
   },
   {

@@ -29,9 +29,13 @@ hearthroom play my-card -m "Hello?" --allow-spend --json   # one JSON event per 
 
 Set `HEARTHROOM_TOKEN` to a provider access token and no browser is needed. Interactive `hearthroom auth login` stores tokens under the user config directory; set `HEARTHROOM_CONFIG_DIR` to isolate an agent's session.
 
+## Seeing the result without a browser
+
+`card render` asks the provider to run the card's display rules over one opening with the same engine the play page uses. The JSON carries the text the renderer receives (`rendered`), each rule's outcome (`applied`, `unmatched`, `disabled`, `empty`, `rolled_back` with a reason), a static scan (tags, `hc-*` components, scripts, inline handlers, external URLs) and `report.unsupported`: author-API identifiers the card's chat page does not provide, each with a `hint` (a classic-page card calling the sandbox `sdk`, for example, should switch to the sandbox page). Layout, contrast and Markdown are only visible on the play page; `previewUrl` points there. An agent with a browser should open it at a phone and a desktop width.
+
 ## Spending is opt-in
 
-Starting a conversation, reading history, pushing, validating, importing and browsing are free. Only `play -m` generates a reply and spends credits on the provider, and it refuses to run without `--allow-spend`. An agent cannot spend credits by accident.
+Starting a conversation, reading history, pushing, validating, rendering, importing and browsing are free. Only `play -m` generates a reply and spends credits on the provider, and it refuses to run without `--allow-spend`. An agent cannot spend credits by accident.
 
 ## A typical loop
 
@@ -39,6 +43,7 @@ Starting a conversation, reading history, pushing, validating, importing and bro
 hearthroom card import mira.png                 # SillyTavern PNG → folder, with a report of unmapped fields
 $EDITOR Mira/definition.md Mira/welcome.md
 hearthroom card push Mira --validate --json     # private trial card + the provider's report
+hearthroom card render Mira --json              # the opening after the display rules, each rule's outcome, a static scan
 hearthroom play Mira -m "Who are you?" --allow-spend --json
 hearthroom card push Mira --create              # keep it: a real private card that shows on the site
 ```

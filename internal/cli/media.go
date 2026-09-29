@@ -140,6 +140,49 @@ func (a *App) mediaCommand() *cobra.Command {
 	ls.Flags().IntVar(&page, "page", 1, "page number")
 	ls.Flags().IntVar(&size, "limit", 50, "entries per page")
 
-	cmd.AddCommand(up, ls)
+	rm := &cobra.Command{
+		Use:   "rm <id>...",
+		Short: "Delete files from your media library by id (see `media ls`)",
+		Long: `Deletes library items by the id shown in "media ls". An item that one of your
+cards still uses as portrait or background cannot be deleted; change the card's
+image first.`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := a.RequireAuth(); err != nil {
+				return err
+			}
+			var results []map[string]any
+			failed := false
+			for _, id := range args {
+				var out struct {
+					Data struct {
+						ImageID any `json:"imageId"`
+					} `json:"data"`
+				}
+				err := a.Client().OpenPost(cmd.Context(), "/image/delete", map[string]string{"imageId": id}, &out)
+				entry := map[string]any{"id": id, "deleted": err == nil}
+				if err != nil {
+					failed = true
+					entry["error"] = err.Error()
+					if !a.Out.JSON {
+						a.Out.Line("%s: FAILED: %v", id, err)
+					}
+				} else if !a.Out.JSON {
+					a.Out.Line("%s deleted", id)
+				}
+				results = append(results, entry)
+			}
+			if a.Out.JSON {
+				if err := a.Out.JSONValue(map[string]any{"results": results}); err != nil {
+					return err
+				}
+			}
+			if failed {
+				return output.Exitf(1, "some items could not be deleted")
+			}
+			return nil
+		},
+	}
+	cmd.AddCommand(up, ls, rm)
 	return cmd
 }

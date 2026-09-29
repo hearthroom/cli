@@ -54,12 +54,13 @@ const first = scenes[0];
       while (g === gen) {
         while (paused || !visible) { await wait(250, g); if (g !== gen) return; }
         var sc = scenes[i];
-        cmdEl.textContent = sc.cmd; descEl.textContent = sc.desc;
+        // The heading types in step with the terminal, as on cli.github.com.
+        cmdEl.textContent = ""; descEl.textContent = sc.desc;
         body.innerHTML = '<span class="p">$ </span><span class="cmd"></span><span class="cursor"></span>';
         var typed = body.querySelector(".cmd");
         for (var c = 0; c < sc.cmd.length; c++) {
           while (paused || !visible) { await wait(250, g); if (g !== gen) return; }
-          typed.textContent = sc.cmd.slice(0, c + 1);
+          typed.textContent = cmdEl.textContent = sc.cmd.slice(0, c + 1);
           await wait(28 + Math.random() * 22, g); if (g !== gen) return;
         }
         await wait(350, g); if (g !== gen) return;

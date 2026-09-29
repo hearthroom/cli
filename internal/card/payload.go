@@ -194,11 +194,14 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 		}
 		layer := f.Rules.MountLayer
 		if layer == "" {
-			layer = "under"
+			layer = "over"
 		}
 		aa := map[string]any{"rules": rules, "mountLayer": layer, "mountTrigger": f.Rules.MountTrigger}
 		if f.Rules.PageMode != "" {
 			aa["pageMode"] = f.Rules.PageMode
+		}
+		if f.Rules.CardFormat != "" {
+			aa["cardFormat"] = f.Rules.CardFormat
 		}
 		p.AuthorAsset = aa
 	}
@@ -274,6 +277,7 @@ type RemoteAsset struct {
 	MountTrigger string        `json:"mountTrigger"`
 	MountLayer   string        `json:"mountLayer"`
 	PageMode     string        `json:"pageMode"`
+	CardFormat   string        `json:"cardFormat"`
 	Status       string        `json:"status"`
 	Version      int64         `json:"version"`
 }
@@ -321,7 +325,7 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		f.Lorebook = lb
 	}
 	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic") {
-		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode}
+		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat}
 		f.State.AuthorAssetVersion = asset.Version
 	}
 	f.State.RoleID = d.RoleID

@@ -275,10 +275,10 @@ func (c *Client) send(req *http.Request, out any) error {
 func parseError(req *http.Request, status int, raw []byte) error {
 	e := &Error{Status: status, Method: req.Method, URL: req.URL.String()}
 	var env struct {
-		Error  any `json:"error"`
-		Detail any `json:"detail"`
+		Error  any    `json:"error"`
+		Detail any    `json:"detail"`
 		Msg    string `json:"msg"`
-		Code   any `json:"code"`
+		Code   any    `json:"code"`
 	}
 	if json.Unmarshal(raw, &env) == nil {
 		switch v := env.Error.(type) {

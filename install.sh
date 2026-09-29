@@ -39,9 +39,10 @@ esac
 
 version="${HEARTHROOM_VERSION:-}"
 if [ -z "$version" ]; then
-  version=$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$REPO/releases/latest" \
-    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1)
-  [ -n "$version" ] || die "could not determine the latest release; set HEARTHROOM_VERSION"
+  # Resolve "latest" through the redirect on the releases page; this avoids
+  # the rate-limited API.
+  version=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" | sed 's#.*/tag/##')
+  case "$version" in v*) ;; *) die "could not determine the latest release; set HEARTHROOM_VERSION" ;; esac
 fi
 plain=${version#v}
 
@@ -51,7 +52,7 @@ base="https://github.com/$REPO/releases/download/$version"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-say "Downloading $BIN $version for $os/$arch…"
+say "Downloading ${BIN} ${version} for ${os}/${arch}..."
 curl -fsSL -o "$tmp/$asset" "$base/$asset" || die "download failed: $base/$asset"
 curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt" || die "download failed: $base/checksums.txt"
 

@@ -80,7 +80,6 @@ homebrew_casks:
     directory: Casks
     homepage: https://hearthroom.club
     description: Command-line client for Hearthroom character cards
-    license: AGPL-3.0-only
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
     # The binaries are not notarized; strip the quarantine flag Homebrew adds
     # to cask downloads so Gatekeeper does not block the first run.
@@ -104,5 +103,4 @@ scoops:
     directory: bucket
     homepage: https://hearthroom.club
     description: Command-line client for Hearthroom character cards
-    license: AGPL-3.0-only
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'

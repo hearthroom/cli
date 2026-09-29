@@ -24,7 +24,7 @@ func (a *App) cardCommand() *cobra.Command {
 		Use:   "card",
 		Short: "Work with card folders: init, push, validate, pull, import, list",
 	}
-	cmd.AddCommand(a.cardInit(), a.cardImport(), a.cardPush(), a.cardValidate(), a.cardPull(), a.cardList(), a.cardStatus(), a.cardView())
+	cmd.AddCommand(a.cardInit(), a.cardImport(), a.cardPush(), a.cardValidate(), a.cardRender(), a.cardPull(), a.cardList(), a.cardStatus(), a.cardView())
 	return cmd
 }
 
@@ -253,6 +253,98 @@ func (a *App) cardValidate() *cobra.Command {
 	c.Flags().BoolVar(&push, "push", false, "push the folder first so the report reflects the current files")
 	c.Flags().BoolVar(&strict, "strict", false, "exit non-zero on warnings as well as blockers")
 	return c
+}
+
+func (a *App) cardRender() *cobra.Command {
+	var push bool
+	var opening int
+	var htmlPath string
+	c := &cobra.Command{
+		Use:   "render [dir]",
+		Short: "Show an opening after the card's display rules, as the player's renderer receives it",
+		Long: `Runs the pushed card's display rules over one opening on the provider, with the same
+engine the play page uses, and prints what the renderer receives before Markdown
+expansion, how each rule fared, and a static scan of the result, including author-API calls the card's chat page does not
+provide (the sandbox sdk on a classic-page card, for example). It never spends credits.
+
+Use --opening N to render the Nth alternate opening (0 is the main one). Write the
+result to a file with --html to open it in a browser. Layout, contrast and HTML card
+components are only visible on the play page; the preview link is printed for that.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			f, err := loadFolder(args)
+			if err != nil {
+				return err
+			}
+			if err := a.RequireAuth(); err != nil {
+				return err
+			}
+			if push {
+				if _, err := sync.Push(cmd.Context(), a.Client(), f, sync.PushOptions{}); err != nil {
+					return err
+				}
+			}
+			if f.State.RoleID == "" {
+				return output.Exit(2, sync.ErrNoTarget)
+			}
+			r, err := sync.Render(cmd.Context(), a.Client(), f.State.RoleID, opening)
+			if err != nil {
+				return err
+			}
+			r.PreviewURL = sync.PreviewURL(a.Site, f.State.RoleID)
+			if htmlPath != "" {
+				if err := os.WriteFile(htmlPath, []byte(r.Rendered), 0o644); err != nil {
+					return err
+				}
+			}
+			if a.Out.JSON {
+				return a.Out.JSONValue(r)
+			}
+			a.printRender(r, htmlPath)
+			return nil
+		},
+	}
+	c.Flags().BoolVar(&push, "push", false, "push the folder first so the render reflects the current files")
+	c.Flags().IntVar(&opening, "opening", 0, "which opening to render: 0 is the main one, N the Nth alternate")
+	c.Flags().StringVar(&htmlPath, "html", "", "also write the rendered text to this file")
+	return c
+}
+
+func (a *App) printRender(r *sync.RenderReport, htmlPath string) {
+	a.Out.Line("Opening %d of %d for %s (player: %s)", r.Opening.Index, r.Opening.Count, r.Names.Character, r.Names.Player)
+	if r.AuthorAsset == nil {
+		a.Out.Line("Display rules: none")
+	} else {
+		a.Out.Line("Display rules: %d (%d enabled), page mode %s, layer %s", r.AuthorAsset.Rules, r.AuthorAsset.Enabled, r.AuthorAsset.PageMode, r.AuthorAsset.MountLayer)
+		for _, rule := range r.Rules {
+			label := rule.ID
+			if rule.Name != "" {
+				label = rule.Name + " (" + rule.ID + ")"
+			}
+			if rule.Reason != "" {
+				a.Out.Line("  %-12s %s: %s", rule.Status, label, rule.Reason)
+			} else {
+				a.Out.Line("  %-12s %s", rule.Status, label)
+			}
+		}
+	}
+	s := r.Report
+	a.Out.Line("Result: %d chars (~%d tokens), %d script, %d style, %d inline handler, %d component, %d external URL",
+		s.Chars, s.EstimatedTokens, s.Scripts, s.Styles, s.InlineHandlers, len(s.Components), len(s.ExternalURLs))
+	for _, u := range s.Unsupported {
+		a.Out.Line("  not provided: %s (%d, in %s): %s", u.API, u.Count, strings.Join(u.Where, ", "), u.Hint)
+	}
+	for _, w := range r.Warnings {
+		a.Out.Line("Warning: %s", w)
+	}
+	if htmlPath != "" {
+		a.Out.Line("Rendered text written to %s", htmlPath)
+	} else {
+		a.Out.Line("Rendered:")
+		a.Out.Line("%s", r.Rendered)
+	}
+	a.Out.Line("Preview: %s", r.PreviewURL)
+	a.Out.Note("%s", r.Capture.Recommended)
 }
 
 func (a *App) printReport(r *sync.Report) {

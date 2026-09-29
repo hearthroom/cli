@@ -11,6 +11,7 @@ title: Hearthroom CLI
 - A card is a folder of plain files: Markdown for the definition and openings, `card.json` for short fields, `lorebook.json`, `rules.json`, and `assets/` for media. Format: /guides/card-folder/
 - `hearthroom card push` syncs the folder to a private trial card on the connected provider; `--create` makes a card that stays. Details: /guides/trial-cards/
 - `hearthroom card validate` returns the provider's pre-publish report with the character limits it enforces.
+- `hearthroom card render` shows an opening after your display rules, with the same engine the play page uses, and how each rule fared.
 - `hearthroom card import` converts SillyTavern PNG / JSON / CHARX cards and MMD three-file sets and lists every field it could not place.
 - `hearthroom play -m "…" --allow-spend` sends a turn and streams the reply. This is the only command that spends credits, and only with the flag.
 - Also: `card pull`, `card list`, `search`, `tags`, `author`, `media upload|ls|rm`, `models`, `wallet`, `whoami`, `upgrade`.

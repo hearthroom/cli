@@ -52,6 +52,7 @@ hearthroom auth login                      # sign in to the card provider in you
 hearthroom card init my-card               # card.json, definition.md, welcome.md, assets/
 $EDITOR my-card/definition.md my-card/welcome.md
 hearthroom card push my-card --validate    # private trial card + the provider's report
+hearthroom card render my-card             # the opening after your display rules, plus the play link
 hearthroom play my-card -m "Hello?" --allow-spend
 ```
 
@@ -83,6 +84,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `card import <files…>` | SillyTavern PNG / JSON / CHARX or an MMD set → folder, with a report |
 | `card push [dir]` | Sync to a trial card (default) or an owned card; `--dry-run`, `--validate`, `--evict` |
 | `card validate [dir]` | The provider's pre-publish report; `--push` first, `--strict` fails on warnings |
+| `card render [dir]` | An opening after the display rules, each rule's outcome and a static scan; `--opening N`, `--html file`, `--push` |
 | `card pull <id> [dir]` | One of your cards → folder; `--download` fetches media |
 | `card status [dir]` | Linked card and changed sections |
 | `card list` · `card view <id>` | Your cards on the provider; a community card |
@@ -97,7 +99,7 @@ Environment: `HEARTHROOM_TOKEN` (bearer for scripts and CI, skips the browser), 
 
 ## Using it with an AI agent
 
-Point Claude Code, Codex or any agent with a shell at a card folder and it can run the whole loop: `card import` → edit files → `card push --validate --json` → `play --json` → edit again. The folder format is documented, the JSON output is stable per command, and every paid action needs `--allow-spend`, so an agent cannot spend credits by accident. For unattended runs set `HEARTHROOM_TOKEN`.
+Point Claude Code, Codex or any agent with a shell at a card folder and it can run the whole loop: `card import` → edit files → `card push --validate --json` → `card render --json` → `play --json` → edit again. `card render` runs the display rules with the same engine as the play page and reports each rule's outcome, so an agent without a browser still sees what the player will. The folder format is documented, the JSON output is stable per command, and every paid action needs `--allow-spend`, so an agent cannot spend credits by accident. For unattended runs set `HEARTHROOM_TOKEN`.
 
 Agents should start at [sukisuki.ai/llms.txt](https://sukisuki.ai/llms.txt): it says what a card is, which actions need sign-in or spend credits, and where the Markdown sources of the authoring guide and API reference are. [llms-full.txt](https://sukisuki.ai/llms-full.txt) has all of it in one file.
 

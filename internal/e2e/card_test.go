@@ -27,13 +27,13 @@ func fixtureFolder(t *testing.T) *card.Folder {
 	f.Manifest.Prologue = []string{"Begin."}
 	f.Manifest.Media.Portrait = "assets/portrait.png"
 	f.Definition = "E2E is a character that exists to verify the CLI. Map: assets/map.png"
-	f.Welcome = "Hello from the end-to-end test."
+	f.Welcome = "Hello from the **end-to-end** test."
 	f.Alternates = []card.Opening{{Text: "Alternate hello."}}
 	f.Lorebook = &card.Lorebook{Name: "E2E Lore", Entries: []card.LorebookEntry{
 		{Name: "Harbor", Content: "A quiet harbor.", Keywords: []string{"harbor"}},
 		{Name: "Lamp", Content: "A lamp.", Keywords: []string{"lamp"}},
 	}}
-	f.Rules = &card.Rules{Rules: []card.DisplayRule{{Find: "\\*\\*(.+?)\\*\\*", Replace: "<b>$1</b>", Enabled: true}}, MountLayer: "under"}
+	f.Rules = &card.Rules{Rules: []card.DisplayRule{{ID: "bold", Find: "/\\*\\*(.+?)\\*\\*/", Replace: "<b>$1</b>", Enabled: true}}, MountLayer: "under"}
 	if err := f.Save(); err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +101,15 @@ func TestTrialPushValidateAndPull(t *testing.T) {
 	}
 	if report.TokenBudget == nil || len(report.TokenBudget.Limits) == 0 {
 		t.Fatal("report carries no limits")
+	}
+
+	// Render: the rule from rules.json is applied by the provider's engine.
+	rendered, err := sync.Render(ctx, e.client, res.RoleID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(rendered.Rendered, "<b>end-to-end</b>") || len(rendered.Rules) != 1 || rendered.Rules[0].Status != "applied" {
+		t.Fatalf("render = %q rules=%+v", rendered.Rendered, rendered.Rules)
 	}
 
 	// Nothing changed: nothing sent, nothing uploaded.

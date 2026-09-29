@@ -16,6 +16,7 @@ Work with card folders: init, push, validate, pull, import, list
 - [`hearthroom card list`](/manual/card/list/) — List your cards on the provider
 - [`hearthroom card pull`](/manual/card/pull/) — Write one of your cards to a folder
 - [`hearthroom card push`](/manual/card/push/) — Sync the folder to the provider (a private trial card by default)
+- [`hearthroom card render`](/manual/card/render/) — Show an opening after the card's display rules, as the player's renderer receives it
 - [`hearthroom card status`](/manual/card/status/) — Show what a folder is linked to and which sections changed
 - [`hearthroom card validate`](/manual/card/validate/) — Show the provider's pre-publish validation for the pushed card
 - [`hearthroom card view`](/manual/card/view/) — Show a community card

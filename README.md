@@ -99,6 +99,8 @@ Environment: `HEARTHROOM_TOKEN` (bearer for scripts and CI, skips the browser), 
 
 Point Claude Code, Codex or any agent with a shell at a card folder and it can run the whole loop: `card import` → edit files → `card push --validate --json` → `play --json` → edit again. The folder format is documented, the JSON output is stable per command, and every paid action needs `--allow-spend`, so an agent cannot spend credits by accident. For unattended runs set `HEARTHROOM_TOKEN`.
 
+Agents should start at [hearthroom.club/llms.txt](https://hearthroom.club/llms.txt): it says what a card is, which actions need sign-in or spend credits, and where the Markdown sources of the authoring guide and API reference are. [llms-full.txt](https://hearthroom.club/llms-full.txt) has all of it in one file.
+
 ## Provider and community
 
 Hearthroom is provider-neutral. The CLI reads the provider API base from `--api`, `HEARTHROOM_API` or its config, and learns capabilities such as relative media paths and file limits from the provider's responses. For the default provider it signs in through a client issued to the CLI by the community application, so you see the same cards as on the website; for any other provider it registers itself dynamically, and that provider decides what such a client may see. The community site's public endpoints need no sign-in; member endpoints reuse the same sign-in as the provider. Nothing here adds server capability: the CLI is a client of the documented [Hearthroom developer APIs](https://hearthroom.club/developers).

@@ -221,7 +221,7 @@ func (a *App) whoamiCommand() *cobra.Command {
 				}
 				return a.Out.JSONValue(out)
 			}
-			a.Out.Line("Provider %s: %s (user %d, %s)", a.API, displayName(me), me.AccountNumID, me.AccountType)
+			a.Out.Line("Provider %s: %s (%s)", a.API, displayName(me), me.AccountType)
 			if siteErr != nil {
 				a.Out.Line("Site %s: not available (%v)", a.Site, siteErr)
 				return nil

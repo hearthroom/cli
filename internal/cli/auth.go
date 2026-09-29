@@ -47,7 +47,7 @@ For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.`,
 			if a.Out.JSON {
 				return a.Out.JSONValue(map[string]any{"api": a.API, "scope": cred.Scope, "expiresAt": cred.ExpiresAt, "me": me})
 			}
-			a.Out.Line("Signed in to %s as %s (user %d).", a.API, displayName(me), me.AccountNumID)
+			a.Out.Line("Signed in to %s as %s.", a.API, displayName(me))
 			return nil
 		},
 	}
@@ -90,7 +90,7 @@ For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.`,
 			}
 			a.Out.Line("Provider: %s", a.API)
 			a.Out.Line("Site:     %s", a.Site)
-			a.Out.Line("Account:  %s (user %d, %s)", displayName(me), me.AccountNumID, me.AccountType)
+			a.Out.Line("Account:  %s (%s)", displayName(me), me.AccountType)
 			return nil
 		},
 	}
@@ -98,10 +98,12 @@ For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.`,
 	return cmd
 }
 
-// Me is GET /open/v1/me.
+// Me is GET /open/v1/me. accountNumId is kept only for --json output; the
+// human-readable lines identify the account by email, then nickname.
 type Me struct {
 	AccountNumID int64  `json:"accountNumId"`
 	NickName     string `json:"nickName"`
+	Email        string `json:"email,omitempty"`
 	Avatar       string `json:"avatar"`
 	AccountType  string `json:"accountType"`
 }
@@ -117,9 +119,16 @@ func (a *App) whoami(ctx context.Context) (Me, error) {
 	return me, nil
 }
 
+// displayName prefers the email (stable, always present when the email.read
+// scope was granted), then the nickname; it never shows numeric ids.
 func displayName(me Me) string {
-	if me.NickName != "" {
+	switch {
+	case me.Email != "" && me.NickName != "":
+		return me.Email + " (" + me.NickName + ")"
+	case me.Email != "":
+		return me.Email
+	case me.NickName != "":
 		return me.NickName
 	}
-	return "(no nickname)"
+	return "this account (sign in again to see the email)"
 }

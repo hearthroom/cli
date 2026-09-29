@@ -27,10 +27,10 @@ code { font-size: 0.92em; background: var(--surface-2); padding: 0.1em 0.35em; b
 pre { margin: 0; }
 pre code { background: none; padding: 0; font-size: 0.9rem; }
 h1, h2, h3 { margin: 0 0 0.5rem; line-height: 1.2; letter-spacing: 0; font-weight: 700; }
-html[lang="en"] h1, html[lang="en"] h2, html[lang="en"] h3 { font-weight: 800; letter-spacing: -0.02em; }
+:where(html[lang="en"]) h1, :where(html[lang="en"]) h2, :where(html[lang="en"]) h3 { font-weight: 800; letter-spacing: -0.02em; }
 h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; text-wrap: balance; }
-html[lang="en"] h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); }
-html[lang="en"] h1 { line-height: 1.05; letter-spacing: -0.03em; }
+:where(html[lang="en"]) h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); }
+:where(html[lang="en"]) h1 { line-height: 1.05; letter-spacing: -0.03em; }
 h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
 h3 { font-size: 1.25rem; }
 p { margin: 0 0 1rem; }
@@ -137,8 +137,8 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
 /* why --------------------------------------------------------------------- */
 .why { width: min(1080px, 100% - 32px); margin: 0 auto; padding: 88px 0 48px; }
 .why > h2 { font-size: clamp(1.75rem, 4vw, 3rem); line-height: 1.15; max-width: 16em; margin: 0 0 48px; text-wrap: balance; }
-html[lang="en"] .why > h2 { font-size: clamp(2rem, 5vw, 4rem); }
-html[lang="en"] .why > h2 { letter-spacing: -0.03em; line-height: 1.05; }
+:where(html[lang="en"]) .why > h2 { font-size: clamp(2rem, 5vw, 4rem); }
+:where(html[lang="en"]) .why > h2 { letter-spacing: -0.03em; line-height: 1.05; }
 .props { display: grid; gap: 40px 32px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .prop h3 { margin-bottom: 8px; font-size: 1.35rem; line-height: 1.2; }
 .prop p { margin: 0 0 8px; font-size: 15px; line-height: 1.45; color: var(--text-2); }

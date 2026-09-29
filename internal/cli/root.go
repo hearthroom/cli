@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/hearthroom/cli/internal/auth"
 	"github.com/hearthroom/cli/internal/config"
 	"github.com/hearthroom/cli/internal/output"
+	"github.com/hearthroom/cli/internal/update"
 )
 
 // BuildInfo is stamped by the build.
@@ -38,6 +40,7 @@ type App struct {
 
 	flagAPI, flagSite, flagConfigDir string
 	client                           *api.Client
+	updates                          <-chan update.Result
 }
 
 // Main runs the CLI and returns the process exit code.
@@ -45,10 +48,41 @@ func Main(ctx context.Context, info BuildInfo, args []string) int {
 	app := &App{Info: info, Out: output.Printer{Out: os.Stdout, Err: os.Stderr}}
 	root := app.rootCommand()
 	root.SetArgs(args)
+	code := 0
 	if err := root.ExecuteContext(ctx); err != nil {
-		return app.Out.Fail(err)
+		code = app.Out.Fail(err)
 	}
-	return 0
+	app.printUpdateNotice()
+	return code
+}
+
+// startUpdateCheck runs the daily release check in the background so it
+// costs the command nothing; printUpdateNotice reads the answer at exit.
+func (a *App) startUpdateCheck(ctx context.Context) {
+	if !update.Enabled(a.Info.Version, a.Out.JSON, isTerminal(os.Stderr)) {
+		return
+	}
+	a.updates = update.Start(ctx, a.Store.Dir, a.Info.Version, 2*time.Second)
+}
+
+func (a *App) printUpdateNotice() {
+	if a.updates == nil {
+		return
+	}
+	select {
+	case r, ok := <-a.updates:
+		if ok && r.Newer() {
+			exe, _ := os.Executable()
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, update.Notice(r, exe))
+		}
+	case <-time.After(1500 * time.Millisecond):
+	}
+}
+
+func isTerminal(f *os.File) bool {
+	st, err := f.Stat()
+	return err == nil && st.Mode()&os.ModeCharDevice != 0
 }
 
 func (a *App) rootCommand() *cobra.Command {
@@ -98,6 +132,9 @@ func (a *App) init(cmd *cobra.Command) error {
 	a.Site = config.NormalizeBase(firstNonEmpty(a.flagSite, os.Getenv("HEARTHROOM_SITE"), cfg.Site, config.DefaultSite))
 	if !strings.HasPrefix(a.API, "http://") && !strings.HasPrefix(a.API, "https://") {
 		return fmt.Errorf("--api must be an http(s) URL, got %q", a.API)
+	}
+	if cmd.Name() != "upgrade" && cmd.Name() != "version" {
+		a.startUpdateCheck(cmd.Context())
 	}
 	return nil
 }

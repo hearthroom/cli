@@ -52,7 +52,7 @@ hearthroom card push Mira --create         # keep it
 
 ## For agents
 
-Read /llms-full.txt for the complete manual and guides in one file, or any page here as Markdown by appending `.md` to its path (for example /manual/card/push.md). Output shapes are stable per command; errors are one JSON object with a non-zero exit code. Guide: /guides/agents/
+Read /llms-full.txt for the complete manual and guides in one file, or any page here as Markdown by appending `.md` to its path (for example /manual/card/push.md). Output shapes are stable per command; errors are one JSON object with a non-zero exit code. Guide: /guides/agents/. The writing craft is a separate skill set, https://github.com/hearthroom/skills; `card init` and `card import` leave an AGENTS.md in the folder that points to it.
 
 ## Links
 

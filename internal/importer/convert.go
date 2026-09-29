@@ -277,6 +277,11 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 	if f.Rules != nil {
 		rep.Files = append(rep.Files, card.RulesFile)
 	}
+	if wrote, err := card.WriteAgentsGuide(dir, name); err != nil {
+		return nil, err
+	} else if wrote {
+		rep.Files = append(rep.Files, card.AgentsFile)
+	}
 	if strings.TrimSpace(r.CreatorNotes) != "" {
 		readme := "# " + name + "\n\nCreator notes from the imported card (not sent to the provider):\n\n" + strings.TrimSpace(r.CreatorNotes) + "\n"
 		if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(readme), 0o644); err != nil {

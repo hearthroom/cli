@@ -34,4 +34,4 @@ hearthroom card list [flags]
 
 ## See also
 
-- [`hearthroom card`](/manual/card/) — Work with card folders: init, push, validate, pull, import, list
+- [`hearthroom card`](/manual/card/) — Work with card folders: init, push, validate, render, pull, import, list

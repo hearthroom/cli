@@ -9,6 +9,7 @@ import (
 	"hash/crc32"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -141,6 +142,12 @@ func TestPNGV3Import(t *testing.T) {
 	}
 	if f.Manifest.Media.Portrait != "assets/portrait.png" || f.Lorebook == nil || f.Rules == nil || f.Rules.CardFormat != "tavern" {
 		t.Fatalf("folder: %+v rules=%+v", f.Manifest, f.Rules)
+	}
+	if _, err := os.Stat(filepath.Join(rep.Dir, card.AgentsFile)); err != nil {
+		t.Fatal("AGENTS.md missing after import")
+	}
+	if !slices.Contains(rep.Files, card.AgentsFile) {
+		t.Fatalf("report does not list %s: %v", card.AgentsFile, rep.Files)
 	}
 	if _, err := os.Stat(filepath.Join(rep.Dir, "README.md")); err != nil {
 		t.Fatal("creator notes README missing")

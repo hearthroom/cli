@@ -37,7 +37,7 @@
   {
     "slug": "card",
     "command": "hearthroom card",
-    "short": "Work with card folders: init, push, validate, pull, import, list",
+    "short": "Work with card folders: init, push, validate, render, pull, import, list",
     "parent": "hearthroom",
     "children": [
       "card/import",

@@ -159,3 +159,21 @@ func TestLoadRejectsNewerFormat(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+// Agents read AGENTS.md when they start working in a folder, so a new card
+// folder carries the pointer to the writing toolkit and the CLI loop.
+func TestInitWritesTheAgentsGuide(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "mira")
+	if _, err := Init(dir, "Mira"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, AgentsFile))
+	if err != nil {
+		t.Fatalf("AGENTS.md missing: %v", err)
+	}
+	for _, want := range []string{"Mira", "hearthroom/skills", "using-hearthroom", "card push", "card render", "--allow-spend"} {
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("AGENTS.md lacks %q", want)
+		}
+	}
+}

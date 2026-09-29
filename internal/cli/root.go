@@ -103,7 +103,10 @@ a private trial card on the connected provider, validate it, play it, pull it
 back, or import cards from SillyTavern and MMD. Every command accepts --json.
 
 Agents: start at https://sukisuki.ai/llms.txt for the card model, what needs
-sign-in or spends credits, and the Markdown sources of the guide and API reference.`,
+sign-in or spends credits, and the Markdown sources of the guide and API reference.
+To write a good card, not just move one, install the card-writing skills:
+https://github.com/hearthroom/skills (card init and card import also leave an
+AGENTS.md in the folder that says so).`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {

@@ -1,13 +1,16 @@
 ---
 slug: "card"
 command: "hearthroom card"
-short: "Work with card folders: init, push, validate, pull, import, list"
+short: "Work with card folders: init, push, validate, render, pull, import, list"
 parent: "hearthroom"
 ---
 
 # hearthroom card
 
-Work with card folders: init, push, validate, pull, import, list
+Work with card folders. A card is a folder of plain files (see
+https://cli.hearthroom.club/guides/card-folder/). init and import write an
+AGENTS.md into the folder so a coding agent knows the loop and where the
+card-writing skills are: https://github.com/hearthroom/skills.
 
 ## Commands
 

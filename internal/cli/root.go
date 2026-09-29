@@ -102,7 +102,7 @@ Cards live in folders you can version and hand to an AI agent. Push a folder to
 a private trial card on the connected provider, validate it, play it, pull it
 back, or import cards from SillyTavern and MMD. Every command accepts --json.
 
-Agents: start at https://hearthroom.club/llms.txt for the card model, what needs
+Agents: start at https://sukisuki.ai/llms.txt for the card model, what needs
 sign-in or spends credits, and the Markdown sources of the guide and API reference.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,

@@ -99,7 +99,7 @@ Environment: `HEARTHROOM_TOKEN` (bearer for scripts and CI, skips the browser), 
 
 Point Claude Code, Codex or any agent with a shell at a card folder and it can run the whole loop: `card import` → edit files → `card push --validate --json` → `play --json` → edit again. The folder format is documented, the JSON output is stable per command, and every paid action needs `--allow-spend`, so an agent cannot spend credits by accident. For unattended runs set `HEARTHROOM_TOKEN`.
 
-Agents should start at [hearthroom.club/llms.txt](https://hearthroom.club/llms.txt): it says what a card is, which actions need sign-in or spend credits, and where the Markdown sources of the authoring guide and API reference are. [llms-full.txt](https://hearthroom.club/llms-full.txt) has all of it in one file.
+Agents should start at [sukisuki.ai/llms.txt](https://sukisuki.ai/llms.txt): it says what a card is, which actions need sign-in or spend credits, and where the Markdown sources of the authoring guide and API reference are. [llms-full.txt](https://sukisuki.ai/llms-full.txt) has all of it in one file.
 
 ## Provider and community
 

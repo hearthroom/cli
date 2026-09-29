@@ -360,7 +360,7 @@ func Logout(ctx context.Context, c *api.Client, store *config.Store) (bool, erro
 }
 
 // ErrNotLoggedIn is returned by the token source when nothing is stored.
-var ErrNotLoggedIn = errors.New("not signed in; run `hearthroom auth login` or set " + EnvToken)
+var ErrNotLoggedIn = fmt.Errorf("%w: not signed in; run `hearthroom auth login` or set %s", api.ErrNoToken, EnvToken)
 
 // Source returns a TokenSource that prefers HEARTHROOM_TOKEN, then the stored
 // credential for the client's API base, refreshing it when it is about to

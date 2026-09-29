@@ -39,10 +39,14 @@ hearthroom play … --stop
 
 ## What the local provider can verify
 
-A local provider has no upstream model, so end-to-end tests cover start,
-ticket, handshake, frame parsing, `--allow-spend` gating and stop. Generation
-is exercised manually against a real account by the author who owns it. This
-limit is stated in the README.
+A local provider has no upstream model by itself. With a small fake
+OpenAI-compatible relay behind HTTPS (see docs/testing.md) the end-to-end
+suite covers start, resume, history, ticket, handshake, the full event stream
+of one turn, settlement and the `--allow-spend` gate. Generation quality is
+not what is being tested; the wire path is.
+
+Implementation note: the provider's WebSocket route accepts
+`protocolVersion=2` today, so the CLI sends 2.
 
 ## Tests
 

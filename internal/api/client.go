@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -18,6 +19,18 @@ import (
 
 // TokenSource returns the bearer token to send, or "" for anonymous calls.
 type TokenSource func(ctx context.Context) (string, error)
+
+// ErrNoToken is wrapped by a TokenSource when nothing is stored; optional-auth
+// calls then proceed anonymously while required-auth calls fail.
+var ErrNoToken = errors.New("no token available")
+
+type authMode int
+
+const (
+	authNone authMode = iota
+	authRequired
+	authOptional
+)
 
 // Client talks to one provider API base and one community site.
 type Client struct {
@@ -106,39 +119,47 @@ func asError(err error, target **Error) bool {
 // Open* call the provider Open API. path starts with "/" and is appended to
 // "<API>/open/v1".
 func (c *Client) OpenGet(ctx context.Context, path string, q url.Values, out any) error {
-	return c.do(ctx, http.MethodGet, c.API+"/open/v1"+path, q, nil, out, true)
+	return c.do(ctx, http.MethodGet, c.API+"/open/v1"+path, q, nil, out, authRequired)
 }
 
 func (c *Client) OpenPost(ctx context.Context, path string, body, out any) error {
-	return c.do(ctx, http.MethodPost, c.API+"/open/v1"+path, nil, body, out, true)
+	return c.do(ctx, http.MethodPost, c.API+"/open/v1"+path, nil, body, out, authRequired)
 }
 
 func (c *Client) OpenPut(ctx context.Context, path string, body, out any) error {
-	return c.do(ctx, http.MethodPut, c.API+"/open/v1"+path, nil, body, out, true)
+	return c.do(ctx, http.MethodPut, c.API+"/open/v1"+path, nil, body, out, authRequired)
 }
 
 func (c *Client) OpenPatch(ctx context.Context, path string, body, out any) error {
-	return c.do(ctx, http.MethodPatch, c.API+"/open/v1"+path, nil, body, out, true)
+	return c.do(ctx, http.MethodPatch, c.API+"/open/v1"+path, nil, body, out, authRequired)
 }
 
 func (c *Client) OpenDelete(ctx context.Context, path string, out any) error {
-	return c.do(ctx, http.MethodDelete, c.API+"/open/v1"+path, nil, nil, out, true)
+	return c.do(ctx, http.MethodDelete, c.API+"/open/v1"+path, nil, nil, out, authRequired)
 }
 
 // Provider calls an absolute path on the API host (OAuth, well-known).
 func (c *Client) Provider(ctx context.Context, method, path string, q url.Values, body, out any, auth bool) error {
-	return c.do(ctx, method, c.API+path, q, body, out, auth)
+	mode := authNone
+	if auth {
+		mode = authRequired
+	}
+	return c.do(ctx, method, c.API+path, q, body, out, mode)
 }
 
 // SiteGet calls the community API. auth=true attaches the bearer when one is
-// available; anonymous browsing passes false.
+// available and continues anonymously otherwise; false never sends one.
 func (c *Client) SiteGet(ctx context.Context, path string, q url.Values, out any, auth bool) error {
-	return c.do(ctx, http.MethodGet, c.Site+"/v1"+path, q, nil, out, auth)
+	mode := authNone
+	if auth {
+		mode = authOptional
+	}
+	return c.do(ctx, http.MethodGet, c.Site+"/v1"+path, q, nil, out, mode)
 }
 
-// SiteDo calls the community API with a method and JSON body.
+// SiteDo calls a member endpoint of the community API (bearer required).
 func (c *Client) SiteDo(ctx context.Context, method, path string, body, out any) error {
-	return c.do(ctx, method, c.Site+"/v1"+path, nil, body, out, true)
+	return c.do(ctx, method, c.Site+"/v1"+path, nil, body, out, authRequired)
 }
 
 // Form posts application/x-www-form-urlencoded (OAuth token endpoint).
@@ -177,7 +198,7 @@ func (c *Client) UploadFile(ctx context.Context, path string, fields map[string]
 		return err
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
-	if err := c.authorize(ctx, req, true); err != nil {
+	if err := c.authorize(ctx, req, authRequired); err != nil {
 		return err
 	}
 	return c.send(req, out)
@@ -201,7 +222,7 @@ func (c *Client) Download(ctx context.Context, rawURL string) (io.ReadCloser, st
 	return resp.Body, resp.Header.Get("Content-Type"), nil
 }
 
-func (c *Client) do(ctx context.Context, method, target string, q url.Values, body, out any, auth bool) error {
+func (c *Client) do(ctx context.Context, method, target string, q url.Values, body, out any, auth authMode) error {
 	if len(q) > 0 {
 		sep := "?"
 		if strings.Contains(target, "?") {
@@ -230,12 +251,15 @@ func (c *Client) do(ctx context.Context, method, target string, q url.Values, bo
 	return c.send(req, out)
 }
 
-func (c *Client) authorize(ctx context.Context, req *http.Request, auth bool) error {
-	if !auth || c.Token == nil {
+func (c *Client) authorize(ctx context.Context, req *http.Request, auth authMode) error {
+	if auth == authNone || c.Token == nil {
 		return nil
 	}
 	tok, err := c.Token(ctx)
 	if err != nil {
+		if auth == authOptional && errors.Is(err, ErrNoToken) {
+			return nil
+		}
 		return err
 	}
 	if tok != "" {

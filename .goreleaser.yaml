@@ -69,21 +69,25 @@ release:
 # Homebrew tap and Scoop bucket publishing need a token that can push to the
 # sibling repositories. They are enabled when HOMEBREW_TAP_TOKEN is set in the
 # release workflow; otherwise the release ships without them.
-brews:
+homebrew_casks:
   - name: hearthroom
     repository:
       owner: hearthroom
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    directory: Casks
     homepage: https://hearthroom.club
     description: Command-line client for Hearthroom character cards
     license: AGPL-3.0-only
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
-    test: |
-      system "#{bin}/hearthroom", "version"
-    install: |
-      bin.install "hearthroom"
+    # The binaries are not notarized; strip the quarantine flag Homebrew adds
+    # to cask downloads so Gatekeeper does not block the first run.
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/hearthroom"]
+          end
 
 scoops:
   - name: hearthroom

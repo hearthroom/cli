@@ -4,16 +4,16 @@ title: Hearthroom CLI
 
 # Hearthroom CLI
 
-`hearthroom` is the command-line client for [Hearthroom](https://hearthroom.club), the open community for AI character cards. It is for authors who work in a terminal and for AI coding agents that have one.
+`hearthroom` is the command-line client for [Hearthroom](https://hearthroom.club), the open community for AI character cards. It is built for AI coding agents that have a shell and for the authors who run them.
 
 ## What it does
 
-- A card is a **folder of plain files**: Markdown for the definition and openings, `card.json` for short fields, `lorebook.json`, `rules.json`, and `assets/` for media. You can keep it in git and hand it to an agent. Format: /guides/card-folder/
-- `hearthroom card push` syncs the folder to a **private trial card** on the connected provider, uploads referenced assets once, and sends only changed sections. Trial cards expire three days after the last push; `--create` makes a real private card that stays.
-- `hearthroom card validate` shows the provider's pre-publish report with the character limits it enforces.
-- `hearthroom card import` converts SillyTavern PNG / JSON / CHARX cards and MMD three-file sets, and reports every field that had no place to go.
-- `hearthroom play -m "…" --allow-spend` sends a turn and streams the reply. Only this spends credits, and only with the flag.
-- `hearthroom card pull`, `card list`, `search`, `tags`, `author`, `media upload|ls|rm`, `models`, `wallet`, `whoami`, `upgrade`.
+- A card is a folder of plain files: Markdown for the definition and openings, `card.json` for short fields, `lorebook.json`, `rules.json`, and `assets/` for media. Format: /guides/card-folder/
+- `hearthroom card push` syncs the folder to a private trial card on the connected provider; `--create` makes a card that stays. Details: /guides/trial-cards/
+- `hearthroom card validate` returns the provider's pre-publish report with the character limits it enforces.
+- `hearthroom card import` converts SillyTavern PNG / JSON / CHARX cards and MMD three-file sets and lists every field it could not place.
+- `hearthroom play -m "…" --allow-spend` sends a turn and streams the reply. This is the only command that spends credits, and only with the flag.
+- Also: `card pull`, `card list`, `search`, `tags`, `author`, `media upload|ls|rm`, `models`, `wallet`, `whoami`, `upgrade`.
 - Every command accepts `--json`. `HEARTHROOM_TOKEN` signs in without a browser.
 
 ## Install
@@ -30,25 +30,25 @@ Windows (PowerShell):
 irm https://raw.githubusercontent.com/hearthroom/cli/main/install.ps1 | iex
 ```
 
-The installer verifies the release checksum, sets up shell completion, and `hearthroom upgrade` updates in place. Builds for all platforms: https://github.com/hearthroom/cli/releases
+More: /guides/install/ · builds for every platform: https://github.com/hearthroom/cli/releases
 
-## Quick start
+## A typical loop
 
 ```sh
 hearthroom auth login
-hearthroom card init my-card
-hearthroom card push my-card --validate
-hearthroom play my-card -m "Hello?" --allow-spend
+hearthroom card import mira.png            # → folder "Mira", with a report of unmapped fields
+hearthroom card push Mira --validate --json
+hearthroom play Mira -m "Is the light on tonight?" --allow-spend --json
+hearthroom card push Mira --create         # keep it
 ```
 
 ## For agents
 
-Run the loop `card import` → edit files → `card push --validate --json` → `play --json`. Output is stable per command; paid actions need `--allow-spend`; the full manual is at /manual/ and as Markdown at /llms-full.txt.
+Read /llms-full.txt for the complete manual and guides in one file, or any page here as Markdown by appending `.md` to its path (for example /manual/card/push.md). Output shapes are stable per command; errors are one JSON object with a non-zero exit code. Guide: /guides/agents/
 
 ## Links
 
 - Manual: /manual/
-- Card folder format: /guides/card-folder/
-- Using it with agents: /guides/agents/
+- Guides: /guides/install/ · /guides/card-folder/ · /guides/trial-cards/ · /guides/agents/
 - Source and releases: https://github.com/hearthroom/cli
 - Community: https://hearthroom.club · https://discord.gg/C7m85YPHmK

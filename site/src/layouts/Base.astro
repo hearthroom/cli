@@ -52,7 +52,6 @@ const langNames: Record<Locale, string> = { en: "English", "zh-Hant": "繁體中
           <a href="/guides/install/" aria-current={section === "guides" ? "page" : undefined}>{s.nav.guides}</a>
           <a class="ext" href="https://github.com/hearthroom/cli/releases" rel="noopener">{s.nav.releases}</a>
           <a class="ext" href="https://github.com/hearthroom/cli" rel="noopener">GitHub</a>
-          <a class="ext" href="https://hearthroom.club" rel="noopener">hearthroom.club</a>
           <div class="ctl">
             <select id="lang" aria-label={s.language}>
               {LOCALES.map((l) => <option value={l} selected={l === locale}>{langNames[l]}</option>)}
@@ -70,6 +69,7 @@ const langNames: Record<Locale, string> = { en: "English", "zh-Hant": "繁體中
         <span>© Hearthroom · AGPL-3.0</span>
         <a href="https://github.com/hearthroom/cli" rel="noopener">GitHub</a>
         <a href="https://discord.gg/C7m85YPHmK" rel="noopener">Discord</a>
+        <a href="https://hearthroom.club" rel="noopener">hearthroom.club</a>
         <a href="https://hearthroom.club/developers" rel="noopener">{s.nav.developers}</a>
         <a href="/llms.txt">llms.txt</a>
         {markdown && <a href={markdown} class="md-link">{s.viewMarkdown}</a>}

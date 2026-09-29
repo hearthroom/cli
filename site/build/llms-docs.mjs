@@ -32,7 +32,7 @@ export async function collect(root = path.join(here, "..")) {
   pages.push({ route: "/", md: "/index.md", title: "Hearthroom CLI", body: splitFrontMatter(landing).body, kind: "landing" });
 
   const guidesDir = path.join(root, "src/content/guides");
-  const order = ["install.md", "card-folder.md", "agents.md"];
+  const order = ["install.md", "card-folder.md", "trial-cards.md", "agents.md"];
   const guideFiles = (await fs.readdir(guidesDir)).filter((n) => n.endsWith(".md")).sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
   for (const f of guideFiles) {
     const raw = await fs.readFile(path.join(guidesDir, f), "utf8");

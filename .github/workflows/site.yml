@@ -1,0 +1,60 @@
+name: Site
+
+# Deploys cli.hearthroom.club (and its sukisuki aliases) when the site or the
+# CLI's command tree changes. Needs CLOUDFLARE_API_TOKEN (Workers Scripts and
+# Workers Routes edit on the three zones) and CLOUDFLARE_ACCOUNT_ID as
+# repository secrets. Local deploys keep working through site/scripts/deploy.sh.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "cmd/gendocs/**", "internal/cli/**", "docs/card-folder.md", ".github/workflows/site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: generate the manual from the command tree
+        run: |
+          version=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+          echo "CLI_VERSION=$version" >> "$GITHUB_ENV"
+          go run ./cmd/gendocs -out site/src/content/manual -version "$version"
+          cp docs/card-folder.md site/src/content/guides/card-folder.md
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+        working-directory: site
+      - run: npx astro build
+        working-directory: site
+      - run: npx vitest run
+        working-directory: site
+      - name: deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: deploy
+      - name: read back
+        run: |
+          for h in cli.hearthroom.club cli.sukisuki.ai cli.sukisuki.chat; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "https://$h/llms.txt")
+            echo "$h /llms.txt $code"; [ "$code" = "200" ] || exit 1
+          done

@@ -15,6 +15,7 @@ my-card/
   lorebook.json      optional Lorebook
   rules.json         optional display rules ("author asset")
   assets/            media referenced by relative path
+  AGENTS.md          written by init and import for coding agents; never sent to the provider
   README.md          optional notes; never sent to the provider
   .hearthroom/
     state.json       sync state written by the CLI

@@ -166,6 +166,9 @@ func Init(dir, name string) (*Folder, error) {
 	// Placeholder files so the author sees where text goes.
 	_ = os.WriteFile(filepath.Join(dir, DefinitionFile), []byte("<!-- Private definition of the character: who they are, how they speak, what the story is about. -->\n"), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, WelcomeFile), []byte("<!-- Opening message the character sends first. -->\n"), 0o644)
+	if _, err := WriteAgentsGuide(dir, name); err != nil {
+		return nil, err
+	}
 	return Load(dir)
 }
 

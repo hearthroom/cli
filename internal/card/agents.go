@@ -1,0 +1,50 @@
+package card
+
+import (
+	"os"
+	"path/filepath"
+)
+
+// AgentsFile is read automatically by coding agents (Claude Code, Codex and
+// others) when they start working inside the folder. It is never sent to the
+// provider.
+const AgentsFile = "AGENTS.md"
+
+// SkillsRepo is the open-source toolkit that teaches an agent how to write a
+// good card, as opposed to merely moving one.
+const SkillsRepo = "https://github.com/hearthroom/skills"
+
+// AgentsGuide is the text written to AGENTS.md for a card named name.
+func AgentsGuide(name string) string {
+	return "# " + name + "\n\n" +
+		"This folder is a Hearthroom character card. Long text lives in Markdown\n" +
+		"(`" + DefinitionFile + "`, `" + WelcomeFile + "`, `openings/alt-NN.md`), short fields in `" + ManifestFile + "`,\n" +
+		"the Lorebook in `" + LorebookFile + "`, display rules in `" + RulesFile + "`, media under `" + AssetsDir + "/`.\n" +
+		"Format: https://cli.hearthroom.club/guides/card-folder/\n\n" +
+		"## Before writing\n\n" +
+		"Install the writing skills and start from their router: " + SkillsRepo + "\n" +
+		"(`claude plugin marketplace add hearthroom/skills` then `claude plugin install hearthroom`,\n" +
+		"or read skills/using-hearthroom/SKILL.md from that repository). They cover premise,\n" +
+		"character, Lorebook, openings, voice, state, presentation, diagnosis and iteration;\n" +
+		"every platform fact they rely on is in references/platform-facts.md there.\n\n" +
+		"## The loop\n\n" +
+		"```sh\n" +
+		"hearthroom card push . --validate --json   # private trial card + the provider's report\n" +
+		"hearthroom card render . --json            # the opening after display rules, per-rule outcome\n" +
+		"hearthroom play . -m \"...\" --allow-spend --json   # one real turn; spends the author's credits\n" +
+		"hearthroom card pull .                     # bring the provider's copy back\n" +
+		"```\n\n" +
+		"Pushing, validating and rendering are free. Only `play -m` spends credits and\n" +
+		"needs `--allow-spend`; ask the author before the first turn. Do not run\n" +
+		"`card push --create` or submit the card for review unless asked.\n" +
+		"Manual: https://cli.hearthroom.club/llms-full.txt\n"
+}
+
+// WriteAgentsGuide writes AGENTS.md unless the author already has one.
+func WriteAgentsGuide(dir, name string) (bool, error) {
+	path := filepath.Join(dir, AgentsFile)
+	if _, err := os.Stat(path); err == nil {
+		return false, nil
+	}
+	return true, os.WriteFile(path, []byte(AgentsGuide(name)), 0o644)
+}

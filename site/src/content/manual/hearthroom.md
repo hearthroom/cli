@@ -14,12 +14,15 @@ back, or import cards from SillyTavern and MMD. Every command accepts --json.
 
 Agents: start at https://sukisuki.ai/llms.txt for the card model, what needs
 sign-in or spends credits, and the Markdown sources of the guide and API reference.
+To write a good card, not just move one, install the card-writing skills:
+https://github.com/hearthroom/skills (card init and card import also leave an
+AGENTS.md in the folder that says so).
 
 ## Commands
 
 - [`hearthroom auth`](/manual/auth/) — Sign in to the connected card provider
 - [`hearthroom author`](/manual/author/) — Show a community author
-- [`hearthroom card`](/manual/card/) — Work with card folders: init, push, validate, pull, import, list
+- [`hearthroom card`](/manual/card/) — Work with card folders: init, push, validate, render, pull, import, list
 - [`hearthroom completion`](/manual/completion/) — Shell completion: install, uninstall, or print the script
 - [`hearthroom media`](/manual/media/) — Upload and list files in your media library
 - [`hearthroom models`](/manual/models/) — List models the provider offers

@@ -78,7 +78,7 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 		return nil, errors.New("--create and --to cannot be combined")
 	}
 	owned := opts.Create || opts.To != "" || (f.State.Target == "owned" && f.State.RoleID != "")
-	if opts.To != "" && f.State.RoleID != "" && f.State.RoleID != opts.To && f.State.Target == "owned" {
+	if opts.To != "" && f.State.RoleID != "" && f.State.RoleID != opts.To && f.State.Target == "owned" && !opts.Force {
 		return nil, fmt.Errorf("this folder is linked to card %s; pass --to %s again with --force to relink", f.State.RoleID, opts.To)
 	}
 
@@ -392,8 +392,9 @@ type entryListOutput struct {
 
 // pushLorebook writes the folder's Lorebook to the card's bound book,
 // creating and binding one when none exists. Entries are matched by id when
-// the folder knows them, otherwise by name; entries the CLI created or pulled
-// that no longer exist locally are deleted.
+// the folder knows them, otherwise by name. Only entries the CLI itself
+// created or pulled (recorded in state) are ever deleted; entries written by
+// other tools are left alone.
 func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID string, wb map[string]any) error {
 	bookID := f.State.LorebookID
 	if bookID == "" && f.Lorebook != nil {
@@ -479,8 +480,17 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		}
 		ops = append(ops, op)
 	}
+	known := map[string]bool{}
+	for _, id := range f.State.LorebookEntryIDs {
+		known[id] = true
+	}
+	for _, le := range local {
+		if le.ID != "" {
+			known[le.ID] = true
+		}
+	}
 	for _, e := range existing.Entries {
-		if !seen[e.EntryID] {
+		if !seen[e.EntryID] && known[e.EntryID] {
 			ops = append(ops, map[string]any{"op": "delete", "entryId": e.EntryID})
 		}
 	}
@@ -517,6 +527,12 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		}
 	}
 	f.State.LorebookID = bookID
+	f.State.LorebookEntryIDs = nil
+	for _, le := range local {
+		if le.ID != "" {
+			f.State.LorebookEntryIDs = append(f.State.LorebookEntryIDs, le.ID)
+		}
+	}
 	if f.Lorebook != nil {
 		f.Lorebook.ID = bookID
 		_ = f.Save()

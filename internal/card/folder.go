@@ -135,6 +135,7 @@ type State struct {
 	Assets             map[string]Asset  `json:"assets,omitempty"` // by relative path
 	AuthorAssetVersion int64             `json:"authorAssetVersion,omitempty"`
 	LorebookID         string            `json:"lorebookId,omitempty"`
+	LorebookEntryIDs   []string          `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
 	ConversationID     string            `json:"conversationId,omitempty"`
 }
 

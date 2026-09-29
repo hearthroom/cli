@@ -92,8 +92,9 @@ type LorebookEntry struct {
 type Rules struct {
 	Rules        []DisplayRule `json:"rules"`
 	MountTrigger string        `json:"mountTrigger,omitempty"`
-	MountLayer   string        `json:"mountLayer,omitempty"`
-	PageMode     string        `json:"pageMode,omitempty"`
+	MountLayer   string        `json:"mountLayer,omitempty"` // under | over | cover (default over)
+	PageMode     string        `json:"pageMode,omitempty"`   // classic | immersive | sandbox
+	CardFormat   string        `json:"cardFormat,omitempty"` // "" (MMD-style) | tavern: how <style> in rules is scoped
 }
 
 // DisplayRule is one find/replace rule.

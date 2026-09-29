@@ -24,7 +24,7 @@ func (a *App) cardCommand() *cobra.Command {
 		Use:   "card",
 		Short: "Work with card folders: init, push, validate, pull, import, list",
 	}
-	cmd.AddCommand(a.cardInit(), a.cardPush(), a.cardValidate(), a.cardPull(), a.cardList(), a.cardStatus())
+	cmd.AddCommand(a.cardInit(), a.cardImport(), a.cardPush(), a.cardValidate(), a.cardPull(), a.cardList(), a.cardStatus())
 	return cmd
 }
 

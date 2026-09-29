@@ -69,7 +69,7 @@ const basePath = path.replace(/^\/(zh-Hant|zh-Hans|ja|ko)(?=\/)/, "");
       </script>
     )}
   </head>
-  <body>
+  <body class={section === "home" ? "landing" : undefined}>
     <a class="skip" href="#main">{s.skip}</a>
     <header class="site-header">
       <div class="wrap">

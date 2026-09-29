@@ -8,6 +8,7 @@ const { locale, version } = Astro.props;
 const s = t(locale);
 ---
 <Base title="Hearthroom CLI" description={`${s.hero.title}. ${s.hero.lead}`} locale={locale} markdown="/index.md" path={localePath(locale, "/")} section="home">
+  <div class="band band-dark">
   <section class="hero">
     <h1>{s.hero.title}</h1>
     <p class="lead">{s.hero.lead}</p>
@@ -15,7 +16,9 @@ const s = t(locale);
   </section>
 
   <HeroTerminal locale={locale} />
+  </div>
 
+  <div class="band band-light">
   <section class="why">
     <h2>{s.headline}</h2>
     <div class="props">
@@ -30,4 +33,5 @@ const s = t(locale);
       <Install locale={locale} version={version} id="install-again" />
     </div>
   </section>
+  </div>
 </Base>

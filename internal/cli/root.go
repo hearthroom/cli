@@ -43,6 +43,13 @@ type App struct {
 	updates                          <-chan update.Result
 }
 
+// NewRoot builds the full command tree without executing it. Documentation
+// generators use it so the published manual is exactly what --help says.
+func NewRoot(info BuildInfo) *cobra.Command {
+	app := &App{Info: info, Out: output.Printer{Out: os.Stdout, Err: os.Stderr}}
+	return app.rootCommand()
+}
+
 // Main runs the CLI and returns the process exit code.
 func Main(ctx context.Context, info BuildInfo, args []string) int {
 	app := &App{Info: info, Out: output.Printer{Out: os.Stdout, Err: os.Stderr}}
@@ -93,7 +100,10 @@ func (a *App) rootCommand() *cobra.Command {
 
 Cards live in folders you can version and hand to an AI agent. Push a folder to
 a private trial card on the connected provider, validate it, play it, pull it
-back, or import cards from SillyTavern and MMD. Every command accepts --json.`,
+back, or import cards from SillyTavern and MMD. Every command accepts --json.
+
+Agents: start at https://hearthroom.club/llms.txt for the card model, what needs
+sign-in or spends credits, and the Markdown sources of the guide and API reference.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {

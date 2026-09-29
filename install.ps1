@@ -18,8 +18,10 @@ $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture 
 
 $version = $env:HEARTHROOM_VERSION
 if (-not $version) {
-  $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ Accept = 'application/vnd.github+json' }
-  $version = $latest.tag_name
+  $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -MaximumRedirection 0 -ErrorAction SilentlyContinue
+  $location = $resp.Headers.Location
+  if (-not $location) { $location = $resp.BaseResponse.ResponseUri.AbsoluteUri }
+  $version = ($location -split '/tag/')[-1]
 }
 if (-not $version) { throw 'could not determine the latest release; set HEARTHROOM_VERSION' }
 $plain = $version.TrimStart('v')

@@ -1,46 +1,75 @@
 ---
 /**
- * One install control, like cli.github.com: an OS switcher, the command, Copy.
- * The OS is detected in the browser; the server renders macOS/Linux (the
- * same command) so the control is right without JavaScript for most readers.
- * Below it, the line this audience needs and gh does not: the agent handoff.
+ * The install control, after cli.github.com: a method menu, the command, Copy.
+ * The menu is a <details> so it works without JavaScript; the script only
+ * picks the method for the visitor's OS, closes the menu on choice, and keeps
+ * the command in sync. Escape and outside clicks are handled in Base.astro for
+ * every menu.
+ *
+ * `agent` adds the one line this audience needs and gh does not: where to
+ * point an AI agent. The landing shows it once, under the hero.
  */
-import { t, type Locale } from "../i18n";
-interface Props { locale: Locale; version: string; id?: string }
-const { locale, version, id = "install" } = Astro.props;
+import { t, type Locale, type InstallMethod } from "../i18n";
+import CopyButton from "./CopyButton.astro";
+interface Props { locale: Locale; version: string; id?: string; agent?: boolean }
+const { locale, version, id = "install", agent = false } = Astro.props;
 const s = t(locale).install;
-const sh = "curl -fsSL https://raw.githubusercontent.com/hearthroom/cli/main/install.sh | sh";
-const ps = "irm https://raw.githubusercontent.com/hearthroom/cli/main/install.ps1 | iex";
+const commands: Record<InstallMethod, string> = {
+  brew: "brew install hearthroom/tap/hearthroom",
+  sh: "curl -fsSL https://raw.githubusercontent.com/hearthroom/cli/main/install.sh | sh",
+  ps: "irm https://raw.githubusercontent.com/hearthroom/cli/main/install.ps1 | iex",
+  scoop: "scoop bucket add hearthroom https://github.com/hearthroom/scoop-bucket; scoop install hearthroom",
+};
+const options: { method: InstallMethod; text: string }[] = [
+  { method: "brew", text: s.method.brewMac },
+  { method: "sh", text: s.method.shMac },
+  { method: "sh", text: s.method.shLinux },
+  { method: "ps", text: s.method.ps },
+  { method: "scoop", text: s.method.scoop },
+];
+const initial: InstallMethod = "brew";
 const llms = "https://cli.hearthroom.club/llms.txt";
 ---
 <div class="install-block" id={id}>
-  <div class="install-ctl" data-install>
-    <select aria-label="Operating system" data-os>
-      <option value="mac">{s.os.mac}</option>
-      <option value="linux">{s.os.linux}</option>
-      <option value="windows">{s.os.windows}</option>
-    </select>
-    <code data-cmd data-sh={sh} data-ps={ps}>{sh}</code>
-    <button type="button" data-copy={sh} data-copied={s.copied}>{s.copy}</button>
+  <div class="install-bar" data-install data-commands={JSON.stringify(commands)} data-labels={JSON.stringify(s.label)}>
+    <details class="menu install-menu">
+      <summary><span data-label>{s.label[initial]}</span><svg class="caret" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M4 6h8l-4 4.5z"/></svg></summary>
+      <ul>
+        {options.map((o, i) => <>
+          {i === 3 && <li class="sep" role="separator"></li>}
+          <li><button type="button" data-method={o.method}>{o.text}</button></li>
+        </>)}
+        <li class="sep" role="separator"></li>
+        <li><a href="https://github.com/hearthroom/cli/releases/latest" rel="noopener">{s.method.download}</a></li>
+      </ul>
+    </details>
+    <code data-cmd>{commands[initial]}</code>
+    <CopyButton text={commands[initial]} label={s.copy} copied={s.copied} class="cta" />
   </div>
   <p class="install-meta">
     <a href="https://github.com/hearthroom/cli/releases/latest" rel="noopener">{s.version(version)}</a>
-    <a href="/guides/install/">{s.other} →</a>
+    <a href="/guides/install/">{s.instructions} →</a>
   </p>
-  <p class="agent-line">
-    <span>{s.agent}</span>
-    <code>{llms}</code>
-    <button type="button" data-copy={llms} data-copied={s.copied}>{s.copy}</button>
-  </p>
+  {agent && (
+    <p class="agent-line">
+      <span>{s.agent}</span>
+      <code>{llms}</code>
+      <CopyButton text={llms} label={s.copy} copied={s.copied} class="small" />
+    </p>
+  )}
 </div>
 <script is:inline>
   (function () {
-    var ua = navigator.userAgent, os = /Windows/.test(ua) ? "windows" : /Linux|Android|CrOS/.test(ua) && !/Mac/.test(ua) ? "linux" : "mac";
-    document.querySelectorAll("[data-install]").forEach(function (box) {
-      var sel = box.querySelector("[data-os]"), code = box.querySelector("[data-cmd]"), btn = box.querySelector("[data-copy]");
-      function apply(v) { var c = v === "windows" ? code.dataset.ps : code.dataset.sh; code.textContent = c; btn.dataset.copy = c; }
-      sel.value = os; apply(os);
-      sel.addEventListener("change", function () { apply(sel.value); });
+    var ua = navigator.userAgent;
+    var os = /Windows/.test(ua) ? "ps" : /Linux|Android|CrOS/.test(ua) && !/Mac/.test(ua) ? "sh" : "brew";
+    document.querySelectorAll("[data-install]").forEach(function (bar) {
+      var commands = JSON.parse(bar.dataset.commands), labels = JSON.parse(bar.dataset.labels);
+      var menu = bar.querySelector("details"), label = bar.querySelector("[data-label]"), code = bar.querySelector("[data-cmd]"), copy = bar.querySelector("[data-copy]");
+      function apply(m) { label.textContent = labels[m]; code.textContent = commands[m]; copy.setAttribute("data-copy", commands[m]); }
+      apply(os);
+      bar.querySelectorAll("[data-method]").forEach(function (b) {
+        b.addEventListener("click", function () { apply(b.dataset.method); menu.open = false; });
+      });
     });
   })();
 </script>

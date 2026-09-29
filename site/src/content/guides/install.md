@@ -6,7 +6,15 @@ title: Installing
 
 `hearthroom` is a single binary for Linux, macOS and Windows on amd64 and arm64. Nothing to compile, no runtime to install.
 
-## macOS and Linux
+## macOS
+
+```sh
+brew install hearthroom/tap/hearthroom
+```
+
+The cask installs the binary and shell completions from the GitHub release and clears the macOS quarantine flag, so Gatekeeper does not block the first run. `brew upgrade hearthroom` updates it. The shell script below works on macOS too.
+
+## Linux (and macOS without Homebrew)
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/hearthroom/cli/main/install.sh | sh
@@ -17,6 +25,15 @@ The script picks the build for your platform from the latest GitHub release, che
 Files fetched with `curl` carry no macOS quarantine flag, so Gatekeeper does not block the first run.
 
 ## Windows
+
+With [Scoop](https://scoop.sh):
+
+```powershell
+scoop bucket add hearthroom https://github.com/hearthroom/scoop-bucket
+scoop install hearthroom
+```
+
+Or with the PowerShell script:
 
 ```powershell
 irm https://raw.githubusercontent.com/hearthroom/cli/main/install.ps1 | iex
@@ -32,11 +49,10 @@ hearthroom completion powershell | Out-String | Invoke-Expression
 
 - **From source** (Go 1.26+): `go install github.com/hearthroom/cli/cmd/hearthroom@latest`
 - **Manual download**: unpack the archive for your platform from the [latest release](https://github.com/hearthroom/cli/releases/latest) and put the binary on your PATH. Every asset has a build provenance attestation: `gh attestation verify <file> --owner hearthroom`.
-- Homebrew and Scoop packages are planned.
 
 ## Updating
 
-`hearthroom` checks for a newer release at most once a day and prints one line when there is one. Update with:
+`hearthroom` checks for a newer release at most once a day and prints one line when there is one. Homebrew and Scoop installs update through their package manager; for the script and manual installs, run:
 
 ```sh
 hearthroom upgrade

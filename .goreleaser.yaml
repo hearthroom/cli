@@ -1,0 +1,98 @@
+version: 2
+
+project_name: hearthroom
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: hearthroom
+    main: ./cmd/hearthroom
+    binary: hearthroom
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.CommitDate}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: hearthroom
+    name: cli
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Install
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/hearthroom/cli/main/install.sh | sh
+    ```
+
+    Windows (PowerShell):
+
+    ```powershell
+    irm https://raw.githubusercontent.com/hearthroom/cli/main/install.ps1 | iex
+    ```
+
+    Every asset carries a build provenance attestation:
+    `gh attestation verify <file> --owner hearthroom`.
+
+# Homebrew tap and Scoop bucket publishing need a token that can push to the
+# sibling repositories. They are enabled when HOMEBREW_TAP_TOKEN is set in the
+# release workflow; otherwise the release ships without them.
+brews:
+  - name: hearthroom
+    repository:
+      owner: hearthroom
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: https://hearthroom.club
+    description: Command-line client for Hearthroom character cards
+    license: AGPL-3.0-only
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
+    test: |
+      system "#{bin}/hearthroom", "version"
+    install: |
+      bin.install "hearthroom"
+
+scoops:
+  - name: hearthroom
+    repository:
+      owner: hearthroom
+      name: scoop-bucket
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: bucket
+    homepage: https://hearthroom.club
+    description: Command-line client for Hearthroom character cards
+    license: AGPL-3.0-only
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'

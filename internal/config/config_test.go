@@ -68,3 +68,11 @@ func TestNormalizeBase(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// The community site's primary domain is sukisuki.ai; hearthroom.club and sukisuki.chat
+// keep serving but the CLI should talk to the canonical one by default.
+func TestDefaultSiteIsThePrimaryDomain(t *testing.T) {
+	if DefaultSite != "https://sukisuki.ai" {
+		t.Fatalf("DefaultSite = %q, want the primary domain https://sukisuki.ai", DefaultSite)
+	}
+}

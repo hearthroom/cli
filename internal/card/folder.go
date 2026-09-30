@@ -62,7 +62,10 @@ type TalkExample struct {
 // Media references either a relative path under assets/ or an absolute URL.
 type Media struct {
 	Portrait   string `json:"portrait,omitempty"`
-	Background string `json:"background,omitempty"`
+	Background string `json:"background,omitempty"` // portrait (9:16) background, the baseline
+	// BackgroundLandscape is the optional landscape (16:9) background the chat
+	// page prefers on wide screens; it falls back to Background when empty.
+	BackgroundLandscape string `json:"backgroundLandscape,omitempty"`
 }
 
 // Lorebook is lorebook.json.
@@ -491,6 +494,7 @@ func (f *Folder) AssetRefs() (present, missing []string) {
 	}
 	add(f.Manifest.Media.Portrait)
 	add(f.Manifest.Media.Background)
+	add(f.Manifest.Media.BackgroundLandscape)
 	scan := func(text string) {
 		for _, m := range assetRef.FindAllString(text, -1) {
 			add(strings.TrimRight(m, ".,;:!?"))

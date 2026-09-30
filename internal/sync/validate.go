@@ -73,7 +73,7 @@ func LocalCheck(f *card.Folder) []string {
 			problems = append(problems, "referenced asset not found: "+m)
 		}
 	}
-	for _, ref := range []string{f.Manifest.Media.Portrait, f.Manifest.Media.Background} {
+	for _, ref := range []string{f.Manifest.Media.Portrait, f.Manifest.Media.Background, f.Manifest.Media.BackgroundLandscape} {
 		if ref != "" && !isURL(ref) {
 			if _, err := os.Stat(filepath.Join(f.Dir, filepath.FromSlash(ref))); err != nil {
 				problems = append(problems, "media reference not found: "+ref)

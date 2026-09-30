@@ -118,6 +118,9 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 	if u := resolveMedia(m.Media.Background, urls); u != "" {
 		fields["roleBackground"] = u
 	}
+	if u := resolveMedia(m.Media.BackgroundLandscape, urls); u != "" {
+		fields["roleBackgroundLandscape"] = u
+	}
 	p.Card = fields
 
 	if w := Body(f.Welcome); w != "" || len(f.Alternates) > 0 || len(m.Prologue) > 0 {
@@ -231,28 +234,29 @@ func nonNil(s []string) []string {
 
 // RemoteDetail is the subset of GET /open/v1/role/detail the folder uses.
 type RemoteDetail struct {
-	RoleID             string          `json:"characterRoleId"`
-	RoleName           string          `json:"roleName"`
-	RoleDesc           string          `json:"roleDesc"`
-	RoleTag            []string        `json:"roleTag"`
-	RoleType           string          `json:"roleType"`
-	RoleSex            string          `json:"roleSex"`
-	UserName           string          `json:"userName"`
-	Nickname           string          `json:"nickname"`
-	RoleAvatar         string          `json:"roleAvatar"`
-	RoleBackground     string          `json:"roleBackground"`
-	RoleDetailDesc     string          `json:"roleDetailDesc"`
-	RoleWelcome        string          `json:"roleWelcome"`
-	RoleWelcomeAlts    []string        `json:"roleWelcomeAlternates"`
-	RolePrologue       []string        `json:"rolePrologue"`
-	TalkExample        []TalkExample   `json:"talkExample"`
-	RoleOutputContract string          `json:"roleOutputContract"`
-	CustomInstructions string          `json:"customInstructions"`
-	CardMeta           json.RawMessage `json:"cardMeta"`
-	Language           string          `json:"language"`
-	Visibility         string          `json:"roleVisibility"`
-	ReviewStatus       string          `json:"reviewStatus"`
-	CreationMethod     string          `json:"creationMethod"`
+	RoleID                  string          `json:"characterRoleId"`
+	RoleName                string          `json:"roleName"`
+	RoleDesc                string          `json:"roleDesc"`
+	RoleTag                 []string        `json:"roleTag"`
+	RoleType                string          `json:"roleType"`
+	RoleSex                 string          `json:"roleSex"`
+	UserName                string          `json:"userName"`
+	Nickname                string          `json:"nickname"`
+	RoleAvatar              string          `json:"roleAvatar"`
+	RoleBackground          string          `json:"roleBackground"`
+	RoleBackgroundLandscape string          `json:"roleBackgroundLandscape"`
+	RoleDetailDesc          string          `json:"roleDetailDesc"`
+	RoleWelcome             string          `json:"roleWelcome"`
+	RoleWelcomeAlts         []string        `json:"roleWelcomeAlternates"`
+	RolePrologue            []string        `json:"rolePrologue"`
+	TalkExample             []TalkExample   `json:"talkExample"`
+	RoleOutputContract      string          `json:"roleOutputContract"`
+	CustomInstructions      string          `json:"customInstructions"`
+	CardMeta                json.RawMessage `json:"cardMeta"`
+	Language                string          `json:"language"`
+	Visibility              string          `json:"roleVisibility"`
+	ReviewStatus            string          `json:"reviewStatus"`
+	CreationMethod          string          `json:"creationMethod"`
 }
 
 // RemoteEntry is one Lorebook entry from GET /open/v1/worldbook/entry/list.
@@ -299,7 +303,7 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		TalkExample:        d.TalkExample,
 		Prologue:           d.RolePrologue,
 		Language:           d.Language,
-		Media:              Media{Portrait: d.RoleAvatar, Background: d.RoleBackground},
+		Media:              Media{Portrait: d.RoleAvatar, Background: d.RoleBackground, BackgroundLandscape: d.RoleBackgroundLandscape},
 	}
 	if d.RoleBackground == d.RoleAvatar {
 		f.Manifest.Media.Background = ""

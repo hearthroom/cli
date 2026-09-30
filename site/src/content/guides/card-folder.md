@@ -44,7 +44,8 @@ my-card/
   "cardMeta": {"creator": "…", "characterVersion": "1.0"},
   "media": {
     "portrait": "assets/mira.png",
-    "background": ""
+    "background": "",
+    "backgroundLandscape": "assets/mira-wide.png"
   }
 }
 ```
@@ -66,6 +67,7 @@ my-card/
 | `cardMeta` | `cardMeta` | Character Card V3 provenance, kept verbatim |
 | `media.portrait` | `roleAvatar` | relative path under `assets/` or an absolute URL |
 | `media.background` | `roleBackground` | same; on HarperHarbor the portrait doubles as the background |
+| `media.backgroundLandscape` | `roleBackgroundLandscape` | optional landscape (16:9) background; the chat page prefers it on wide screens and falls back to the portrait one. Both are cropped to cover the screen, so keep important elements in the central 75% |
 
 Unknown keys are preserved on load and save and never sent to the provider.
 

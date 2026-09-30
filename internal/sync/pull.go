@@ -109,6 +109,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		}
 		fetch(&f.Manifest.Media.Portrait, "portrait")
 		fetch(&f.Manifest.Media.Background, "background")
+		fetch(&f.Manifest.Media.BackgroundLandscape, "background-landscape")
 	}
 
 	if err := f.Save(); err != nil {

@@ -19,7 +19,9 @@ func AgentsGuide(name string) string {
 	return "# " + name + "\n\n" +
 		"This folder is a Hearthroom character card. Long text lives in Markdown\n" +
 		"(`" + DefinitionFile + "`, `" + WelcomeFile + "`, `openings/alt-NN.md`), short fields in `" + ManifestFile + "`,\n" +
-		"the Lorebook in `" + LorebookFile + "`, display rules in `" + RulesFile + "`, media under `" + AssetsDir + "/`.\n" +
+		"the Lorebook in `" + LorebookFile + "`, display rules in `" + RulesFile + "`, media under `" + AssetsDir + "/`\n" +
+		"(`media.portrait`, `media.background` for the portrait 9:16 background, and `media.backgroundLandscape`\n" +
+		"for the landscape 16:9 background wide screens prefer; keep key elements in the central 75%).\n" +
 		"Format: https://cli.hearthroom.club/guides/card-folder/\n\n" +
 		"## Before writing\n\n" +
 		"Install the writing skills and start from their router: " + SkillsRepo + "\n" +

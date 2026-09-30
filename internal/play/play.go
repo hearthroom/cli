@@ -55,6 +55,21 @@ func Start(ctx context.Context, c *api.Client, roleID string, greetingIndex, fir
 	return &out, nil
 }
 
+// StartNew archives the current conversation with the card (the provider
+// keeps it as history when it has a user message, otherwise discards it) and
+// opens a fresh one. Two folders that share a card no longer step on each
+// other's conversation.
+func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, firstPageSize int) (*StartResponse, error) {
+	current, err := Start(ctx, c, roleID, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.OpenPost(ctx, "/conversation/save-and-start-new", map[string]any{"conversationId": current.ConversationID, "save": true}, nil); err != nil {
+		return nil, fmt.Errorf("start new conversation: %w", err)
+	}
+	return Start(ctx, c, roleID, greetingIndex, firstPageSize)
+}
+
 // Message is one row of a conversation.
 type Message struct {
 	ID           int64  `json:"id"`

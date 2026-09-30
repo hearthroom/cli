@@ -15,6 +15,11 @@ generates a reply and spends credits on the provider, so it runs only with
 --allow-spend. Press Ctrl-C to stop a reply; what was generated is still
 charged and shown.
 
+Turns carry the card's language from card.json unless --language says otherwise;
+without one the provider replies in English. --new-session archives the current
+conversation with the card and starts a fresh one, so two folders can test the
+same card without sharing a thread.
+
 With --json, every server event is printed as one JSON object per line.
 
 ## Usage
@@ -30,9 +35,11 @@ hearthroom play [dir] [flags]
       --allow-spend               confirm that this turn may spend credits
       --greeting int              opening to use when a new conversation is created (0 = main, 1.. = alternates)
       --history                   print recent messages instead of sending
+      --language string           reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)
       --limit int                 messages to show with --history (default 20)
   -m, --message string            message to send (spends credits; requires --allow-spend)
       --model hearthroom models   model value from hearthroom models (default: provider default)
+      --new-session               archive the current conversation with this card and start a fresh one
       --role string               card id instead of a folder
       --show-thinking             print reasoning deltas to stderr
       --stop                      stop the reply currently being generated

@@ -48,7 +48,11 @@ func TestTurnRefusesWithoutSpend(t *testing.T) {
 }
 
 // fakeStream serves ws-ticket and a WebSocket that replays a scripted turn.
-func fakeStream(t *testing.T, script []string, wantModel string) *httptest.Server {
+func fakeStream(t *testing.T, script []string, wantModel string, wantLanguage ...string) *httptest.Server {
+	lang := ""
+	if len(wantLanguage) > 0 {
+		lang = wantLanguage[0]
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/open/v1/conversation/ws-ticket", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer tok" {
@@ -87,6 +91,11 @@ func fakeStream(t *testing.T, script []string, wantModel string) *httptest.Serve
 		_ = json.Unmarshal(raw, &frame)
 		if frame["conversationId"] != "conv1" || frame["message"] != "hi" || frame["operationKind"] != "send" || frame["clientOperationId"] == "" || (wantModel != "" && frame["model"] != wantModel) {
 			t.Errorf("chat frame = %v", frame)
+		}
+		// The provider defaults a missing language to English, so a Traditional
+		// Chinese card must carry its language on every turn; an empty one is omitted.
+		if got, ok := frame["language"]; (lang != "" && got != lang) || (lang == "" && ok) {
+			t.Errorf("chat frame language = %v (want %q)", got, lang)
 		}
 		for _, s := range script {
 			if err := conn.Write(ctx, websocket.MessageText, []byte(s)); err != nil {
@@ -140,5 +149,46 @@ func TestTurnReportsServerError(t *testing.T) {
 	}
 	if res.Error != "not enough credits" || res.ErrorType != "insufficient_credits" {
 		t.Fatalf("result: %+v", res)
+	}
+}
+
+func TestTurnSendsTheCardLanguage(t *testing.T) {
+	script := []string{
+		"id: 1\nevent: answer\ndata: {\"choices\":[{\"delta\":{\"content\":\"你好\"},\"finish_reason\":\"stop\"}]}\n\n",
+		"id: 2\nevent: done\ndata: [DONE]\n\n",
+	}
+	srv := fakeStream(t, script, "", "zh-Hant")
+	c := api.New(srv.URL, "http://site", "t", func(context.Context) (string, error) { return "tok", nil })
+	if _, err := Turn(context.Background(), c, TurnOptions{ConversationID: "conv1", Message: "hi", Language: "zh-Hant", AllowSpend: true}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// --new-session: archive the current conversation, then open the fresh one.
+func TestStartNewArchivesThenOpens(t *testing.T) {
+	var archived map[string]any
+	starts := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/open/v1/conversation/save-and-start-new", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&archived)
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": "conv2"})
+	})
+	mux.HandleFunc("/open/v1/conversation/start", func(w http.ResponseWriter, r *http.Request) {
+		starts++
+		id := "conv1"
+		if archived != nil {
+			id = "conv2"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": id, "historyConversation": false, "defaultRelay": "hi", "roleInfo": map[string]any{"roleName": "Mira"}})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := api.New(srv.URL, "http://site", "t", func(context.Context) (string, error) { return "tok", nil })
+	res, err := StartNew(context.Background(), c, "r1", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if archived["conversationId"] != "conv1" || archived["save"] != true || res.ConversationID != "conv2" || starts != 2 {
+		t.Fatalf("archived=%v res=%+v starts=%d", archived, res, starts)
 	}
 }

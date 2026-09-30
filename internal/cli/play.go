@@ -20,10 +20,10 @@ func init() {
 
 func (a *App) playCommand() *cobra.Command {
 	var (
-		roleID, message, model, thinking string
-		greeting, historyN               int
-		allowSpend, history, stop, show  bool
-		agent                            string
+		roleID, message, model, thinking, language  string
+		greeting, historyN                          int
+		allowSpend, history, stop, show, newSession bool
+		agent                                       string
 	)
 	c := &cobra.Command{
 		Use:   "play [dir]",
@@ -35,6 +35,11 @@ Starting a conversation and reading history are free. Sending a message
 generates a reply and spends credits on the provider, so it runs only with
 --allow-spend. Press Ctrl-C to stop a reply; what was generated is still
 charged and shown.
+
+Turns carry the card's language from card.json unless --language says otherwise;
+without one the provider replies in English. --new-session archives the current
+conversation with the card and starts a fresh one, so two folders can test the
+same card without sharing a thread.
 
 With --json, every server event is printed as one JSON object per line.`,
 		Args: cobra.MaximumNArgs(1),
@@ -59,7 +64,13 @@ With --json, every server event is printed as one JSON object per line.`,
 			if history {
 				pageSize = historyN
 			}
-			start, err := play.Start(ctx, a.Client(), roleID, greeting, pageSize)
+			var start *play.StartResponse
+			var err error
+			if newSession {
+				start, err = play.StartNew(ctx, a.Client(), roleID, greeting, pageSize)
+			} else {
+				start, err = play.Start(ctx, a.Client(), roleID, greeting, pageSize)
+			}
 			if err != nil {
 				return err
 			}
@@ -121,7 +132,7 @@ With --json, every server event is printed as one JSON object per line.`,
 			}
 			opts := play.TurnOptions{
 				ConversationID: start.ConversationID, Message: message, Model: model, AllowSpend: true,
-				ThinkingDepth: thinking,
+				ThinkingDepth: thinking, Language: turnLanguage(language, f),
 			}
 			switch agent {
 			case "on":
@@ -180,6 +191,8 @@ With --json, every server event is printed as one JSON object per line.`,
 		},
 	}
 	c.Flags().StringVar(&roleID, "role", "", "card id instead of a folder")
+	c.Flags().StringVar(&language, "language", "", "reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)")
+	c.Flags().BoolVar(&newSession, "new-session", false, "archive the current conversation with this card and start a fresh one")
 	c.Flags().StringVarP(&message, "message", "m", "", "message to send (spends credits; requires --allow-spend)")
 	c.Flags().BoolVar(&allowSpend, "allow-spend", false, "confirm that this turn may spend credits")
 	c.Flags().StringVar(&model, "model", "", "model value from `hearthroom models` (default: provider default)")
@@ -197,6 +210,18 @@ With --json, every server event is printed as one JSON object per line.`,
 func incompleteMark(m play.Message) string {
 	if !m.IsComplete && m.Role != "user" && !m.IsFirst {
 		return " (incomplete)"
+	}
+	return ""
+}
+
+// turnLanguage is the language sent with a turn: the flag, else the card's
+// language from card.json. Empty means the provider's default, which is English.
+func turnLanguage(flag string, f *card.Folder) string {
+	if flag != "" {
+		return flag
+	}
+	if f != nil {
+		return f.Manifest.Language
 	}
 	return ""
 }

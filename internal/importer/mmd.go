@@ -297,8 +297,8 @@ func MergeMMDFiles(files []*MMDFile, language string) *Result {
 		if name == "" {
 			name = r.Name
 		}
-		r.Lorebook = &LorebookDraft{Name: name, Description: book.Book.Description, Entries: BookEntriesToDrafts(book.Book.Entries)}
-		r.Notes = append(r.Notes, BookEntryNotes(book.Book.Entries)...)
+		r.Lorebook = &LorebookDraft{Name: name, Description: book.Book.Description, Entries: BookEntriesToDrafts(book.Book.Entries, language)}
+		r.Notes = append(r.Notes, BookEntryNotes(book.Book.Entries, language)...)
 	}
 	for _, part := range []struct {
 		name string

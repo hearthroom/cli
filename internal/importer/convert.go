@@ -129,8 +129,8 @@ func FromTavern(p *Parsed, language string) *Result {
 		if name == "" {
 			name = r.Name
 		}
-		r.Lorebook = &LorebookDraft{Name: name, Description: book.Description, Entries: BookEntriesToDrafts(book.Entries)}
-		r.Notes = append(r.Notes, BookEntryNotes(book.Entries)...)
+		r.Lorebook = &LorebookDraft{Name: name, Description: book.Description, Entries: BookEntriesToDrafts(book.Entries, language)}
+		r.Notes = append(r.Notes, BookEntryNotes(book.Entries, language)...)
 		if book.ScanDepth != 0 && book.ScanDepth != 2 || book.TokenBudget > 0 || book.RecursiveScanning {
 			r.Notes = append(r.Notes, "Lorebook scan depth, token budget and recursive scanning are provider settings and were not imported")
 		}

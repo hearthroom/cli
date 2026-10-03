@@ -19,10 +19,22 @@ import (
 const (
 	// TagsMax is the maximum number of tags a card keeps.
 	TagsMax = 10
-	// EntryContentMax is the per-entry Lorebook content limit; longer
-	// entries are split into several with the same keywords.
-	EntryContentMax = 3000
 )
+
+// EntryContentMaxFor is the per-entry Lorebook content limit for a card
+// language, matching the provider: 4000 characters for Chinese (and for an
+// empty or unknown language), 6000 for Japanese and Korean, 12000 for
+// English. Longer entries are split into several with the same keywords.
+func EntryContentMaxFor(language string) int {
+	l := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(language)), "_", "-")
+	switch {
+	case strings.HasPrefix(l, "en"):
+		return 12000
+	case strings.HasPrefix(l, "ja"), strings.HasPrefix(l, "ko"):
+		return 6000
+	}
+	return 4000
+}
 
 // Card is a SillyTavern character card (V1 flattened, V2 or V3).
 type Card struct {
@@ -744,9 +756,10 @@ func EntryMatchOptions(e BookEntry) map[string]any {
 	return opts
 }
 
-// BookEntriesToDrafts converts entries, splitting long content and keeping
-// the site's naming rules.
-func BookEntriesToDrafts(entries []BookEntry) []EntryDraft {
+// BookEntriesToDrafts converts entries, splitting content longer than the
+// card language's limit and keeping the site's naming rules.
+func BookEntriesToDrafts(entries []BookEntry, language string) []EntryDraft {
+	limit := EntryContentMaxFor(language)
 	var drafts []EntryDraft
 	for i, e := range entries {
 		dec := ParseDecorators(strings.TrimSpace(e.Content))
@@ -765,7 +778,7 @@ func BookEntriesToDrafts(entries []BookEntry) []EntryDraft {
 			base = fmt.Sprintf("#%d", i+1)
 		}
 		keywords := entryKeywords(e, append(append([]string{}, e.Keys...), dec.AdditionalKeys...))
-		parts := SplitEntryContent(content, EntryContentMax)
+		parts := SplitEntryContent(content, limit)
 		opts := EntryMatchOptions(e)
 		groupID, _ := opts["groupId"].(string)
 		if groupID == "" && len(parts) > 1 {
@@ -810,8 +823,10 @@ func truncateRunes(s string, n int) string {
 	return string(r[:n])
 }
 
-// BookEntryNotes reports entry-level fields that have no destination.
-func BookEntryNotes(entries []BookEntry) []string {
+// BookEntryNotes reports entry-level fields that have no destination and
+// entries split for the card language's limit.
+func BookEntryNotes(entries []BookEntry, language string) []string {
+	limit := EntryContentMaxFor(language)
 	positions, decorators := 0, 0
 	names := map[string]bool{}
 	split := 0
@@ -826,7 +841,7 @@ func BookEntryNotes(entries []BookEntry) []string {
 				names["@@"+n] = true
 			}
 		}
-		if utf8.RuneCountInString(strings.TrimSpace(dec.Content)) > EntryContentMax {
+		if utf8.RuneCountInString(strings.TrimSpace(dec.Content)) > limit {
 			split++
 		}
 	}
@@ -843,7 +858,7 @@ func BookEntryNotes(entries []BookEntry) []string {
 		notes = append(notes, fmt.Sprintf("%d Lorebook entries used decorators without a destination (%s); they were stripped", decorators, strings.Join(keys, ", ")))
 	}
 	if split > 0 {
-		notes = append(notes, fmt.Sprintf("%d Lorebook entries were longer than %d characters and were split into several entries with the same keywords", split, EntryContentMax))
+		notes = append(notes, fmt.Sprintf("%d Lorebook entries were longer than %d characters and were split into several entries with the same keywords", split, limit))
 	}
 	return notes
 }

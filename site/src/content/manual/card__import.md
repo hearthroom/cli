@@ -27,7 +27,7 @@ hearthroom card import <file>... [flags]
 
 ```
       --force             overwrite an existing card folder
-      --language string   card language for creator-note selection (en, zh-Hant, zh-Hans, ja, ko) (default "en")
+      --language string   card language: picks the creator note and sets the Lorebook entry length limit (en, zh-Hant, zh-Hans, ja, ko) (default "en")
       --mmd               treat JSON inputs as MMD set parts even if they look like a card
       --out string        folder to write (default: derived from the card name)
 ```

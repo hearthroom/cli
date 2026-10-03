@@ -130,6 +130,12 @@ func (c *Client) OpenPut(ctx context.Context, path string, body, out any) error 
 	return c.do(ctx, http.MethodPut, c.API+"/open/v1"+path, nil, body, out, authRequired)
 }
 
+// OpenPutLanguage is OpenPut with the provider's `language` header, which
+// decides the language a new card is created in and the field limits it gets.
+func (c *Client) OpenPutLanguage(ctx context.Context, path, language string, body, out any) error {
+	return c.doWith(ctx, http.MethodPut, c.API+"/open/v1"+path, nil, body, out, authRequired, http.Header{"Language": {language}})
+}
+
 func (c *Client) OpenPatch(ctx context.Context, path string, body, out any) error {
 	return c.do(ctx, http.MethodPatch, c.API+"/open/v1"+path, nil, body, out, authRequired)
 }
@@ -223,6 +229,10 @@ func (c *Client) Download(ctx context.Context, rawURL string) (io.ReadCloser, st
 }
 
 func (c *Client) do(ctx context.Context, method, target string, q url.Values, body, out any, auth authMode) error {
+	return c.doWith(ctx, method, target, q, body, out, auth, nil)
+}
+
+func (c *Client) doWith(ctx context.Context, method, target string, q url.Values, body, out any, auth authMode, header http.Header) error {
 	if len(q) > 0 {
 		sep := "?"
 		if strings.Contains(target, "?") {
@@ -244,6 +254,13 @@ func (c *Client) do(ctx context.Context, method, target string, q url.Values, bo
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	for k, vs := range header {
+		for _, v := range vs {
+			if v != "" {
+				req.Header.Add(k, v)
+			}
+		}
 	}
 	if err := c.authorize(ctx, req, auth); err != nil {
 		return err

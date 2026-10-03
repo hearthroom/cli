@@ -191,7 +191,7 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		return res, nil
 	}
 	var tr trialResponse
-	if err := c.OpenPut(ctx, "/trial-cards/"+url.PathEscape(f.State.TrialKey), body, &tr); err != nil {
+	if err := c.OpenPutLanguage(ctx, "/trial-cards/"+url.PathEscape(f.State.TrialKey), f.Manifest.Language, body, &tr); err != nil {
 		if api.IsStatus(err, 409) {
 			return nil, fmt.Errorf("%w\nAll trial slots are in use; pass --evict to free the least recently used one", err)
 		}

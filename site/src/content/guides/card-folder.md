@@ -59,7 +59,7 @@ my-card/
 | `sex` | `roleSex` | stored as-is |
 | `playerName` | `userName` | what the card calls the player |
 | `nickname` | `nickname` | what `{{char}}` expands to when it differs from `name` |
-| `language` | card language | informational on push; set on create |
+| `language` | card language | set when the card is created; `en` cards get the longer English field limits |
 | `outputContract` | `roleOutputContract` | |
 | `customInstructions` | `customInstructions` | |
 | `talkExample` | `talkExample` | `roleType` is `user` or `ai` |

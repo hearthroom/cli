@@ -99,7 +99,7 @@ Every source field that has no place in the folder is listed in the report.`,
 		},
 	}
 	c.Flags().StringVar(&out, "out", "", "folder to write (default: derived from the card name)")
-	c.Flags().StringVar(&language, "language", "en", "card language for creator-note selection (en, zh-Hant, zh-Hans, ja, ko)")
+	c.Flags().StringVar(&language, "language", "en", "card language: picks the creator note and sets the Lorebook entry length limit (en, zh-Hant, zh-Hans, ja, ko)")
 	c.Flags().BoolVar(&force, "force", false, "overwrite an existing card folder")
 	c.Flags().BoolVar(&mmd, "mmd", false, "treat JSON inputs as MMD set parts even if they look like a card")
 	return c

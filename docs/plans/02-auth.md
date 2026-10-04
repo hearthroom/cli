@@ -30,12 +30,15 @@ authorization-code flow with PKCE on a loopback port.
 3. Sign-in with a code (default):
    - `POST <device_authorization_endpoint>` with `client_id`, `scope` and
      `resource=<api>/open/v1` returns `device_code`, `user_code`
-     (`BCDF-GHJK`), `verification_uri`, `verification_uri_complete`,
-     `expires_in` and `interval`.
+     (`BCDF-GHJK`), `verification_uri`, `expires_in` and `interval`.
    - The CLI prints, on stderr, the code, then `verification_uri`, then that it
-     opened `verification_uri_complete` in the browser. It does not open a
-     browser with `--no-browser`, in an SSH session (`SSH_CONNECTION`,
-     `SSH_CLIENT` or `SSH_TTY` set), or when no opener exists.
+     opened `verification_uri` in the browser. The person types the code on
+     that page, as with GitHub's device flow; the CLI never uses
+     `verification_uri_complete` (a link with the code filled in), even if a
+     provider sends one, because such a link can be forwarded to someone who
+     approves without looking (RFC 8628 §5.4). It does not open a browser with
+     `--no-browser`, in an SSH session (`SSH_CONNECTION`, `SSH_CLIENT` or
+     `SSH_TTY` set), or when no opener exists.
    - It polls `/oauth/token` with
      `grant_type=urn:ietf:params:oauth:grant-type:device_code`, `device_code`
      and `client_id`, waiting `interval` seconds between requests:
@@ -72,7 +75,7 @@ login that prints a code and waits is useless to them. The wait splits in two:
 
 - `auth login --no-wait` requests a code, prints the code and the address
   (with `--json`, one object `{"user_code", "verification_uri",
-  "verification_uri_complete", "expires_in", "interval"}` on stdout), stores
+  "expires_in", "interval"}` on stdout), stores
   the request in `pending-login.json` (0600: api base, client id,
   `device_code`, interval, `expires_at`, plus the code and address for the
   status line) and exits 0 without opening a browser. It fails when the

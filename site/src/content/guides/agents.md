@@ -31,9 +31,8 @@ hearthroom play my-card -m "Hello?" --allow-spend --json   # one JSON event per 
 
 ```sh
 hearthroom auth login --no-wait --json
-# {"user_code": "BCDF-GHJK", "verification_uri": "…/device",
-#  "verification_uri_complete": "…/device?user_code=BCDF-GHJK", "expires_in": 900, "interval": 5}
-# Give the person verification_uri_complete (or verification_uri and the code). Once they approve:
+# {"user_code": "BCDF-GHJK", "verification_uri": "…/device", "expires_in": 900, "interval": 5}
+# Give the person verification_uri and the code; they type the code on that page. Once they approve:
 hearthroom auth login --resume --json
 ```
 

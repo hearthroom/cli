@@ -216,18 +216,23 @@ func TestLoginUsesDeviceFlowAndHonoursSlowDown(t *testing.T) {
 	if stored := creds[dp.srv.URL]; stored.AccessToken != cred.AccessToken || stored.ClientID != "hh_client_test" || stored.RefreshToken == "" {
 		t.Fatalf("stored credential = %+v", stored)
 	}
-	if len(opened) != 1 || opened[0] != "https://console.example.test/device?user_code=BCDF-GHJK" {
+	// The fake provider also sends verification_uri_complete; the CLI must open the
+	// page without the code so the person types it (RFC 8628 §5.4).
+	if len(opened) != 1 || opened[0] != "https://console.example.test/device" {
 		t.Fatalf("opened = %v", opened)
 	}
 	if dp.authorizeHits.Load() != 0 {
 		t.Fatal("loopback authorize was used")
 	}
 	text := out.String()
-	iCode := strings.Index(text, "BCDF-GHJK")
-	iURL := strings.Index(text, "https://console.example.test/device ")
-	iOpened := strings.Index(text, "https://console.example.test/device?user_code=BCDF-GHJK")
+	iCode := strings.Index(text, "First copy your one-time code: BCDF-GHJK")
+	iURL := strings.Index(text, "Then open https://console.example.test/device ")
+	iOpened := strings.Index(text, "Opened https://console.example.test/device in your browser")
 	if iCode < 0 || iURL < 0 || iOpened < 0 || !(iCode < iURL && iURL < iOpened) {
 		t.Fatalf("expected code, URL, opened page in that order:\n%s", text)
+	}
+	if strings.Contains(text, "user_code=") {
+		t.Fatalf("the link with the code filled in must not be shown:\n%s", text)
 	}
 	dp.mu.Lock()
 	df, pf := dp.deviceForm, dp.pollForms[0]
@@ -428,7 +433,7 @@ func TestPendingLoginStartAndResume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dc.UserCode != "BCDF-GHJK" || dc.VerificationURIComplete == "" || dc.ExpiresIn != 900 || dc.Interval != 5 {
+	if dc.UserCode != "BCDF-GHJK" || dc.VerificationURI == "" || dc.ExpiresIn != 900 || dc.Interval != 5 {
 		t.Fatalf("device code = %+v", dc)
 	}
 	p, ok, err := store.LoadPendingLogin()

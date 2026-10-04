@@ -99,9 +99,8 @@ func TestLoginNoWaitThenResume(t *testing.T) {
 	}
 	want := map[string]any{
 		"user_code": "BCDF-GHJK", "verification_uri": "https://console.example.test/device",
-		"verification_uri_complete": "https://console.example.test/device?user_code=BCDF-GHJK",
-		"expires_in":                float64(900),
-		"interval":                  float64(5),
+		"expires_in": float64(900),
+		"interval":   float64(5),
 	}
 	if len(started) != len(want) {
 		t.Fatalf("keys = %v", started)

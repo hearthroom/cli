@@ -3,8 +3,9 @@
 // Layout under the config directory (os.UserConfigDir()/hearthroom, or
 // HEARTHROOM_CONFIG_DIR):
 //
-//	config.json       provider/site defaults and registered OAuth clients
-//	credentials.json  tokens per API base, mode 0600
+//	config.json         provider/site defaults and registered OAuth clients
+//	credentials.json    tokens per API base, mode 0600
+//	pending-login.json  a sign-in started with `auth login --no-wait`, mode 0600
 package config
 
 import (
@@ -25,8 +26,9 @@ const (
 	// its default ("harbor"). Override with --api or HEARTHROOM_API.
 	DefaultAPI = "https://api.harperharbor.com"
 
-	configFile      = "config.json"
-	credentialsFile = "credentials.json"
+	configFile       = "config.json"
+	credentialsFile  = "credentials.json"
+	pendingLoginFile = "pending-login.json"
 )
 
 // Config is the persisted, non-secret configuration.
@@ -56,7 +58,20 @@ type Credential struct {
 	ClientID     string    `json:"client_id,omitempty"`
 }
 
-// Store reads and writes the two files in one directory.
+// PendingLogin is a sign-in with a one-time code that `auth login --no-wait`
+// started and `auth login --resume` finishes. The device code works as a
+// secret until it is used, so the file is owner-only.
+type PendingLogin struct {
+	API             string    `json:"api"`
+	ClientID        string    `json:"client_id"`
+	DeviceCode      string    `json:"device_code"`
+	UserCode        string    `json:"user_code,omitempty"`
+	VerificationURI string    `json:"verification_uri,omitempty"`
+	Interval        int64     `json:"interval"` // seconds between polls
+	ExpiresAt       time.Time `json:"expires_at"`
+}
+
+// Store reads and writes the files in one directory.
 type Store struct {
 	Dir string
 }
@@ -118,6 +133,36 @@ func (s *Store) SaveCredentials(creds map[string]Credential) error {
 		return err
 	}
 	return writeJSON(filepath.Join(s.Dir, credentialsFile), creds, 0o600)
+}
+
+// LoadPendingLogin returns the waiting sign-in, if there is one.
+func (s *Store) LoadPendingLogin() (PendingLogin, bool, error) {
+	var p PendingLogin
+	err := readJSON(filepath.Join(s.Dir, pendingLoginFile), &p)
+	if errors.Is(err, os.ErrNotExist) {
+		return p, false, nil
+	}
+	if err != nil {
+		return p, false, err
+	}
+	return p, p.DeviceCode != "", nil
+}
+
+// SavePendingLogin replaces the waiting sign-in, owner-only.
+func (s *Store) SavePendingLogin(p PendingLogin) error {
+	if err := s.ensure(); err != nil {
+		return err
+	}
+	return writeJSON(filepath.Join(s.Dir, pendingLoginFile), p, 0o600)
+}
+
+// DeletePendingLogin forgets the waiting sign-in; a missing file is fine.
+func (s *Store) DeletePendingLogin() error {
+	err := os.Remove(filepath.Join(s.Dir, pendingLoginFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 // NormalizeBase trims whitespace and a trailing slash from a URL base.

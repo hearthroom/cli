@@ -1,18 +1,29 @@
 ---
 slug: "auth/login"
 command: "hearthroom auth login"
-short: "Sign in with your browser (OAuth with PKCE)"
+short: "Sign in with a one-time code (works over SSH)"
 parent: "auth"
 ---
 
 # hearthroom auth login
 
-Signs in to the provider behind --api. The CLI registers itself as an OAuth
-client once, opens the provider's sign-in page in your browser, and receives
-the result on a loopback port. Tokens are stored under the config directory
-with owner-only permissions and refreshed automatically.
+Signs in to the provider behind --api. The CLI prints a one-time code and a
+web address. Open the address on any device (this computer, a laptop, a
+phone), sign in, and enter the code; the CLI picks up the sign-in as soon as
+you approve it. On a desktop the page opens in your browser with the code
+filled in. Over SSH, or with --no-browser, nothing is opened.
 
-For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.
+If the provider does not offer sign-in with a code, the CLI says so and signs
+in through a browser on this machine instead (OAuth with PKCE, receiving the
+result on a loopback port).
+
+Agents that only see a command's output after it exits can split the wait:
+--no-wait prints the code and address (one JSON object with --json) and exits;
+after the person has approved, --resume finishes the sign-in.
+
+Tokens are stored under the config directory with owner-only permissions and
+refreshed automatically. For scripts and CI, set HEARTHROOM_TOKEN instead of
+signing in.
 
 ## Usage
 
@@ -23,8 +34,10 @@ hearthroom auth login [flags]
 ## Options
 
 ```
-      --no-browser         print the sign-in URL instead of opening a browser
-      --timeout duration   how long to wait for the browser (default 5m0s)
+      --no-browser         do not open a browser; just print the code and address
+      --no-wait            print the code and address, then exit; finish later with --resume
+      --resume             finish the sign-in started with --no-wait
+      --timeout duration   how long to wait for the sign-in to be approved (default 5m0s)
 ```
 
 ## Global options

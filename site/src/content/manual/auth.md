@@ -11,7 +11,7 @@ Sign in to the connected card provider
 
 ## Commands
 
-- [`hearthroom auth login`](/manual/auth/login/) — Sign in with your browser (OAuth with PKCE)
+- [`hearthroom auth login`](/manual/auth/login/) — Sign in with a one-time code (works over SSH)
 - [`hearthroom auth logout`](/manual/auth/logout/) — Forget the stored sign-in for this provider
 - [`hearthroom auth status`](/manual/auth/status/) — Show who you are signed in as
 

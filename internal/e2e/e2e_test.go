@@ -97,7 +97,8 @@ func (e *env) login(t *testing.T) config.Credential {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cred, err := auth.Login(ctx, e.client, e.store, &e.cfg, auth.LoginOptions{OpenBrowser: e.approve, Timeout: 20 * time.Second})
+	// approve plays the loopback redirect, so keep login off the code flow.
+	cred, err := auth.Login(ctx, e.client, e.store, &e.cfg, auth.LoginOptions{OpenBrowser: e.approve, Timeout: 20 * time.Second, LoopbackOnly: true})
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}

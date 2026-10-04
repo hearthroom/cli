@@ -25,9 +25,21 @@ hearthroom card push my-card --validate --json | jq '.validation.status'
 hearthroom play my-card -m "Hello?" --allow-spend --json   # one JSON event per line
 ```
 
-## Sign in without a browser
+## Signing in
 
-Set `HEARTHROOM_TOKEN` to a provider access token and no browser is needed. Interactive `hearthroom auth login` stores tokens under the user config directory; set `HEARTHROOM_CONFIG_DIR` to isolate an agent's session.
+`hearthroom auth login` prints a one-time code and an address. The person opens the address on any device, signs in and enters the code, so it works from SSH sessions and cloud sandboxes. A plain `auth login` waits until they approve, which is no use to an agent that only sees output once a command exits. Split the wait instead:
+
+```sh
+hearthroom auth login --no-wait --json
+# {"user_code": "BCDF-GHJK", "verification_uri": "…/device",
+#  "verification_uri_complete": "…/device?user_code=BCDF-GHJK", "expires_in": 900, "interval": 5}
+# Give the person verification_uri_complete (or verification_uri and the code). Once they approve:
+hearthroom auth login --resume --json
+```
+
+`--resume` prints the same result as a normal login. It waits up to `--timeout` (default 5 minutes); if the person has not approved by then it exits non-zero and keeps the request, so run `--resume` again. After `expires_in` seconds, or if the person denies it, start over with `--no-wait`. If the provider does not offer sign-in with a code, `--no-wait` fails and says so.
+
+Tokens are stored under the user config directory; set `HEARTHROOM_CONFIG_DIR` to isolate an agent's session. To skip sign-in entirely, set `HEARTHROOM_TOKEN` to a provider access token.
 
 ## Seeing the result without a browser
 

@@ -13,7 +13,7 @@
   {
     "slug": "auth/login",
     "command": "hearthroom auth login",
-    "short": "Sign in with your browser (OAuth with PKCE)",
+    "short": "Sign in with a one-time code (works over SSH)",
     "parent": "auth"
   },
   {

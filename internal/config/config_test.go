@@ -76,3 +76,44 @@ func TestDefaultSiteIsThePrimaryDomain(t *testing.T) {
 		t.Fatalf("DefaultSite = %q, want the primary domain https://sukisuki.ai", DefaultSite)
 	}
 }
+
+// A device sign-in started with --no-wait is kept owner-only (the device code
+// is a secret until it is used), read back intact, and removable twice.
+func TestPendingLoginRoundTripIsOwnerOnly(t *testing.T) {
+	s := &Store{Dir: filepath.Join(t.TempDir(), "cfg")}
+	if _, ok, err := s.LoadPendingLogin(); ok || err != nil {
+		t.Fatalf("empty store: ok=%v err=%v", ok, err)
+	}
+	p := PendingLogin{
+		API: "https://api.example.test", ClientID: "hh_client_x", DeviceCode: "hh_dc_secret",
+		UserCode: "BCDF-GHJK", VerificationURI: "https://console.example.test/device",
+		Interval: 5, ExpiresAt: time.Now().Add(15 * time.Minute).Round(time.Second),
+	}
+	if err := s.SavePendingLogin(p); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(s.Dir, pendingLoginFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Fatalf("pending login mode = %o", info.Mode().Perm())
+	}
+	back, ok, err := s.LoadPendingLogin()
+	if err != nil || !ok {
+		t.Fatalf("load: ok=%v err=%v", ok, err)
+	}
+	if back.API != p.API || back.ClientID != p.ClientID || back.DeviceCode != p.DeviceCode ||
+		back.UserCode != p.UserCode || back.Interval != 5 || !back.ExpiresAt.Equal(p.ExpiresAt) {
+		t.Fatalf("round trip lost data: %+v", back)
+	}
+	if err := s.DeletePendingLogin(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := s.LoadPendingLogin(); ok {
+		t.Fatal("pending login still present after delete")
+	}
+	if err := s.DeletePendingLogin(); err != nil {
+		t.Fatalf("deleting a missing pending login: %v", err)
+	}
+}

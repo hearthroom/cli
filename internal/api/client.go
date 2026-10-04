@@ -61,6 +61,8 @@ type Error struct {
 	Code   string
 	Detail any
 	Body   string
+	// RetryAfter is the body's retry_after in seconds (rate limits), or 0.
+	RetryAfter int
 }
 
 func (e *Error) Error() string {
@@ -320,8 +322,13 @@ func parseError(req *http.Request, status int, raw []byte) error {
 		Detail any    `json:"detail"`
 		Msg    string `json:"msg"`
 		Code   any    `json:"code"`
+		// any, so an unexpected type never hides the error code.
+		RetryAfter any `json:"retry_after"`
 	}
 	if json.Unmarshal(raw, &env) == nil {
+		if n, ok := env.RetryAfter.(float64); ok && n > 0 {
+			e.RetryAfter = int(n)
+		}
 		switch v := env.Error.(type) {
 		case string:
 			e.Code = v

@@ -1,6 +1,7 @@
-// Package auth implements the OAuth 2.1 authorization-code flow with PKCE
-// against the provider, dynamic client registration, token storage and
-// silent refresh.
+// Package auth signs the CLI in to the provider: sign-in with a one-time code
+// (OAuth 2.0 device authorization grant, RFC 8628) when the provider offers
+// it, the authorization-code flow with PKCE on a loopback port otherwise,
+// plus dynamic client registration, token storage and silent refresh.
 package auth
 
 import (
@@ -44,6 +45,9 @@ type Discovery struct {
 	TokenEndpoint         string `json:"token_endpoint"`
 	RegistrationEndpoint  string `json:"registration_endpoint"`
 	RevocationEndpoint    string `json:"revocation_endpoint"`
+	// DeviceAuthorizationEndpoint is empty when the provider has no sign-in
+	// with a code; login then uses the loopback flow.
+	DeviceAuthorizationEndpoint string `json:"device_authorization_endpoint"`
 }
 
 // Discover fetches the authorization server metadata of the provider.
@@ -74,8 +78,9 @@ func RedirectURIs() []string {
 // created for this CLI under the community's application, so tokens share
 // the same data namespace as the web editor. A dynamically registered client
 // lands in the provider's open tenant and cannot see cards made on the site.
-// The entry is a public client (PKCE, no secret) and only ever redirects to
-// the fixed loopback ports, so publishing it here is safe.
+// The entry is a public client (no secret): it signs in with a one-time code
+// the person approves on the provider's own page, or with PKCE redirecting
+// only to the fixed loopback ports, so publishing it here is safe.
 var KnownClients = map[string]string{
 	"https://api.harperharbor.com": "hh_client_Z40oH2vHYZrjNEvfrUm2DGEHyD-5WhubUj_cuxAXZCU",
 }
@@ -165,30 +170,49 @@ func randomState() (string, error) {
 
 // LoginOptions steer the interactive flow.
 type LoginOptions struct {
-	// OpenBrowser opens the authorization URL; nil or NoBrowser prints it.
+	// OpenBrowser opens the sign-in page; nil or NoBrowser prints the URL.
+	// The device flow also leaves the browser closed in an SSH session.
 	OpenBrowser func(url string) error
 	NoBrowser   bool
 	// Status receives one-line progress messages.
 	Status func(format string, args ...any)
-	// Timeout bounds the wait for the browser callback.
+	// Timeout bounds the wait for the sign-in to complete.
 	Timeout time.Duration
 	// Listen overrides the loopback bind (tests). Default binds 127.0.0.1:<port>.
 	Listen func(port int) (net.Listener, error)
+	// LoopbackOnly skips sign-in with a code even when the provider offers it.
+	LoopbackOnly bool
+	// Now and Sleep drive the device-flow poll loop; tests replace them.
+	Now   func() time.Time
+	Sleep func(ctx context.Context, d time.Duration) error
 }
 
-// Login runs the authorization-code flow and stores the resulting tokens.
-func Login(ctx context.Context, c *api.Client, store *config.Store, cfg *config.Config, opts LoginOptions) (config.Credential, error) {
-	if opts.Status == nil {
-		opts.Status = func(string, ...any) {}
+func (o LoginOptions) withDefaults() LoginOptions {
+	if o.Status == nil {
+		o.Status = func(string, ...any) {}
 	}
-	if opts.Timeout == 0 {
-		opts.Timeout = 5 * time.Minute
+	if o.Timeout == 0 {
+		o.Timeout = 5 * time.Minute
 	}
-	if opts.Listen == nil {
-		opts.Listen = func(port int) (net.Listener, error) {
+	if o.Listen == nil {
+		o.Listen = func(port int) (net.Listener, error) {
 			return net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 		}
 	}
+	if o.Now == nil {
+		o.Now = time.Now
+	}
+	if o.Sleep == nil {
+		o.Sleep = sleepContext
+	}
+	return o
+}
+
+// Login signs in and stores the resulting tokens. It uses sign-in with a
+// one-time code when the provider offers it to this client, and the
+// authorization-code flow with a loopback redirect otherwise.
+func Login(ctx context.Context, c *api.Client, store *config.Store, cfg *config.Config, opts LoginOptions) (config.Credential, error) {
+	opts = opts.withDefaults()
 	d, err := Discover(ctx, c)
 	if err != nil {
 		return config.Credential{}, err
@@ -197,6 +221,23 @@ func Login(ctx context.Context, c *api.Client, store *config.Store, cfg *config.
 	if err != nil {
 		return config.Credential{}, err
 	}
+	if !opts.LoopbackOnly {
+		dc, err := requestDeviceCode(ctx, c, d, reg.ClientID)
+		var unavailable noDeviceError
+		switch {
+		case err == nil:
+			return loginDevice(ctx, c, store, d, reg.ClientID, dc, opts)
+		case !errors.As(err, &unavailable):
+			return config.Credential{}, err
+		}
+		opts.Status("Sign-in with a code is not available (%s); signing in through a browser on this machine instead.", unavailable.why)
+	}
+	return loginLoopback(ctx, c, store, d, reg, opts)
+}
+
+// loginLoopback runs the authorization-code flow with PKCE, receiving the
+// result on a loopback port.
+func loginLoopback(ctx context.Context, c *api.Client, store *config.Store, d Discovery, reg config.ClientReg, opts LoginOptions) (config.Credential, error) {
 	ln, port, err := bindLoopback(opts.Listen)
 	if err != nil {
 		return config.Credential{}, err

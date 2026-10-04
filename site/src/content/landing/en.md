@@ -15,7 +15,7 @@ title: Hearthroom CLI
 - `hearthroom card import` converts SillyTavern PNG / JSON / CHARX cards and MMD three-file sets and lists every field it could not place.
 - `hearthroom play -m "…" --allow-spend` sends a turn and streams the reply. This is the only command that spends credits, and only with the flag.
 - Also: `card pull`, `card list`, `search`, `tags`, `author`, `media upload|ls|rm`, `models`, `wallet`, `whoami`, `upgrade`.
-- Every command accepts `--json`. `HEARTHROOM_TOKEN` signs in without a browser.
+- Every command accepts `--json`. `hearthroom auth login` signs in with a one-time code you approve on any device, so it works over SSH; agents use `--no-wait` then `--resume`. `HEARTHROOM_TOKEN` skips sign-in.
 
 ## Install
 

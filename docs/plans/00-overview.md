@@ -36,7 +36,7 @@ field names stay as the API defines them.
 | # | Plan | Delivers |
 |---|---|---|
 | 1 | [01-scaffold](01-scaffold.md) | Go module, command tree, config, `--json`, CI on three OS, GoReleaser snapshot |
-| 2 | [02-auth](02-auth.md) | `auth login/logout/status`, PKCE loopback flow, dynamic client registration, token refresh, `HEARTHROOM_TOKEN` |
+| 2 | [02-auth](02-auth.md) | `auth login/logout/status`, sign-in with a one-time code (device flow, `--no-wait`/`--resume`) with the PKCE loopback flow as fallback, dynamic client registration, token refresh, `HEARTHROOM_TOKEN` |
 | 3 | [03-card-folder](03-card-folder.md) | The folder format (`formatVersion: 1`), `card init`, `card pull` |
 | 4 | [04-push-and-media](04-push-and-media.md) | `card push` (trial card by default, owned card with `--to`), asset upload with relative paths and reference rewriting |
 | 5 | [05-validate](05-validate.md) | `card validate` against the server report |

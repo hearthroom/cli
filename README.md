@@ -48,7 +48,7 @@ The installer also sets up tab completion for your shell (bash, zsh or fish; `he
 ## Quickstart
 
 ```sh
-hearthroom auth login                      # sign in to the card provider in your browser
+hearthroom auth login                      # sign in with a one-time code (works over SSH)
 hearthroom card init my-card               # card.json, definition.md, welcome.md, assets/
 $EDITOR my-card/definition.md my-card/welcome.md
 hearthroom card push my-card --validate    # private trial card + the provider's report
@@ -79,7 +79,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 
 | Command | Purpose |
 |---|---|
-| `auth login` · `auth logout` · `auth status` | Browser sign-in (OAuth with PKCE on a loopback port), sign out, who am I |
+| `auth login` · `auth logout` · `auth status` | Sign in with a one-time code you approve on any device (`--no-wait` / `--resume` for agents; browser redirect on a loopback port when the provider has no codes), sign out, who am I |
 | `card init <dir>` | Create a card folder |
 | `card import <files…>` | SillyTavern PNG / JSON / CHARX or an MMD set → folder, with a report |
 | `card push [dir]` | Sync to a trial card (default) or an owned card; `--dry-run`, `--validate`, `--evict` |

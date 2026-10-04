@@ -2,11 +2,13 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/hearthroom/cli/internal/auth"
+	"github.com/hearthroom/cli/internal/config"
 	"github.com/hearthroom/cli/internal/output"
 )
 
@@ -18,17 +20,28 @@ func (a *App) authCommand() *cobra.Command {
 		Use:   "auth",
 		Short: "Sign in to the connected card provider",
 	}
-	var noBrowser bool
+	var noBrowser, noWait, resume bool
 	var timeout time.Duration
 	login := &cobra.Command{
 		Use:   "login",
-		Short: "Sign in with your browser (OAuth with PKCE)",
-		Long: `Signs in to the provider behind --api. The CLI registers itself as an OAuth
-client once, opens the provider's sign-in page in your browser, and receives
-the result on a loopback port. Tokens are stored under the config directory
-with owner-only permissions and refreshed automatically.
+		Short: "Sign in with a one-time code (works over SSH)",
+		Long: `Signs in to the provider behind --api. The CLI prints a one-time code and a
+web address. Open the address on any device (this computer, a laptop, a
+phone), sign in, and enter the code; the CLI picks up the sign-in as soon as
+you approve it. On a desktop the page opens in your browser with the code
+filled in. Over SSH, or with --no-browser, nothing is opened.
 
-For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.`,
+If the provider does not offer sign-in with a code, the CLI says so and signs
+in through a browser on this machine instead (OAuth with PKCE, receiving the
+result on a loopback port).
+
+Agents that only see a command's output after it exits can split the wait:
+--no-wait prints the code and address (one JSON object with --json) and exits;
+after the person has approved, --resume finishes the sign-in.
+
+Tokens are stored under the config directory with owner-only permissions and
+refreshed automatically. For scripts and CI, set HEARTHROOM_TOKEN instead of
+signing in.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts := auth.LoginOptions{
 				OpenBrowser: openBrowser,
@@ -36,7 +49,21 @@ For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.`,
 				Status:      a.Out.Note,
 				Timeout:     timeout,
 			}
-			cred, err := auth.Login(cmd.Context(), a.Client(), a.Store, &a.Cfg, opts)
+			if noWait {
+				dc, err := auth.StartPendingLogin(cmd.Context(), a.Client(), a.Store, &a.Cfg, opts)
+				if err != nil {
+					return err
+				}
+				return a.printPendingLogin(dc)
+			}
+			var cred config.Credential
+			var err error
+			switch {
+			case resume:
+				cred, err = auth.ResumeLogin(cmd.Context(), a.Client(), a.Store, opts)
+			default:
+				cred, err = auth.Login(cmd.Context(), a.Client(), a.Store, &a.Cfg, opts)
+			}
 			if err != nil {
 				return err
 			}
@@ -51,8 +78,11 @@ For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.`,
 			return nil
 		},
 	}
-	login.Flags().BoolVar(&noBrowser, "no-browser", false, "print the sign-in URL instead of opening a browser")
-	login.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "how long to wait for the browser")
+	login.Flags().BoolVar(&noBrowser, "no-browser", false, "do not open a browser; just print the code and address")
+	login.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "how long to wait for the sign-in to be approved")
+	login.Flags().BoolVar(&noWait, "no-wait", false, "print the code and address, then exit; finish later with --resume")
+	login.Flags().BoolVar(&resume, "resume", false, "finish the sign-in started with --no-wait")
+	login.MarkFlagsMutuallyExclusive("no-wait", "resume")
 
 	logout := &cobra.Command{
 		Use:   "logout",
@@ -96,6 +126,34 @@ For scripts and CI, set HEARTHROOM_TOKEN instead of signing in.`,
 	}
 	cmd.AddCommand(login, logout, status)
 	return cmd
+}
+
+// printPendingLogin shows what `auth login --no-wait` started: the code and
+// address are the result here, so they go to stdout.
+func (a *App) printPendingLogin(dc auth.DeviceCode) error {
+	if a.Out.JSON {
+		return a.Out.JSONValue(struct {
+			UserCode                string `json:"user_code"`
+			VerificationURI         string `json:"verification_uri"`
+			VerificationURIComplete string `json:"verification_uri_complete"`
+			ExpiresIn               int64  `json:"expires_in"`
+			Interval                int64  `json:"interval"`
+		}{dc.UserCode, dc.VerificationURI, dc.VerificationURIComplete, dc.ExpiresIn, dc.Interval})
+	}
+	a.Out.Line("One-time code: %s", dc.UserCode)
+	a.Out.Line("Open %s on any device, sign in, and enter the code.", dc.VerificationURI)
+	if dc.VerificationURIComplete != "" && dc.VerificationURIComplete != dc.VerificationURI {
+		a.Out.Line("This link fills the code in: %s", dc.VerificationURIComplete)
+	}
+	a.Out.Line("After approving, run `hearthroom auth login --resume`. The code expires in %s.", minutes(dc.ExpiresIn))
+	return nil
+}
+
+func minutes(secs int64) string {
+	if m := (secs + 59) / 60; m != 1 {
+		return fmt.Sprintf("%d minutes", m)
+	}
+	return "1 minute"
 }
 
 // Me is GET /open/v1/me. accountNumId is kept only for --json output; the

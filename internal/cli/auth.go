@@ -28,8 +28,8 @@ func (a *App) authCommand() *cobra.Command {
 		Long: `Signs in to the provider behind --api. The CLI prints a one-time code and a
 web address. Open the address on any device (this computer, a laptop, a
 phone), sign in, and enter the code; the CLI picks up the sign-in as soon as
-you approve it. On a desktop the page opens in your browser with the code
-filled in. Over SSH, or with --no-browser, nothing is opened.
+you approve it. On a desktop the page opens in your browser; type the code
+there. Over SSH, or with --no-browser, nothing is opened.
 
 If the provider does not offer sign-in with a code, the CLI says so and signs
 in through a browser on this machine instead (OAuth with PKCE, receiving the
@@ -133,18 +133,14 @@ signing in.`,
 func (a *App) printPendingLogin(dc auth.DeviceCode) error {
 	if a.Out.JSON {
 		return a.Out.JSONValue(struct {
-			UserCode                string `json:"user_code"`
-			VerificationURI         string `json:"verification_uri"`
-			VerificationURIComplete string `json:"verification_uri_complete"`
-			ExpiresIn               int64  `json:"expires_in"`
-			Interval                int64  `json:"interval"`
-		}{dc.UserCode, dc.VerificationURI, dc.VerificationURIComplete, dc.ExpiresIn, dc.Interval})
+			UserCode        string `json:"user_code"`
+			VerificationURI string `json:"verification_uri"`
+			ExpiresIn       int64  `json:"expires_in"`
+			Interval        int64  `json:"interval"`
+		}{dc.UserCode, dc.VerificationURI, dc.ExpiresIn, dc.Interval})
 	}
-	a.Out.Line("One-time code: %s", dc.UserCode)
-	a.Out.Line("Open %s on any device, sign in, and enter the code.", dc.VerificationURI)
-	if dc.VerificationURIComplete != "" && dc.VerificationURIComplete != dc.VerificationURI {
-		a.Out.Line("This link fills the code in: %s", dc.VerificationURIComplete)
-	}
+	a.Out.Line("First copy your one-time code: %s", dc.UserCode)
+	a.Out.Line("Then open %s on any device, sign in, and enter the code.", dc.VerificationURI)
 	a.Out.Line("After approving, run `hearthroom auth login --resume`. The code expires in %s.", minutes(dc.ExpiresIn))
 	return nil
 }

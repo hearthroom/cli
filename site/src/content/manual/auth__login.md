@@ -10,8 +10,8 @@ parent: "auth"
 Signs in to the provider behind --api. The CLI prints a one-time code and a
 web address. Open the address on any device (this computer, a laptop, a
 phone), sign in, and enter the code; the CLI picks up the sign-in as soon as
-you approve it. On a desktop the page opens in your browser with the code
-filled in. Over SSH, or with --no-browser, nothing is opened.
+you approve it. On a desktop the page opens in your browser; type the code
+there. Over SSH, or with --no-browser, nothing is opened.
 
 If the provider does not offer sign-in with a code, the CLI says so and signs
 in through a browser on this machine instead (OAuth with PKCE, receiving the

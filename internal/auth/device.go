@@ -18,13 +18,17 @@ const DeviceGrantType = "urn:ietf:params:oauth:grant-type:device_code"
 
 // DeviceCode is the provider's answer to a device authorization request
 // (RFC 8628 §3.2): the code the person enters and where they enter it.
+//
+// verification_uri_complete (a link with the code filled in) is deliberately
+// not read, even from providers that send it: the person types the code from
+// the terminal, as with GitHub's device flow. A pre-filled link can be
+// forwarded to someone who then approves without looking (RFC 8628 §5.4).
 type DeviceCode struct {
-	DeviceCode              string `json:"device_code"`
-	UserCode                string `json:"user_code"`
-	VerificationURI         string `json:"verification_uri"`
-	VerificationURIComplete string `json:"verification_uri_complete"`
-	ExpiresIn               int64  `json:"expires_in"`
-	Interval                int64  `json:"interval"`
+	DeviceCode      string `json:"device_code"`
+	UserCode        string `json:"user_code"`
+	VerificationURI string `json:"verification_uri"`
+	ExpiresIn       int64  `json:"expires_in"`
+	Interval        int64  `json:"interval"`
 }
 
 // noDeviceError means the provider will not sign this client in with a code;
@@ -84,17 +88,13 @@ func requestDeviceCode(ctx context.Context, c *api.Client, d Discovery, clientID
 
 // loginDevice shows the code and the page, then waits for the approval.
 func loginDevice(ctx context.Context, c *api.Client, store *config.Store, d Discovery, clientID string, dc DeviceCode, opts LoginOptions) (config.Credential, error) {
-	opts.Status("One-time code: %s", dc.UserCode)
-	opts.Status("Open %s on any device, sign in, and enter the code.", dc.VerificationURI)
-	page := dc.VerificationURIComplete
-	if page == "" {
-		page = dc.VerificationURI
-	}
+	opts.Status("First copy your one-time code: %s", dc.UserCode)
+	opts.Status("Then open %s on any device, sign in, and enter the code.", dc.VerificationURI)
 	if !opts.NoBrowser && opts.OpenBrowser != nil && !sshSession() {
-		if err := opts.OpenBrowser(page); err != nil {
+		if err := opts.OpenBrowser(dc.VerificationURI); err != nil {
 			opts.Status("Could not open a browser (%v); open the address above.", err)
 		} else {
-			opts.Status("Opened %s in your browser.", page)
+			opts.Status("Opened %s in your browser.", dc.VerificationURI)
 		}
 	}
 	opts.Status("Waiting for the sign-in to be approved…")

@@ -66,7 +66,7 @@ Set `HEARTHROOM_NO_UPDATE_NOTIFIER=1` to silence the check.
 hearthroom auth login
 ```
 
-Prints a one-time code and an address. Open the address on any device, sign in, and enter the code; the command finishes as soon as you approve. On a desktop the page opens in your browser with the code filled in, and over SSH or on a machine without a browser you open it somewhere else. If a provider does not offer sign-in with a code, the CLI says so and opens the provider's sign-in page in a browser on this machine instead, receiving the result on a local port (41777–41781). Tokens are stored under your user config directory with owner-only permissions and refreshed automatically. For scripts and CI, set `HEARTHROOM_TOKEN` instead.
+Prints a one-time code and an address. Open the address on any device, sign in, and enter the code; the command finishes as soon as you approve. On a desktop the page opens in your browser for you to type the code, and over SSH or on a machine without a browser you open it somewhere else. If a provider does not offer sign-in with a code, the CLI says so and opens the provider's sign-in page in a browser on this machine instead, receiving the result on a local port (41777–41781). Tokens are stored under your user config directory with owner-only permissions and refreshed automatically. For scripts and CI, set `HEARTHROOM_TOKEN` instead.
 
 ## Shell completion
 

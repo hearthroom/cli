@@ -44,6 +44,7 @@ type PushResult struct {
 	Unchanged  []string          `json:"unchanged"`
 	Skipped    []string          `json:"skipped,omitempty"`
 	Assets     []media.Outcome   `json:"assets,omitempty"`
+	MediaDir   string            `json:"mediaFolder,omitempty"`
 	Slots      map[string]any    `json:"slots,omitempty"`
 	Sections   map[string]string `json:"sections,omitempty"`
 	DryRun     bool              `json:"dryRun,omitempty"`
@@ -96,19 +97,7 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			if err != nil {
 				return nil, err
 			}
-			prefix := f.State.TrialKey
-			if owned && f.State.RoleID != "" {
-				prefix = f.State.RoleID
-			}
-			if prefix == "" {
-				key, err := trialKeyFor(f.Dir)
-				if err != nil {
-					return nil, err
-				}
-				f.State.TrialKey = key
-				prefix = key
-			}
-			synced, outcomes, err := media.Sync(ctx, c, f, caps, prefix, opts.DryRun)
+			synced, outcomes, err := media.Sync(ctx, c, f, caps, opts.DryRun)
 			if err != nil {
 				return nil, err
 			}
@@ -116,6 +105,7 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 				urls[k] = v
 			}
 			res.Assets = outcomes
+			res.MediaDir, _, _ = media.Folder(f)
 			for _, o := range outcomes {
 				if o.Err != "" {
 					res.AssetError = true

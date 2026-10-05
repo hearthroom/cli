@@ -93,7 +93,15 @@ provider keeps for three days after the last push (five per account; --evict
 frees the oldest). It is the fastest way to play what you just edited, but the
 website's card inventory does not list trial cards. To keep the card, push with
 --create once; the folder then remembers the new private card and later pushes
-update it. --to <roleId> writes into a card you already own.`,
+update it. --to <roleId> writes into a card you already own.
+
+Files under assets/ go to one folder of your media library, named after the
+card unless media.folder in card.json names it: assets/art/a.webp is served at
+<libraryPrefix>/<folder>/art/a.webp. A referenced directory ("assets/art/", or
+"assets/art/$1.webp" in a display rule) uploads every file in it and becomes
+that folder's URL, so card code can add file names at runtime. Changing
+media.folder uploads the files again under the new name; the old copies stay
+in the library until you remove them.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {
@@ -177,11 +185,16 @@ func (a *App) printPush(res *sync.PushResult) {
 			a.Out.Line("  asset %-30s FAILED: %s", o.Path, o.Err)
 		case o.Uploaded && res.DryRun:
 			a.Out.Line("  asset %-30s would upload", o.Path)
+		case o.Uploaded && o.Previous != "":
+			a.Out.Line("  asset %-30s uploaded (old copy still at %s)", o.Path, o.Previous)
 		case o.Uploaded:
 			a.Out.Line("  asset %-30s uploaded", o.Path)
 		default:
 			a.Out.Line("  asset %-30s unchanged", o.Path)
 		}
+	}
+	if res.MediaDir != "" && len(res.Assets) > 0 {
+		a.Out.Line("  media folder:       %s", res.MediaDir)
 	}
 	if len(res.Changed) > 0 {
 		a.Out.Line("  sections sent:      %s", strings.Join(res.Changed, ", "))

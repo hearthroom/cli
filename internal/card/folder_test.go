@@ -207,3 +207,57 @@ func contains(list []string, s string) bool {
 	}
 	return false
 }
+
+func TestLibraryFolderPrefersExplicitThenName(t *testing.T) {
+	f := &Folder{Dir: filepath.Join(t.TempDir(), "forge-v011-trial")}
+	f.Manifest.Name = "天道非要我成仙"
+	if got, explicit := f.LibraryFolder(); got != "天道非要我成仙" || explicit {
+		t.Fatalf("name default: %q %v", got, explicit)
+	}
+	f.Manifest.Name = " 斷刀/鍛火: 試煉 "
+	if got, _ := f.LibraryFolder(); got != "斷刀-鍛火: 試煉" {
+		t.Fatalf("slash in name: %q", got)
+	}
+	f.Manifest.Name = ".."
+	if got, _ := f.LibraryFolder(); got != "forge-v011-trial" {
+		t.Fatalf("fallback to folder name: %q", got)
+	}
+	f.Manifest.Media.Folder = "/series//tiandao/"
+	if got, explicit := f.LibraryFolder(); got != "series/tiandao" || !explicit {
+		t.Fatalf("explicit folder: %q %v", got, explicit)
+	}
+}
+
+func TestDirectoryReferenceUploadsEveryFileAndRewrites(t *testing.T) {
+	f := sample(t)
+	for _, p := range []string{"art/expr/happy.webp", "art/expr/sad.webp", "art/expr/.DS_Store", "art/bg/day.webp"} {
+		full := filepath.Join(f.Dir, "assets", filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(p), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.Rules.Rules[0].Replace = `<img src="assets/art/expr/$1.webp" onerror="this.src='assets/art/bg/' + 'day.webp'"><i data-x="assets/missing/"></i>`
+	f.Lorebook.Entries[0].Content = "Use `assets/art/expr/${mood}.webp` for faces."
+	present, missing := f.AssetRefs()
+	want := []string{"assets/art/bg/day.webp", "assets/art/expr/happy.webp", "assets/art/expr/sad.webp", "assets/mira.png"}
+	if strings.Join(present, ",") != strings.Join(want, ",") {
+		t.Fatalf("present: %v", present)
+	}
+	if strings.Join(missing, ",") != "assets/map.png,assets/missing/" {
+		t.Fatalf("missing: %v", missing)
+	}
+	if dirs := f.AssetDirs(); strings.Join(dirs, ",") != "assets/art/bg/,assets/art/expr/" {
+		t.Fatalf("dirs: %v", dirs)
+	}
+	urls := map[string]string{"assets/art/expr/": "https://cdn/u/x/Mira/art/expr/", "assets/art/bg/": "https://cdn/u/x/Mira/art/bg/"}
+	out := Rewrite(f.Rules.Rules[0].Replace, urls)
+	if !strings.Contains(out, `src="https://cdn/u/x/Mira/art/expr/$1.webp"`) || !strings.Contains(out, `this.src='https://cdn/u/x/Mira/art/bg/' + 'day.webp'`) || !strings.Contains(out, `"assets/missing/"`) {
+		t.Fatalf("rewrite: %s", out)
+	}
+	if out := Rewrite(f.Lorebook.Entries[0].Content, urls); out != "Use `https://cdn/u/x/Mira/art/expr/${mood}.webp` for faces." {
+		t.Fatalf("template literal: %s", out)
+	}
+}

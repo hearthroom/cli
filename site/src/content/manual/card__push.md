@@ -16,6 +16,14 @@ website's card inventory does not list trial cards. To keep the card, push with
 --create once; the folder then remembers the new private card and later pushes
 update it. --to <roleId> writes into a card you already own.
 
+Files under assets/ go to one folder of your media library, named after the
+card unless media.folder in card.json names it: assets/art/a.webp is served at
+<libraryPrefix>/<folder>/art/a.webp. A referenced directory ("assets/art/", or
+"assets/art/$1.webp" in a display rule) uploads every file in it and becomes
+that folder's URL, so card code can add file names at runtime. Changing
+media.folder uploads the files again under the new name; the old copies stay
+in the library until you remove them.
+
 ## Usage
 
 ```

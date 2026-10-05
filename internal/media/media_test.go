@@ -35,7 +35,7 @@ func (l *fakeLibrary) handler(t *testing.T) http.Handler {
 			var items []map[string]any
 			for name := range l.files {
 				if strings.Contains(name, q) {
-					items = append(items, map[string]any{"fileName": name, "imageUrl": prefix + "/" + name})
+					items = append(items, map[string]any{"fileName": name, "imageUrl": prefix + "/" + escapePath(name)})
 				}
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{
@@ -126,7 +126,7 @@ func TestSyncMovesFilesWhenFolderChanges(t *testing.T) {
 	if len(lib.puts) != 3 || !strings.HasPrefix(lib.puts[0], "tiandao/") {
 		t.Fatalf("puts after rename: %v", lib.puts)
 	}
-	if outcomes[0].Previous != "天道非要我成仙/expr/happy.webp" {
+	if outcomes[0].Previous != prefix+"/"+url.PathEscape("天道非要我成仙")+"/expr/happy.webp" {
 		t.Fatalf("previous: %+v", outcomes[0])
 	}
 	// A pushed-again folder with unchanged files uploads nothing.
@@ -149,6 +149,23 @@ func TestSyncRefusesAnotherCardsFolderUnlessExplicit(t *testing.T) {
 	f.Manifest.Media.Folder = "天道非要我成仙"
 	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
 		t.Fatalf("explicit share: %v", err)
+	}
+}
+
+// Renaming a file in the library changes the name it is listed under, not
+// the URL it is served from, so it must not trigger a re-upload.
+func TestSyncIgnoresLibraryRenames(t *testing.T) {
+	lib, c, f := setup(t)
+	caps, _ := Probe(context.Background(), c)
+	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+		t.Fatal(err)
+	}
+	a := f.State.Assets["assets/portrait.webp"]
+	a.FileName = "renamed in the library.webp"
+	f.State.Assets["assets/portrait.webp"] = a
+	lib.puts = nil
+	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil || len(lib.puts) != 0 {
+		t.Fatalf("re-uploaded after a rename: %v %v", lib.puts, err)
 	}
 }
 

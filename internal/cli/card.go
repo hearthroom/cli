@@ -186,7 +186,7 @@ func (a *App) printPush(res *sync.PushResult) {
 		case o.Uploaded && res.DryRun:
 			a.Out.Line("  asset %-30s would upload", o.Path)
 		case o.Uploaded && o.Previous != "":
-			a.Out.Line("  asset %-30s uploaded (old copy still at %s)", o.Path, o.Previous)
+			a.Out.Line("  asset %-30s uploaded (old copy still served at %s)", o.Path, o.Previous)
 		case o.Uploaded:
 			a.Out.Line("  asset %-30s uploaded", o.Path)
 		default:

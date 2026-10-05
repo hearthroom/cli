@@ -150,11 +150,12 @@ func FolderOf(libraryPrefix, rawURL string) string {
 }
 
 // foreignFiles lists files already under folder/ that this card did not upload.
-func foreignFiles(ctx context.Context, c *api.Client, f *card.Folder, folder string) ([]string, error) {
+func foreignFiles(ctx context.Context, c *api.Client, f *card.Folder, libraryPrefix, folder string) ([]string, error) {
 	var out struct {
 		Data struct {
 			ImageList []struct {
 				FileName string `json:"fileName"`
+				URL      string `json:"imageUrl"`
 			} `json:"imageList"`
 		} `json:"data"`
 	}
@@ -164,11 +165,11 @@ func foreignFiles(ctx context.Context, c *api.Client, f *card.Folder, folder str
 	}
 	ours := map[string]bool{}
 	for _, a := range f.State.Assets {
-		ours[a.FileName] = true
+		ours[a.URL] = true
 	}
 	var foreign []string
 	for _, it := range out.Data.ImageList {
-		if strings.HasPrefix(it.FileName, folder+"/") && !ours[it.FileName] {
+		if strings.HasPrefix(it.URL, libraryPrefix+"/"+escapePath(folder)+"/") && !ours[it.URL] {
 			foreign = append(foreign, it.FileName)
 		}
 	}
@@ -195,7 +196,7 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 	var outcomes []Outcome
 	folder, _, fresh := Folder(f)
 	if caps.RelativePaths && fresh && len(present) > 0 {
-		foreign, err := foreignFiles(ctx, c, f, folder)
+		foreign, err := foreignFiles(ctx, c, f, caps.LibraryPrefix, folder)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -221,7 +222,13 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 			remotePath = path.Join(folder, strings.TrimPrefix(rel, card.AssetsDir+"/"))
 		}
 		prev, had := f.State.Assets[rel]
-		moved := had && remotePath != "" && prev.FileName != "" && prev.FileName != remotePath
+		// Compare served URLs, not names: a library rename changes the shown
+		// name but not the path a file is served from.
+		want := ""
+		if remotePath != "" && caps.LibraryPrefix != "" {
+			want = caps.LibraryPrefix + "/" + escapePath(remotePath)
+		}
+		moved := had && want != "" && prev.FileName != "" && prev.URL != "" && prev.URL != want
 		if had && prev.SHA256 == digest && prev.URL != "" && !moved {
 			urls[rel] = prev.URL
 			outcomes = append(outcomes, Outcome{Path: rel, URL: prev.URL})
@@ -229,7 +236,7 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 		}
 		previous := ""
 		if moved {
-			previous = prev.FileName
+			previous = prev.URL
 		}
 		if caps.MaxFileBytes > 0 {
 			if st, err := os.Stat(local); err == nil && st.Size() > caps.MaxFileBytes {

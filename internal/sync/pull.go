@@ -13,6 +13,7 @@ import (
 
 	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
+	"github.com/hearthroom/cli/internal/media"
 )
 
 // PullOptions control a pull.
@@ -76,6 +77,22 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 
 	f := card.FromRemote(dir, d, bookID, bookName, entries, asset)
 	f.State.API = c.API
+	// Keep the card's media folder: the one this folder already chose, else
+	// the library folder its images are served from.
+	if old, err := card.Load(dir); err == nil {
+		f.Manifest.Media.Folder = old.Manifest.Media.Folder
+		f.State.AssetFolder = old.State.AssetFolder
+	}
+	if f.State.AssetFolder == "" {
+		if caps, err := media.Probe(ctx, c); err == nil && caps.LibraryPrefix != "" {
+			for _, u := range []string{d.RoleAvatar, d.RoleBackground, d.RoleBackgroundLandscape} {
+				if folder := media.FolderOf(caps.LibraryPrefix, u); folder != "" {
+					f.State.AssetFolder = folder
+					break
+				}
+			}
+		}
+	}
 	res.Lorebook = bookID
 
 	if opts.Download {

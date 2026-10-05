@@ -260,4 +260,14 @@ func TestDirectoryReferenceUploadsEveryFileAndRewrites(t *testing.T) {
 	if out := Rewrite(f.Lorebook.Entries[0].Content, urls); out != "Use `https://cdn/u/x/Mira/art/expr/${mood}.webp` for faces." {
 		t.Fatalf("template literal: %s", out)
 	}
+
+	// A placeholder right under assets/ stands for the whole tree.
+	f.Rules.Rules[0].Replace = `<img src="assets/$1.webp">`
+	f.Lorebook.Entries[0].Content = ""
+	if dirs := f.AssetDirs(); strings.Join(dirs, ",") != "assets/" {
+		t.Fatalf("root dirs: %v", dirs)
+	}
+	if present, _ := f.AssetRefs(); len(present) != 4 {
+		t.Fatalf("root present: %v", present)
+	}
 }

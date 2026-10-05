@@ -131,6 +131,24 @@ func Folder(f *card.Folder) (folder string, explicit, fresh bool) {
 	return name, false, true
 }
 
+// FolderOf returns the library folder a served URL points into, or "" when
+// the URL is not a <libraryPrefix>/<folder>/<file> library path.
+func FolderOf(libraryPrefix, rawURL string) string {
+	rest, ok := strings.CutPrefix(rawURL, strings.TrimRight(libraryPrefix, "/")+"/")
+	if !ok || libraryPrefix == "" {
+		return ""
+	}
+	seg, _, ok := strings.Cut(rest, "/")
+	if !ok {
+		return ""
+	}
+	folder, err := url.PathUnescape(seg)
+	if err != nil {
+		return ""
+	}
+	return folder
+}
+
 // foreignFiles lists files already under folder/ that this card did not upload.
 func foreignFiles(ctx context.Context, c *api.Client, f *card.Folder, folder string) ([]string, error) {
 	var out struct {

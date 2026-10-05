@@ -529,7 +529,7 @@ func (f *Folder) AssetDirs() []string {
 	var out []string
 	f.scanRefs(func(ref string) {
 		p, dir := refTarget(ref)
-		if !dir || p == AssetsDir+"/" || seen[p] {
+		if !dir || seen[p] {
 			return
 		}
 		seen[p] = true
@@ -557,10 +557,7 @@ func (f *Folder) AssetRefs() (present, missing []string) {
 	add(f.Manifest.Media.Background)
 	add(f.Manifest.Media.BackgroundLandscape)
 	f.scanRefs(func(ref string) {
-		p, dir := refTarget(ref)
-		if dir && p == AssetsDir+"/" {
-			return
-		}
+		p, _ := refTarget(ref)
 		add(p)
 	})
 	refs := make([]string, 0, len(seen))

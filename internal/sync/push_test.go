@@ -39,3 +39,34 @@ func TestTrialPushSendsTheCardLanguage(t *testing.T) {
 		}
 	}
 }
+
+// The trial contract ignores image fields, so push sets them on the trial role
+// through the document route afterwards. The landscape background has to go
+// with the portrait ones, or wide screens fall back to the portrait image.
+func TestTrialPushSetsTheLandscapeBackground(t *testing.T) {
+	var fields map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/open/v1/role/r/document" {
+			var body struct{ Fields map[string]any }
+			json.NewDecoder(r.Body).Decode(&body)
+			fields = body.Fields
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"clientKey": "k", "roleId": "r", "created": true, "sections": map[string]string{}})
+	}))
+	defer srv.Close()
+	f, err := card.Init(t.TempDir(), "Landscape")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Manifest.Media.Background = "https://cdn/tall.png"
+	f.Manifest.Media.BackgroundLandscape = "https://cdn/wide.png"
+	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+	if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true}); err != nil {
+		t.Fatal(err)
+	}
+	if fields["roleBackground"] != "https://cdn/tall.png" || fields["roleBackgroundLandscape"] != "https://cdn/wide.png" {
+		t.Fatalf("document fields = %v, want both backgrounds", fields)
+	}
+}

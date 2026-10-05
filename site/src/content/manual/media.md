@@ -12,6 +12,7 @@ Upload and list files in your media library
 ## Commands
 
 - [`hearthroom media ls`](/manual/media/ls/) — List files in your media library
+- [`hearthroom media mv`](/manual/media/mv/) — Rename or move a folder or file in your media library
 - [`hearthroom media rm`](/manual/media/rm/) — Delete files from your media library by id (see `media ls`)
 - [`hearthroom media upload`](/manual/media/upload/) — Upload files to your media library
 

@@ -193,7 +193,7 @@ image first.`,
 			return nil
 		},
 	}
-	cmd.AddCommand(up, ls, rm)
+	cmd.AddCommand(up, ls, rm, a.mediaMoveCommand())
 	return cmd
 }
 

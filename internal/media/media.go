@@ -19,6 +19,7 @@ import (
 // Capabilities is the subset of GET /open/v1/image/list the CLI relies on.
 type Capabilities struct {
 	RelativePaths bool
+	Moves         bool // renaming or moving a folder or file moves its path and URL
 	Overwrite     bool
 	LibraryPrefix string
 	MaxFileBytes  int64
@@ -30,6 +31,7 @@ type listResponse struct {
 	Data struct {
 		Capabilities struct {
 			RelativePaths bool     `json:"relativePaths"`
+			Moves         bool     `json:"moves"`
 			Overwrite     bool     `json:"overwrite"`
 			MaxFileBytes  int64    `json:"maxFileBytes"`
 			Formats       []string `json:"formats"`
@@ -47,6 +49,7 @@ func Probe(ctx context.Context, c *api.Client) (Capabilities, error) {
 	}
 	return Capabilities{
 		RelativePaths: resp.Data.Capabilities.RelativePaths,
+		Moves:         resp.Data.Capabilities.Moves,
 		Overwrite:     resp.Data.Capabilities.Overwrite,
 		LibraryPrefix: strings.TrimRight(resp.Data.LibraryPrefix, "/"),
 		MaxFileBytes:  resp.Data.Capabilities.MaxFileBytes,
@@ -149,6 +152,78 @@ func FolderOf(libraryPrefix, rawURL string) string {
 	return folder
 }
 
+// followMoves updates the recorded URLs of files that were renamed or moved in
+// the library since the last push (the URL is the path, so the old one no longer
+// serves), and forgets files that were deleted, so they are uploaded again.
+// When the files moved to another folder, that folder becomes the card's.
+func followMoves(ctx context.Context, c *api.Client, f *card.Folder, libraryPrefix string) error {
+	wanted := map[string]string{} // id -> relative asset path
+	for rel, a := range f.State.Assets {
+		if a.ID != "" {
+			wanted[a.ID] = rel
+		}
+	}
+	if len(wanted) == 0 {
+		return nil
+	}
+	served := map[string]string{}
+	complete := false
+	for page := 1; page <= 20 && len(served) < len(wanted); page++ {
+		var out struct {
+			Data struct {
+				Total     int64 `json:"total"`
+				ImageList []struct {
+					ID  any    `json:"id"`
+					URL string `json:"imageUrl"`
+				} `json:"imageList"`
+			} `json:"data"`
+		}
+		q := url.Values{"kind": {"all"}, "pageSize": {"100"}, "pageNum": {fmt.Sprint(page)}}
+		if err := c.OpenGet(ctx, "/image/list", q, &out); err != nil {
+			return fmt.Errorf("read media library: %w", err)
+		}
+		for _, it := range out.Data.ImageList {
+			if id := fmt.Sprint(it.ID); wanted[id] != "" {
+				served[id] = it.URL
+			}
+		}
+		if int64(page*100) >= out.Data.Total || len(out.Data.ImageList) == 0 {
+			complete = true
+			break
+		}
+	}
+	folders := map[string]bool{}
+	for id, rel := range wanted {
+		a := f.State.Assets[rel]
+		u, ok := served[id]
+		switch {
+		case !ok && complete:
+			delete(f.State.Assets, rel) // deleted in the library: upload again
+		case ok && u != a.URL:
+			a.URL = u
+			f.State.Assets[rel] = a
+			if dir := FolderOf(libraryPrefix, u); dir != "" {
+				folders[dir] = true
+			}
+		}
+	}
+	if len(folders) != 1 {
+		return nil
+	}
+	var moved string
+	for dir := range folders {
+		moved = dir
+	}
+	if moved == f.State.AssetFolder {
+		return nil
+	}
+	if name, explicit := f.LibraryFolder(); explicit && name != moved {
+		return fmt.Errorf("this card's files were moved to the media folder %q in the library; set media.folder in card.json to %q so the next upload goes there too", moved, moved)
+	}
+	f.State.AssetFolder = moved
+	return nil
+}
+
 // foreignFiles lists files already under folder/ that this card did not upload.
 func foreignFiles(ctx context.Context, c *api.Client, f *card.Folder, libraryPrefix, folder string) ([]string, error) {
 	var out struct {
@@ -194,6 +269,11 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 	present, missing := f.AssetRefs()
 	urls := map[string]string{}
 	var outcomes []Outcome
+	if caps.RelativePaths {
+		if err := followMoves(ctx, c, f, caps.LibraryPrefix); err != nil {
+			return nil, nil, err
+		}
+	}
 	folder, _, fresh := Folder(f)
 	if caps.RelativePaths && fresh && len(present) > 0 {
 		foreign, err := foreignFiles(ctx, c, f, caps.LibraryPrefix, folder)
@@ -257,7 +337,11 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 		// (<libraryPrefix>/<relativePath>) as imageUrl; for unnamed ones it
 		// returns the object URL. Either is what the card should reference.
 		served := res.ImageURL
-		f.State.Assets[rel] = card.Asset{SHA256: digest, URL: served, FileName: res.FileName}
+		id := ""
+		if res.ImageID != nil {
+			id = fmt.Sprint(res.ImageID)
+		}
+		f.State.Assets[rel] = card.Asset{SHA256: digest, URL: served, FileName: res.FileName, ID: id}
 		urls[rel] = served
 		outcomes = append(outcomes, Outcome{Path: rel, URL: served, Uploaded: true, Replaced: res.Replaced, Previous: previous})
 	}

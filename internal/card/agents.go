@@ -29,6 +29,13 @@ func AgentsGuide(name string) string {
 		"or read skills/using-hearthroom/SKILL.md from that repository). They cover premise,\n" +
 		"character, Lorebook, openings, voice, state, presentation, diagnosis and iteration;\n" +
 		"every platform fact they rely on is in references/platform-facts.md there.\n\n" +
+		"## Media\n\n" +
+		"`" + AssetsDir + "/` is uploaded into one media-library folder, `media.folder` in `" + ManifestFile + "`\n" +
+		"(the card name by default), and `" + AssetsDir + "/<path>` is served at `<libraryPrefix>/<folder>/<path>`.\n" +
+		"Keep one card folder for the card's whole life and iterate in it. Name files for\n" +
+		"what they show and group them by job (`" + AssetsDir + "/art/expr/happy.webp`), never by hash,\n" +
+		"date or version. A directory reference (`" + AssetsDir + "/art/expr/$1.webp` in a rule) uploads\n" +
+		"the whole directory, so file names can match the values the card emits.\n\n" +
 		"## The loop\n\n" +
 		"```sh\n" +
 		"hearthroom card push . --validate --json   # private trial card + the provider's report\n" +

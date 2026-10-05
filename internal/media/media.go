@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/hearthroom/cli/internal/api"
@@ -101,17 +102,89 @@ type Outcome struct {
 	URL      string `json:"url"`
 	Uploaded bool   `json:"uploaded"`
 	Replaced bool   `json:"replaced,omitempty"`
+	Previous string `json:"previous,omitempty"` // library path it was served from before a folder change; still in the library
 	Err      string `json:"error,omitempty"`
 }
 
-// Sync uploads every referenced asset of the folder that is new or changed,
-// records it in the folder state and returns the path→URL map. prefix is the
-// remote folder name for relative paths (usually the card key). Failures are
-// reported per file; the map still contains every asset that has a URL.
-func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities, prefix string, dryRun bool) (map[string]string, []Outcome, error) {
+// Folder picks the library folder for the card's assets: media.folder when
+// set, else the folder recorded in state, else the folder earlier uploads
+// went to, else one derived from the card name (fresh=true: not yet ours).
+func Folder(f *card.Folder) (folder string, explicit, fresh bool) {
+	if name, ok := f.LibraryFolder(); ok {
+		return name, true, false
+	}
+	if f.State.AssetFolder != "" {
+		return f.State.AssetFolder, false, false
+	}
+	keys := make([]string, 0, len(f.State.Assets))
+	for k := range f.State.Assets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fn := f.State.Assets[k].FileName
+		if i := strings.Index(fn, "/"); i > 0 {
+			return fn[:i], false, false
+		}
+	}
+	name, _ := f.LibraryFolder()
+	return name, false, true
+}
+
+// foreignFiles lists files already under folder/ that this card did not upload.
+func foreignFiles(ctx context.Context, c *api.Client, f *card.Folder, folder string) ([]string, error) {
+	var out struct {
+		Data struct {
+			ImageList []struct {
+				FileName string `json:"fileName"`
+			} `json:"imageList"`
+		} `json:"data"`
+	}
+	q := url.Values{"q": {folder + "/"}, "kind": {"all"}, "pageSize": {"20"}}
+	if err := c.OpenGet(ctx, "/image/list", q, &out); err != nil {
+		return nil, fmt.Errorf("check media folder %q: %w", folder, err)
+	}
+	ours := map[string]bool{}
+	for _, a := range f.State.Assets {
+		ours[a.FileName] = true
+	}
+	var foreign []string
+	for _, it := range out.Data.ImageList {
+		if strings.HasPrefix(it.FileName, folder+"/") && !ours[it.FileName] {
+			foreign = append(foreign, it.FileName)
+		}
+	}
+	return foreign, nil
+}
+
+// escapePath percent-escapes each segment the way the library serves it.
+func escapePath(p string) string {
+	parts := strings.Split(p, "/")
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
+	}
+	return strings.Join(parts, "/")
+}
+
+// Sync uploads every referenced asset of the folder that is new, changed or
+// served from another library folder, records it in the folder state and
+// returns the path→URL map, including referenced directories. assets/<path>
+// goes to <folder>/<path> (see Folder). Failures are reported per file; the
+// map still contains every asset that has a URL.
+func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities, dryRun bool) (map[string]string, []Outcome, error) {
 	present, missing := f.AssetRefs()
 	urls := map[string]string{}
 	var outcomes []Outcome
+	folder, _, fresh := Folder(f)
+	if caps.RelativePaths && fresh && len(present) > 0 {
+		foreign, err := foreignFiles(ctx, c, f, folder)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(foreign) > 0 {
+			return nil, nil, fmt.Errorf("media folder %q already holds files this card did not upload (%s). Set media.folder in card.json to a new name, or to %q to share that folder on purpose; an upload with the same path replaces that file for every card that uses it", folder, strings.Join(foreign[:min(3, len(foreign))], ", "), folder)
+		}
+	}
 	for _, m := range missing {
 		outcomes = append(outcomes, Outcome{Path: m, Err: "file not found"})
 	}
@@ -125,10 +198,20 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 			outcomes = append(outcomes, Outcome{Path: rel, Err: err.Error()})
 			continue
 		}
-		if prev, ok := f.State.Assets[rel]; ok && prev.SHA256 == digest && prev.URL != "" {
+		remotePath := ""
+		if caps.RelativePaths {
+			remotePath = path.Join(folder, strings.TrimPrefix(rel, card.AssetsDir+"/"))
+		}
+		prev, had := f.State.Assets[rel]
+		moved := had && remotePath != "" && prev.FileName != "" && prev.FileName != remotePath
+		if had && prev.SHA256 == digest && prev.URL != "" && !moved {
 			urls[rel] = prev.URL
 			outcomes = append(outcomes, Outcome{Path: rel, URL: prev.URL})
 			continue
+		}
+		previous := ""
+		if moved {
+			previous = prev.FileName
 		}
 		if caps.MaxFileBytes > 0 {
 			if st, err := os.Stat(local); err == nil && st.Size() > caps.MaxFileBytes {
@@ -137,12 +220,8 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 			}
 		}
 		if dryRun {
-			outcomes = append(outcomes, Outcome{Path: rel, Uploaded: true})
+			outcomes = append(outcomes, Outcome{Path: rel, Uploaded: true, Previous: previous})
 			continue
-		}
-		remotePath := ""
-		if caps.RelativePaths {
-			remotePath = path.Join(prefix, strings.TrimPrefix(rel, card.AssetsDir+"/"))
 		}
 		res, err := Upload(ctx, c, local, remotePath, "")
 		if err != nil {
@@ -155,7 +234,24 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 		served := res.ImageURL
 		f.State.Assets[rel] = card.Asset{SHA256: digest, URL: served, FileName: res.FileName}
 		urls[rel] = served
-		outcomes = append(outcomes, Outcome{Path: rel, URL: served, Uploaded: true, Replaced: res.Replaced})
+		outcomes = append(outcomes, Outcome{Path: rel, URL: served, Uploaded: true, Replaced: res.Replaced, Previous: previous})
+	}
+	// A referenced directory is served at the URL its files share, so card
+	// code can append a file name at runtime.
+	for _, dir := range f.AssetDirs() {
+		if !caps.RelativePaths {
+			outcomes = append(outcomes, Outcome{Path: dir, Err: "this provider cannot serve files by folder path; reference each file literally"})
+			continue
+		}
+		for rel, u := range urls {
+			if tail := escapePath(strings.TrimPrefix(rel, dir)); strings.HasPrefix(rel, dir) && strings.HasSuffix(u, "/"+tail) {
+				urls[dir] = strings.TrimSuffix(u, tail)
+				break
+			}
+		}
+	}
+	if !dryRun && caps.RelativePaths {
+		f.State.AssetFolder = folder
 	}
 	return urls, outcomes, nil
 }

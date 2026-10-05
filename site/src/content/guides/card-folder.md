@@ -67,6 +67,7 @@ my-card/
 | `cardMeta` | `cardMeta` | Character Card V3 provenance, kept verbatim |
 | `media.portrait` | `roleAvatar` | relative path under `assets/` or an absolute URL |
 | `media.background` | `roleBackground` | same; on HarperHarbor the portrait doubles as the background |
+| `media.folder` | — | media-library folder for `assets/`; defaults to the card name on the first push (see [Media folder](#media-folder)) |
 | `media.backgroundLandscape` | `roleBackgroundLandscape` | optional landscape (16:9) background; the chat page prefers it on wide screens and falls back to the portrait one. Both are cropped to cover the screen, so keep important elements in the central 75% |
 
 Unknown keys are preserved on load and save and never sent to the provider.
@@ -80,6 +81,32 @@ Unknown keys are preserved on load and save and never sent to the provider.
 - Any `assets/…` reference inside these files, Lorebook entries or rule
   replacements is uploaded on push and rewritten to its served URL in the
   payload. The local files keep the relative path.
+
+## Media folder
+
+Everything under `assets/` is uploaded into one folder of your media library,
+and the served URL mirrors the path: `assets/art/expr/happy.webp` becomes
+`<libraryPrefix>/<folder>/art/expr/happy.webp`. Paths are case-sensitive;
+non-ASCII folder names are percent-escaped in the URL.
+
+- The folder is `media.folder` when set, otherwise the card name. The first
+  push records it in `.hearthroom/state.json`, so renaming the card later does
+  not move its files. A folder that already held uploads before this field
+  existed keeps its old name until `media.folder` is set.
+- Setting or changing `media.folder` uploads the files again under the new
+  name. The old copies stay in the library; `media ls --q <old>/` and
+  `media rm` remove them.
+- On the first push into a folder this card has not uploaded to, the CLI stops
+  if the folder already holds other files, because an upload with the same
+  path replaces that file for every card that uses it. Set `media.folder` to a
+  new name, or to that name to share the folder on purpose (one series, one
+  folder).
+- A directory reference is uploaded whole: `"assets/art/expr/"`, or a path
+  with a placeholder such as `assets/art/expr/$1.webp` in a rule replacement or
+  `` `assets/art/expr/${mood}.webp` `` in a script. Every file under that
+  directory is uploaded and the directory part is rewritten to its served URL,
+  so file names can be chosen at runtime. Name such files after the values the
+  card produces (`happy.webp` for `<face>happy</face>`).
 
 ## lorebook.json
 
@@ -137,7 +164,9 @@ the last push, so only changed sections are sent.
 ## .hearthroom/state.json
 
 Written by the CLI; safe to delete (the next push re-uploads everything and
-creates a new trial card). Contains the target (`trial` or `owned`), the
+creates a new trial card; set `media.folder` to the old folder name so the
+uploads go back there). Contains the target (`trial` or `owned`), the
 provider role id, the trial key, the API base, section hashes, uploaded asset
-digests and URLs, the Lorebook id and the author-asset version. Commit it if
+digests and URLs, the media folder, the Lorebook id and the author-asset
+version. Commit it if
 you want teammates to push to the same card; ignore it if not.

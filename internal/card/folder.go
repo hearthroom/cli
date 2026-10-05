@@ -66,6 +66,12 @@ type Media struct {
 	// BackgroundLandscape is the optional landscape (16:9) background the chat
 	// page prefers on wide screens; it falls back to Background when empty.
 	BackgroundLandscape string `json:"backgroundLandscape,omitempty"`
+	// Folder is the media-library folder the card's assets/ tree is uploaded
+	// into: assets/<path> is served at <libraryPrefix>/<Folder>/<path>. Empty
+	// means the CLI picks one from the card name on the first push and keeps
+	// it in state. Setting it moves the card's files there on the next push,
+	// and is how two cards share one folder on purpose.
+	Folder string `json:"folder,omitempty"`
 }
 
 // Lorebook is lorebook.json.
@@ -140,6 +146,7 @@ type State struct {
 	LorebookID         string            `json:"lorebookId,omitempty"`
 	LorebookEntryIDs   []string          `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
 	ConversationID     string            `json:"conversationId,omitempty"`
+	AssetFolder        string            `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
 }
 
 // Asset records an uploaded file.
@@ -478,23 +485,20 @@ func FileDigest(path string) (string, error) {
 }
 
 // assetRef matches relative asset references in text and JSON.
-var assetRef = regexp.MustCompile(`assets/[^\s"'<>()\\]+`)
+var assetRef = regexp.MustCompile("assets/[^\\s\"'`<>()\\\\]+")
 
-// AssetRefs lists every distinct relative asset path referenced by the folder,
-// in stable order. Only paths that exist on disk are returned; missing ones
-// are reported separately.
-func (f *Folder) AssetRefs() (present, missing []string) {
-	seen := map[string]bool{}
-	add := func(p string) {
-		p = strings.TrimSpace(p)
-		if p == "" || seen[p] || !strings.HasPrefix(p, AssetsDir+"/") {
-			return
-		}
-		seen[p] = true
+// refTarget classifies one matched reference: a file, or a directory (a
+// trailing "/", or a path holding a $1 / ${x} / {{…}} placeholder, which
+// stands for whatever files that directory holds).
+func refTarget(ref string) (p string, dir bool) {
+	if i := strings.IndexAny(ref, "${"); i >= 0 {
+		j := strings.LastIndex(ref[:i], "/")
+		return ref[:j+1], true
 	}
-	add(f.Manifest.Media.Portrait)
-	add(f.Manifest.Media.Background)
-	add(f.Manifest.Media.BackgroundLandscape)
+	return ref, strings.HasSuffix(ref, "/")
+}
+
+func (f *Folder) scanRefs(add func(string)) {
 	scan := func(text string) {
 		for _, m := range assetRef.FindAllString(text, -1) {
 			add(strings.TrimRight(m, ".,;:!?"))
@@ -515,16 +519,126 @@ func (f *Folder) AssetRefs() (present, missing []string) {
 			scan(r.Replace)
 		}
 	}
+}
+
+// AssetDirs lists the referenced directories that exist on disk, e.g.
+// "assets/art/expr/". Every file under one is uploaded, and the directory is
+// rewritten to its served URL so card code can append file names at runtime.
+func (f *Folder) AssetDirs() []string {
+	seen := map[string]bool{}
+	var out []string
+	f.scanRefs(func(ref string) {
+		p, dir := refTarget(ref)
+		if !dir || p == AssetsDir+"/" || seen[p] {
+			return
+		}
+		seen[p] = true
+		if st, err := os.Stat(filepath.Join(f.Dir, filepath.FromSlash(p))); err == nil && st.IsDir() {
+			out = append(out, p)
+		}
+	})
+	sort.Strings(out)
+	return out
+}
+
+// AssetRefs lists every distinct relative asset path referenced by the folder,
+// in stable order, including every file under a referenced directory. Only
+// paths that exist on disk are returned; missing ones are reported separately.
+func (f *Folder) AssetRefs() (present, missing []string) {
+	seen := map[string]bool{}
+	add := func(p string) {
+		p = strings.TrimSpace(p)
+		if p == "" || seen[p] || !strings.HasPrefix(p, AssetsDir+"/") {
+			return
+		}
+		seen[p] = true
+	}
+	add(f.Manifest.Media.Portrait)
+	add(f.Manifest.Media.Background)
+	add(f.Manifest.Media.BackgroundLandscape)
+	f.scanRefs(func(ref string) {
+		p, dir := refTarget(ref)
+		if dir && p == AssetsDir+"/" {
+			return
+		}
+		add(p)
+	})
+	refs := make([]string, 0, len(seen))
 	for p := range seen {
-		if _, err := os.Stat(filepath.Join(f.Dir, filepath.FromSlash(p))); err == nil {
-			present = append(present, p)
-		} else {
+		refs = append(refs, p)
+	}
+	for _, p := range refs {
+		full := filepath.Join(f.Dir, filepath.FromSlash(p))
+		st, err := os.Stat(full)
+		switch {
+		case err != nil:
 			missing = append(missing, p)
+		case st.IsDir():
+			_ = filepath.WalkDir(full, func(fp string, d os.DirEntry, err error) error {
+				if err != nil {
+					return nil
+				}
+				if strings.HasPrefix(d.Name(), ".") {
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+				if !d.IsDir() {
+					rel, _ := filepath.Rel(f.Dir, fp)
+					if r := filepath.ToSlash(rel); !seen[r] {
+						seen[r] = true
+						present = append(present, r)
+					}
+				}
+				return nil
+			})
+		case strings.HasSuffix(p, "/"):
+			missing = append(missing, p)
+		default:
+			present = append(present, p)
 		}
 	}
 	sort.Strings(present)
 	sort.Strings(missing)
 	return present, missing
+}
+
+var unsafeFolderRune = regexp.MustCompile(`[\\/\p{Cc}\p{Cf}]+`)
+
+func cleanFolderSegment(s string) string {
+	s = unsafeFolderRune.ReplaceAllString(strings.TrimSpace(s), "-")
+	s = strings.Trim(s, "- ")
+	if s == "." || s == ".." {
+		return ""
+	}
+	if r := []rune(s); len(r) > 80 {
+		s = strings.TrimRight(string(r[:80]), "- ")
+	}
+	return s
+}
+
+// LibraryFolder returns the media-library folder for this card: media.folder
+// when set (explicit=true), else one derived from the card name, else from the
+// local folder name. It does not consult state; callers keep a chosen folder.
+func (f *Folder) LibraryFolder() (folder string, explicit bool) {
+	if raw := strings.TrimSpace(f.Manifest.Media.Folder); raw != "" {
+		var parts []string
+		for _, seg := range strings.Split(strings.ReplaceAll(raw, "\\", "/"), "/") {
+			if c := cleanFolderSegment(seg); c != "" {
+				parts = append(parts, c)
+			}
+		}
+		if len(parts) > 0 {
+			return strings.Join(parts, "/"), true
+		}
+	}
+	for _, s := range []string{f.Manifest.Name, filepath.Base(f.Dir)} {
+		if c := cleanFolderSegment(s); c != "" {
+			return c, false
+		}
+	}
+	return "card", false
 }
 
 // Rewrite replaces asset references in text using the map (relative path → URL).
@@ -541,6 +655,12 @@ func Rewrite(text string, urls map[string]string) string {
 		}
 		if u, ok := urls[core]; ok {
 			return u + trail
+		}
+		// A directory reference followed by a runtime part ($1, ${id}, …).
+		if dir, ok := refTarget(core); ok {
+			if u, ok := urls[dir]; ok {
+				return u + core[len(dir):] + trail
+			}
 		}
 		return m
 	})

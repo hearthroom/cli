@@ -154,6 +154,7 @@ type Asset struct {
 	SHA256   string `json:"sha256"`
 	URL      string `json:"url"`
 	FileName string `json:"fileName,omitempty"`
+	ID       string `json:"id,omitempty"` // library item id; follows the file when it is renamed in the library
 }
 
 // ErrNotCardFolder is returned when card.json is missing.

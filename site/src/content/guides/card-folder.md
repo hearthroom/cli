@@ -93,8 +93,13 @@ non-ASCII folder names are percent-escaped in the URL.
   push records it in `.hearthroom/state.json`, so renaming the card later does
   not move its files. A folder that already held uploads before this field
   existed keeps its old name until `media.folder` is set.
-- Setting or changing `media.folder` uploads the files again under the new
-  name. The old copies stay in the library; `media ls --q <old>/` and
+- To rename the card's folder, run `media mv <old> <new>`: it shows which of
+  your cards still mention the old URLs, and `--yes` moves the files. A file's
+  URL is its path, so the old URLs stop working. Then set `media.folder` to the
+  new name. A push also follows files that were renamed or moved on the
+  website, and uploads again any that were deleted there.
+- Setting `media.folder` to a new name without moving uploads the files again
+  under it. The old copies stay in the library; `media ls --q <old>/` and
   `media rm` remove them.
 - On the first push into a folder this card has not uploaded to, the CLI stops
   if the folder already holds other files, because an upload with the same

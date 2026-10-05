@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -21,7 +22,8 @@ const prefix = "https://cdn.test/u/abc"
 // fakeLibrary serves /image/list and /image/upload with relative paths.
 type fakeLibrary struct {
 	mu    sync.Mutex
-	files map[string]bool // relative paths already in the library
+	files map[string]bool   // relative paths already in the library
+	ids   map[string]string // relative path -> item id
 	puts  []string
 }
 
@@ -35,7 +37,7 @@ func (l *fakeLibrary) handler(t *testing.T) http.Handler {
 			var items []map[string]any
 			for name := range l.files {
 				if strings.Contains(name, q) {
-					items = append(items, map[string]any{"fileName": name, "imageUrl": prefix + "/" + escapePath(name)})
+					items = append(items, map[string]any{"id": l.ids[name], "fileName": name, "imageUrl": prefix + "/" + escapePath(name)})
 				}
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{
@@ -49,13 +51,16 @@ func (l *fakeLibrary) handler(t *testing.T) http.Handler {
 			rp := r.FormValue("relativePath")
 			replaced := l.files[rp]
 			l.files[rp] = true
+			if l.ids[rp] == "" {
+				l.ids[rp] = fmt.Sprint(len(l.ids) + 1)
+			}
 			l.puts = append(l.puts, rp)
 			esc := strings.Split(rp, "/")
 			for i := range esc {
 				esc[i] = url.PathEscape(esc[i])
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{
-				"imageUrl": prefix + "/" + strings.Join(esc, "/"), "fileName": rp, "replaced": replaced,
+				"imageId": l.ids[rp], "imageUrl": prefix + "/" + strings.Join(esc, "/"), "fileName": rp, "replaced": replaced,
 			}})
 		default:
 			http.NotFound(w, r)
@@ -65,7 +70,7 @@ func (l *fakeLibrary) handler(t *testing.T) http.Handler {
 
 func setup(t *testing.T, existing ...string) (*fakeLibrary, *api.Client, *card.Folder) {
 	t.Helper()
-	lib := &fakeLibrary{files: map[string]bool{}}
+	lib := &fakeLibrary{files: map[string]bool{}, ids: map[string]string{}}
 	for _, e := range existing {
 		lib.files[e] = true
 	}
@@ -178,5 +183,60 @@ func TestSyncKeepsFolderOfEarlierUploads(t *testing.T) {
 	}
 	if f.State.AssetFolder != "01a0f07d" || !strings.HasPrefix(lib.puts[0], "01a0f07d/") {
 		t.Fatalf("legacy folder not kept: %q %v", f.State.AssetFolder, lib.puts)
+	}
+}
+
+// rename moves every library path under from/ to to/, keeping item ids, the way
+// a rename on the resource page does.
+func (l *fakeLibrary) rename(from, to string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for name := range l.files {
+		if strings.HasPrefix(name, from+"/") {
+			moved := to + strings.TrimPrefix(name, from)
+			l.files[moved], l.ids[moved] = true, l.ids[name]
+			delete(l.files, name)
+			delete(l.ids, name)
+		}
+	}
+}
+
+// After the author renames the card's folder in the library, the next push
+// follows the files to their new URLs instead of uploading them to the old name.
+func TestSyncFollowsALibraryRename(t *testing.T) {
+	lib, c, f := setup(t)
+	caps, _ := Probe(context.Background(), c)
+	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+		t.Fatal(err)
+	}
+	lib.rename("天道非要我成仙", "tiandao")
+	lib.puts = nil
+	urls, _, err := Sync(context.Background(), c, f, caps, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lib.puts) != 0 || f.State.AssetFolder != "tiandao" || urls["assets/portrait.webp"] != prefix+"/tiandao/portrait.webp" || urls["assets/expr/"] != prefix+"/tiandao/expr/" {
+		t.Fatalf("after rename: puts %v folder %q urls %v", lib.puts, f.State.AssetFolder, urls)
+	}
+	// A media.folder that still names the old folder is a conflict to resolve, not a re-upload.
+	lib.rename("tiandao", "renamed-again")
+	f.Manifest.Media.Folder = "tiandao"
+	if _, _, err := Sync(context.Background(), c, f, caps, false); err == nil || !strings.Contains(err.Error(), "renamed-again") {
+		t.Fatalf("explicit folder conflict: %v", err)
+	}
+}
+
+func TestSyncUploadsAgainWhatTheLibraryDeleted(t *testing.T) {
+	lib, c, f := setup(t)
+	caps, _ := Probe(context.Background(), c)
+	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+		t.Fatal(err)
+	}
+	lib.mu.Lock()
+	delete(lib.files, "天道非要我成仙/portrait.webp")
+	lib.mu.Unlock()
+	lib.puts = nil
+	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil || strings.Join(lib.puts, ",") != "天道非要我成仙/portrait.webp" {
+		t.Fatalf("re-upload: %v %v", lib.puts, err)
 	}
 }

@@ -26,6 +26,13 @@ type Result struct {
 	Findings []Finding   `json:"findings"`
 	Replay   *Health     `json:"replay,omitempty"`
 	Declared Declaration `json:"declared"`
+	Markers  []Marker    `json:"markers,omitempty"` // markers the display rules consume
+}
+
+// Marker is a model-written marker a display rule consumes: [name] or <name>.
+type Marker struct {
+	Name  string `json:"name"`
+	Angle bool   `json:"angle,omitempty"`
 }
 
 // Declaration is what README.md (never sent) says about the card's UI role.
@@ -45,7 +52,10 @@ func (r *Result) Errors() int {
 	return n
 }
 
-type report struct{ findings []Finding }
+type report struct {
+	findings []Finding
+	markers  []Marker // what the rules consume, for --replay
+}
 
 func (r *report) add(level, where, format string, args ...any) {
 	r.findings = append(r.findings, Finding{Level: level, Where: where, Msg: fmt.Sprintf(format, args...)})
@@ -165,6 +175,7 @@ func Card(dir string) (*Result, error) {
 	}
 	scanHTML(playerText, card.WelcomeFile, r, false)
 	res.Findings = r.findings
+	res.Markers = r.markers
 	if res.Findings == nil {
 		res.Findings = []Finding{}
 	}
@@ -246,6 +257,15 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 	// Render rules are not generation rules: a marker a rule consumes must be something the
 	// model is told to write (bracketed forms only; a bare word appears in almost any prose).
 	for _, m := range markers {
+		seen := false
+		for _, k := range r.markers {
+			if k.Name == m.name {
+				seen = true
+			}
+		}
+		if !seen {
+			r.markers = append(r.markers, Marker{Name: m.name, Angle: m.angle})
+		}
 		told := strings.Contains(modelText, "["+m.name+"]") || strings.Contains(modelText, "<"+m.name+">") || strings.Contains(modelText, "[/"+m.name+"]") || strings.Contains(modelText, "【"+m.name+"】")
 		shown := strings.Contains(playerText, "["+m.name+"]") || strings.Contains(playerText, "<"+m.name+">")
 		switch {

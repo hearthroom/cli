@@ -81,8 +81,9 @@ func (p Printer) Table(header []string, rows [][]string) {
 
 // ExitError carries a process exit code with an error.
 type ExitError struct {
-	Code int
-	Err  error
+	Code   int
+	Err    error
+	Silent bool // the command already printed its report; print nothing more
 }
 
 func (e *ExitError) Error() string { return e.Err.Error() }
@@ -101,6 +102,12 @@ func Exitf(code int, format string, args ...any) error {
 	return &ExitError{Code: code, Err: fmt.Errorf(format, args...)}
 }
 
+// ExitQuiet sets the exit code without printing anything: for a command that already
+// wrote its report (one JSON document, not a second {"error"} object after it).
+func ExitQuiet(code int, format string, args ...any) error {
+	return &ExitError{Code: code, Err: fmt.Errorf(format, args...), Silent: true}
+}
+
 // Detailer is implemented by errors that carry structured detail for --json.
 type Detailer interface {
 	ErrorDetail() any
@@ -112,6 +119,9 @@ func (p Printer) Fail(err error) int {
 	var xe *ExitError
 	if errors.As(err, &xe) {
 		code = xe.Code
+		if xe.Silent {
+			return code
+		}
 	}
 	if p.JSON {
 		obj := map[string]any{"error": err.Error()}

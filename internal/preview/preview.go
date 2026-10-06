@@ -109,8 +109,20 @@ func complete(dir string) bool {
 	return true
 }
 
+// Options extends the preview server for --check: screenshots served under /shots/, a
+// generated contact sheet at /contact.html, and sample replies that replace the card's
+// preview/replies.md (for --from-history).
+type Options struct {
+	ShotsDir string        // directory served at /shots/ (empty: no route)
+	Contact  func() string // body of /contact.html (nil: no route)
+	Samples  []string      // when set, served as /card/preview/replies.md
+}
+
 // Handler serves the shell, the harness and the card folder on one origin.
-func Handler(shellDir, cardDir string) http.Handler {
+func Handler(shellDir, cardDir string) http.Handler { return HandlerWith(shellDir, cardDir, Options{}) }
+
+// HandlerWith is Handler plus the --check routes.
+func HandlerWith(shellDir, cardDir string, opts Options) http.Handler {
 	mux := http.NewServeMux()
 	noStore := func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +133,29 @@ func Handler(shellDir, cardDir string) http.Handler {
 	mux.Handle("/sandbox/", noStore(http.StripPrefix("/sandbox/", http.FileServer(http.Dir(shellDir)))))
 	sub, _ := fs.Sub(harness, "assets")
 	mux.Handle("/bench/card-preview/", noStore(http.StripPrefix("/bench/card-preview/", http.FileServer(http.FS(sub)))))
+	if len(opts.Samples) > 0 {
+		var b strings.Builder
+		for i, s := range opts.Samples {
+			fmt.Fprintf(&b, "## reply %d\n\n%s\n\n", i+1, strings.TrimSpace(s))
+		}
+		body := b.String()
+		mux.HandleFunc("/card/preview/replies.md", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store")
+			_, _ = io.WriteString(w, body)
+		})
+	}
 	mux.Handle("/card/", noStore(http.StripPrefix("/card/", cardFiles(cardDir))))
+	if opts.ShotsDir != "" {
+		mux.Handle("/shots/", noStore(http.StripPrefix("/shots/", http.FileServer(http.Dir(opts.ShotsDir)))))
+	}
+	if opts.Contact != nil {
+		mux.HandleFunc("/contact.html", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store")
+			_, _ = io.WriteString(w, opts.Contact())
+		})
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/bench/card-preview/?card=/card/", http.StatusFound)
@@ -157,14 +191,40 @@ func cardFiles(dir string) http.Handler {
 }
 
 // Serve listens on 127.0.0.1:port (0 picks a free port) and returns the URL of the
-// harness page. The server runs until ctxDone is closed.
+// harness page. The server runs until the process ends.
 func Serve(shellDir, cardDir string, port int, ready func(url string)) error {
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	srv, err := Listen(shellDir, cardDir, port, Options{})
 	if err != nil {
 		return err
 	}
-	addr := ln.Addr().(*net.TCPAddr)
-	ready(fmt.Sprintf("http://127.0.0.1:%d/bench/card-preview/?card=/card/", addr.Port))
-	srv := &http.Server{Handler: Handler(shellDir, cardDir), ReadHeaderTimeout: 10 * time.Second}
-	return srv.Serve(ln)
+	ready(srv.URL)
+	return srv.srv.Serve(srv.ln)
 }
+
+// Server is a preview server started with Listen: it serves in the background until Close.
+type Server struct {
+	URL    string // the harness page
+	Origin string // http://127.0.0.1:<port>
+	ln     net.Listener
+	srv    *http.Server
+}
+
+// Listen binds 127.0.0.1:port (0 picks a free port) and serves in a goroutine.
+func Listen(shellDir, cardDir string, port int, opts Options) (*Server, error) {
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return nil, err
+	}
+	addr := ln.Addr().(*net.TCPAddr)
+	s := &Server{
+		Origin: fmt.Sprintf("http://127.0.0.1:%d", addr.Port),
+		ln:     ln,
+		srv:    &http.Server{Handler: HandlerWith(shellDir, cardDir, opts), ReadHeaderTimeout: 10 * time.Second},
+	}
+	s.URL = s.Origin + "/bench/card-preview/?card=/card/"
+	go func() { _ = s.srv.Serve(ln) }()
+	return s, nil
+}
+
+// Close stops the server.
+func (s *Server) Close() error { return s.srv.Close() }

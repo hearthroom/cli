@@ -73,16 +73,21 @@
   })
 
   const sent = []
+  // 殼（快取時）可能比 loadCard() 先 ready：hello 要等卡載好，否則 config.card 是 null、殼會丟錯。
+  let cardLoaded
+  const cardReady = new Promise((r) => { cardLoaded = r })
   window.addEventListener('message', (ev) => {
     if (ev.source !== frame.contentWindow || !ev.data || ev.data.ms !== PROTOCOL) return
     const m = ev.data
     sent.push(m)
     if (m.type === 'ready-shell' && !state.helloed) {
       state.helloed = true
-      post({ type: 'hello', config: hello() })
-      state.messages = [{ id: 'greeting', role: 'ai', content: state.welcome, serverId: null, state: 'done' }]
-      post({ type: 'messages', messages: state.messages })
-      post({ type: 'history', more: false, loading: false })
+      cardReady.then(() => {
+        post({ type: 'hello', config: hello() })
+        state.messages = [{ id: 'greeting', role: 'ai', content: state.welcome, serverId: null, state: 'done' }]
+        post({ type: 'messages', messages: state.messages })
+        post({ type: 'history', more: false, loading: false })
+      })
       return
     }
     if (m.type === 'debug') { log(`[debug ${m.level}] ${m.args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}`, m.level === 'error' ? 'err' : m.level === 'warn' ? 'warn' : '') ; return }
@@ -208,5 +213,5 @@
   function currentReply() { const t = document.getElementById('reply').value.trim(); if (t) return t; return state.samples[Number(document.getElementById('samples').value) || 0] || 'Hello.' }
 
   window.__preview = { reload, stream: streamReply, add: addInstant, addUser, switchConversation, snapshot, sent, state }
-  loadCard().then(() => { resize(); if (state.samples.length) document.getElementById('reply').value = state.samples[0] })
+  loadCard().then(() => { resize(); if (state.samples.length) document.getElementById('reply').value = state.samples[0]; cardLoaded() })
 })()

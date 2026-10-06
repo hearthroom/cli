@@ -22,13 +22,13 @@ func init() {
 func (a *App) cardCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "card",
-		Short: "Work with card folders: init, push, validate, render, pull, import, list",
+		Short: "Work with card folders: init, check, push, validate, render, preview, pull, import, list",
 		Long: `Work with card folders. A card is a folder of plain files (see
 https://cli.hearthroom.club/guides/card-folder/). init and import write an
 AGENTS.md into the folder so a coding agent knows the loop and where the
 card-writing skills are: ` + card.SkillsRepo + `.`,
 	}
-	cmd.AddCommand(a.cardInit(), a.cardImport(), a.cardPush(), a.cardValidate(), a.cardRender(), a.cardPull(), a.cardList(), a.cardStatus(), a.cardView())
+	cmd.AddCommand(a.cardInit(), a.cardImport(), a.cardCheck(), a.cardPush(), a.cardValidate(), a.cardRender(), a.cardPreview(), a.cardPull(), a.cardList(), a.cardStatus(), a.cardView())
 	return cmd
 }
 
@@ -64,12 +64,13 @@ func (a *App) cardInit() *cobra.Command {
 				return err
 			}
 			if a.Out.JSON {
-				return a.Out.JSONValue(map[string]any{"dir": dir, "name": f.Manifest.Name, "files": []string{card.ManifestFile, card.DefinitionFile, card.WelcomeFile, card.AgentsFile}})
+				return a.Out.JSONValue(map[string]any{"dir": dir, "name": f.Manifest.Name, "files": []string{card.ManifestFile, card.DefinitionFile, card.WelcomeFile, card.ReadmeFile, card.AgentsFile}})
 			}
 			a.Out.Line("Created %s", dir)
 			a.Out.Line("  %-14s name, tags and short fields", card.ManifestFile)
 			a.Out.Line("  %-14s the private definition", card.DefinitionFile)
 			a.Out.Line("  %-14s the opening message", card.WelcomeFile)
+			a.Out.Line("  %-14s working notes: uiRole, decisions, evidence by version (never sent)", card.ReadmeFile)
 			a.Out.Line("  %-14s what an AI agent should read first", card.AgentsFile)
 			a.Out.Line("Next: edit the files, then `hearthroom card push %s`", dir)
 			a.Out.Note("Writing with an agent? The card-writing skills live at %s", card.SkillsRepo)

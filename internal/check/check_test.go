@@ -1,0 +1,194 @@
+package check
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func write(t *testing.T, dir string, files map[string]string) string {
+	t.Helper()
+	for rel, body := range files {
+		p := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func msgs(r *Result) []string {
+	out := make([]string, 0, len(r.Findings))
+	for _, f := range r.Findings {
+		out = append(out, f.Level+":"+f.Msg)
+	}
+	return out
+}
+
+func has(list []string, parts ...string) bool {
+	for _, s := range list {
+		ok := true
+		for _, p := range parts {
+			if !strings.Contains(s, p) {
+				ok = false
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
+func TestCleanSandboxCard(t *testing.T) {
+	dir := write(t, t.TempDir(), map[string]string{
+		"card.json":     `{"formatVersion":1,"name":"Mira"}`,
+		"README.md":     "uiRole: assist\n",
+		"definition.md": "# Role\nEnd every reply with a [status] block: hp: a/b, mood: word.",
+		"welcome.md":    "Hello.\n[status]\nhp: 10/10\nmood: calm\n[/status]",
+		"rules.json":    `{"pageMode":"sandbox","rules":[{"id":"s","name":"s","find":"/\\[status\\]([\\s\\S]*?)\\[\\/status\\]/g","replace":"<div class=\"hr-status hr-status--raw\">$1</div>","enabled":true}]}`,
+	})
+	r, err := Card(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Errors() != 0 {
+		t.Fatalf("unexpected errors: %v", msgs(r))
+	}
+	if r.Declared.UIRole != "assist" {
+		t.Fatalf("declared: %+v", r.Declared)
+	}
+}
+
+func TestRuleErrors(t *testing.T) {
+	big := strings.Repeat("y", contract.Provider.ReplaceMaxBytes+1)
+	dir := write(t, t.TempDir(), map[string]string{
+		"card.json":  `{"formatVersion":1,"name":"x"}`,
+		"rules.json": `{"pageMode":"sandbox","rules":[{"id":"a","find":"/(/","replace":"x","enabled":true},{"id":"b","find":"/a*/","replace":"x","enabled":true},{"id":"c","find":"  ","replace":"x","enabled":true},{"id":"d","find":"d","replace":"` + big + `","enabled":true},{"id":"e","find":"/e/v","replace":"x","enabled":true},{"id":"e","find":"f","replace":"x","enabled":true}]}`,
+	})
+	r, _ := Card(dir)
+	m := msgs(r)
+	for _, want := range []string{"invalid pattern", "empty string", "find is blank", "over 131072", `flag "v"`, "duplicate rule id"} {
+		if !has(m, "error:", want) {
+			t.Errorf("missing error %q in %v", want, m)
+		}
+	}
+}
+
+func TestSDKMisuseAndClassicPage(t *testing.T) {
+	dir := write(t, t.TempDir(), map[string]string{
+		"card.json":  `{"formatVersion":1,"name":"x"}`,
+		"rules.json": `{"pageMode":"classic","rules":[{"id":"k","find":"{{k}}","replace":"<script>sdk.on(\"message:finish\", f); sdk.save.put(\"a\", 1); sdk.once(\"ready\", f); sdk.vars.get(\"x\"); import x from \"y\"; save.set(\"bad:key\", 1)</script>","enabled":true}]}`,
+	})
+	r, _ := Card(dir)
+	m := msgs(r)
+	for _, want := range []string{`sdk.on("message:finish")`, "sdk.save.put does not exist", "sdk.off / sdk.once", "sdk.vars", "ES module syntax", `pageMode is not "sandbox"`, `save key "bad:key"`} {
+		if !has(m, want) {
+			t.Errorf("missing %q in %v", want, m)
+		}
+	}
+}
+
+func TestSanitizerTraps(t *testing.T) {
+	dir := write(t, t.TempDir(), map[string]string{
+		"card.json":  `{"formatVersion":1,"name":"x"}`,
+		"rules.json": `{"pageMode":"sandbox","rules":[{"id":"h","find":"{{h}}","replace":"<div data-x=\"1\"><svg onclick=\"a()\"></svg><状态>x</状态><hc-btn>b</hc-btn>{{random:a|b}}</div>","enabled":true}]}`,
+	})
+	r, _ := Card(dir)
+	m := msgs(r)
+	for _, want := range []string{"data-x", "inside <svg>", "<状态>", "hc-btn", "{{random:a|b}}"} {
+		if !has(m, want) {
+			t.Errorf("missing %q in %v", want, m)
+		}
+	}
+}
+
+func TestRenderIsNotGeneration(t *testing.T) {
+	base := map[string]string{
+		"card.json":     `{"formatVersion":1,"name":"x"}`,
+		"definition.md": "# Role\nDescribe the scene before each line; a scene is a place and a time.",
+		"welcome.md":    "Hi.",
+		"rules.json":    `{"pageMode":"sandbox","rules":[{"id":"s","find":"/\\[scene\\]([\\s\\S]*?)\\[\\/scene\\]/g","replace":"<b>$1</b>","enabled":true}]}`,
+	}
+	r, _ := Card(write(t, t.TempDir(), base))
+	if !has(msgs(r), `consumes the marker "scene"`, "never appear") {
+		t.Fatalf("expected the marker warning: %v", msgs(r))
+	}
+	ok := map[string]string{}
+	for k, v := range base {
+		ok[k] = v
+	}
+	ok["lorebook.json"] = `{"name":"b","entries":[{"name":"format","content":"Write [scene] each turn","keywords":[],"constant":true}]}`
+	r, _ = Card(write(t, t.TempDir(), ok))
+	if has(msgs(r), "consumes the marker") {
+		t.Fatalf("a constant entry should count: %v", msgs(r))
+	}
+}
+
+func TestAssetsAndDeclarations(t *testing.T) {
+	dir := write(t, t.TempDir(), map[string]string{
+		"card.json":     `{"formatVersion":1,"name":"x"}`,
+		"README.md":     "uiRole: core\n",
+		"assets/a.webp": "x",
+		"rules.json":    `{"pageMode":"sandbox","rules":[{"id":"i","find":"{{i}}","replace":"<img src=\"assets/a.webp\"><img src=\"assets/missing.webp\"><script>var p = \"assets/\" + id + \".webp\"</script>","enabled":true}]}`,
+	})
+	r, _ := Card(dir)
+	m := msgs(r)
+	if !has(m, "assets/missing.webp", "does not exist") || has(m, "assets/a.webp", "does not exist") {
+		t.Errorf("asset check wrong: %v", m)
+	}
+	if !has(m, "concatenation") {
+		t.Errorf("concatenation not flagged: %v", m)
+	}
+	if !has(m, "statusOverheadThreshold") {
+		t.Errorf("core card without a threshold should warn: %v", m)
+	}
+}
+
+func TestDeclarations(t *testing.T) {
+	d := ReadDeclarations("# notes\nuiRole: Core\nstatusOverheadThreshold: 25%\n")
+	if d.UIRole != "core" || d.Threshold != 0.25 {
+		t.Fatalf("%+v", d)
+	}
+	if d := ReadDeclarations("statusOverheadThreshold: 0.2"); d.Threshold != 0.2 {
+		t.Fatalf("%+v", d)
+	}
+}
+
+func TestReplayHealthAndTranscripts(t *testing.T) {
+	replies := []string{
+		"A long reply about the harbour and the keeper, with weather and a decision.\n\n[status]\nhp: 70/100\nmood: wary\n[/status]",
+		"Another reply, shorter.\n[status]\nhp: 65/100\nmood：calm\n",
+		"No block here at all, just prose that goes on for a while to make the ratio small.",
+	}
+	h := ReplayHealth(replies, ReplayOptions{RequiredKeys: []string{"hp", "mood", "time"}})
+	if h.WithBlock != 2 || h.MissingClose != 1 || h.FullWidthLines != 1 || h.Keys["hp"].Count != 2 || h.Keys["mood"].Count != 2 {
+		t.Fatalf("%+v", h)
+	}
+	if strings.Join(h.RequiredKeysBelow, ",") != "hp,mood,time" {
+		t.Fatalf("below: %v", h.RequiredKeysBelow)
+	}
+	if h.Overhead <= 0 || h.Overhead >= 1 {
+		t.Fatalf("overhead %v", h.Overhead)
+	}
+	history := "Conversation x with y (3 messages)\n\n[AI]\nHello.\n[status]\nhp: 1\n[/status]\n\n[USER]\nhi\n\n[AI]\nBye.\n"
+	if got := RepliesFrom(history); len(got) != 2 || !strings.HasPrefix(got[0], "Hello.") {
+		t.Fatalf("history: %q", got)
+	}
+	jsonl := "{\"role\":\"user\",\"content\":\"hi\"}\n{\"role\":\"ai\",\"content\":\"[status]\\nhp: 1\\n[/status]\"}\n"
+	if got := RepliesFrom(jsonl); len(got) != 1 || !strings.Contains(got[0], "hp: 1") {
+		t.Fatalf("jsonl: %q", got)
+	}
+	samples := "## one\nFirst reply.\n\n## two\nSecond reply.\n"
+	if got := RepliesFrom(samples); len(got) != 2 || got[1] != "Second reply." {
+		t.Fatalf("samples: %q", got)
+	}
+	req, vol := KitFields([]byte(`{"schema":{"fields":[{"key":"hp"},{"key":"danger","volatile":true},{"key":"secret","hidden":true}]}}`))
+	if strings.Join(req, ",") != "hp,secret" || strings.Join(vol, ",") != "danger" {
+		t.Fatalf("fields: %v %v", req, vol)
+	}
+}

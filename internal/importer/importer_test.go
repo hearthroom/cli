@@ -268,6 +268,20 @@ func TestMMDSet(t *testing.T) {
 	if len(partial.Notes) != 2 {
 		t.Fatalf("partial notes: %v", partial.Notes)
 	}
+	// A six-key file's personality stands in for the missing persona TXT; dropped script fields are named.
+	six := []byte(`{"chatVersion":1,"pageDepth":2,"statusbar":"","beginning":"Hi.","personality":"<角色设定 名字：Mira>\nQuiet.\n</角色设定>","regex_scripts":[{"id":-1,"scriptName":"s","findRegex":"/x/g","replaceString":"y","markdownOnly":true,"trimStrings":["a"],"promptOnly":false}]}`)
+	sixFile, err := ClassifyMMDFile("rules.json", six)
+	if err != nil || sixFile.Set.Personality == "" {
+		t.Fatalf("six-key: %v %+v", err, sixFile)
+	}
+	merged := MergeMMDFiles([]*MMDFile{sixFile}, "zh-Hans")
+	if !strings.HasPrefix(merged.Definition, "<角色设定") {
+		t.Fatalf("personality not used: %q", merged.Definition)
+	}
+	notes := strings.Join(merged.Notes, "\n")
+	if !strings.Contains(notes, "personality field") || !strings.Contains(notes, "trimStrings, markdownOnly") || strings.Contains(notes, "promptOnly") || strings.Contains(notes, "missing the persona TXT") {
+		t.Fatalf("notes: %v", merged.Notes)
+	}
 	// Meimo "export regex" list and API envelope.
 	l, err := ClassifyMMDFile("export.json", []byte(`{"code":0,"data":[{"regex":"《美1》","content":"<style>a{}</style>","name":"style"}]}`))
 	if err != nil || l.Part != PartRules || l.Set.Rules[0].Find != "《美1》" {

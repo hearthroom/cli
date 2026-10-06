@@ -33,4 +33,4 @@ hearthroom card pull <roleId> [dir] [flags]
 
 ## See also
 
-- [`hearthroom card`](/manual/card/) — Work with card folders: init, push, validate, render, pull, import, list
+- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list

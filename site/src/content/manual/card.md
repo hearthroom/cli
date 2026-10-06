@@ -1,7 +1,7 @@
 ---
 slug: "card"
 command: "hearthroom card"
-short: "Work with card folders: init, push, validate, render, pull, import, list"
+short: "Work with card folders: init, check, push, validate, render, preview, pull, import, list"
 parent: "hearthroom"
 ---
 
@@ -14,9 +14,11 @@ card-writing skills are: https://github.com/hearthroom/skills.
 
 ## Commands
 
+- [`hearthroom card check`](/manual/card/check/) — Local checks of the folder before a push: rules, markers, sandbox API use, protocol health
 - [`hearthroom card import`](/manual/card/import/) — Convert a SillyTavern PNG/JSON/CHARX card or an MMD file set into a card folder
 - [`hearthroom card init`](/manual/card/init/) — Create a new card folder
 - [`hearthroom card list`](/manual/card/list/) — List your cards on the provider
+- [`hearthroom card preview`](/manual/card/preview/) — Open the folder in the real sandbox chat shell with a fake host, offline
 - [`hearthroom card pull`](/manual/card/pull/) — Write one of your cards to a folder
 - [`hearthroom card push`](/manual/card/push/) — Sync the folder to the provider (a private trial card by default)
 - [`hearthroom card render`](/manual/card/render/) — Show an opening after the card's display rules, as the player's renderer receives it

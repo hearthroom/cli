@@ -180,6 +180,9 @@ func Init(dir, name string) (*Folder, error) {
 	if _, err := WriteAgentsGuide(dir, name); err != nil {
 		return nil, err
 	}
+	if _, err := WriteReadme(dir, name); err != nil {
+		return nil, err
+	}
 	return Load(dir)
 }
 

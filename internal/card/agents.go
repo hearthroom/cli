@@ -38,11 +38,17 @@ func AgentsGuide(name string) string {
 		"the whole directory, so file names can match the values the card emits.\n\n" +
 		"## The loop\n\n" +
 		"```sh\n" +
+		"hearthroom card check .                    # local: rules, markers, sandbox API use; free, no sign-in\n" +
 		"hearthroom card push . --validate --json   # private trial card + the provider's report\n" +
 		"hearthroom card render . --json            # the opening after display rules, per-rule outcome\n" +
-		"hearthroom play . -m \"...\" --allow-spend --json   # one real turn; spends the author's credits\n" +
-		"hearthroom card pull .                     # bring the provider's copy back\n" +
+		"hearthroom card preview . --open           # the real sandbox shell on a local port, offline\n" +
+		"hearthroom play . --new-session -m \"...\" --allow-spend --json   # one real turn; spends the author's credits\n" +
+		"hearthroom card check . --replay history.txt   # protocol health from real replies\n" +
+		"hearthroom lorebook build .                # worldbook/*.md -> lorebook.json\n" +
 		"```\n\n" +
+		"`" + ReadmeFile + "` is the card's working notes (never sent): `uiRole: assist | core`, the status\n" +
+		"overhead threshold, decisions, rejected directions and the evidence of each version.\n" +
+		"Read it first; keep it current.\n\n" +
 		"Pushing, validating and rendering are free. Only `play -m` spends credits and\n" +
 		"needs `--allow-spend`; ask the author before the first turn. Do not run\n" +
 		"`card push --create` or submit the card for review unless asked.\n" +

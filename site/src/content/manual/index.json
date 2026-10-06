@@ -37,12 +37,14 @@
   {
     "slug": "card",
     "command": "hearthroom card",
-    "short": "Work with card folders: init, push, validate, render, pull, import, list",
+    "short": "Work with card folders: init, check, push, validate, render, preview, pull, import, list",
     "parent": "hearthroom",
     "children": [
+      "card/check",
       "card/import",
       "card/init",
       "card/list",
+      "card/preview",
       "card/pull",
       "card/push",
       "card/render",
@@ -50,6 +52,12 @@
       "card/validate",
       "card/view"
     ]
+  },
+  {
+    "slug": "card/check",
+    "command": "hearthroom card check",
+    "short": "Local checks of the folder before a push: rules, markers, sandbox API use, protocol health",
+    "parent": "card"
   },
   {
     "slug": "card/import",
@@ -67,6 +75,12 @@
     "slug": "card/list",
     "command": "hearthroom card list",
     "short": "List your cards on the provider",
+    "parent": "card"
+  },
+  {
+    "slug": "card/preview",
+    "command": "hearthroom card preview",
+    "short": "Open the folder in the real sandbox chat shell with a fake host, offline",
     "parent": "card"
   },
   {
@@ -164,6 +178,7 @@
       "author",
       "card",
       "completion",
+      "lorebook",
       "media",
       "models",
       "play",
@@ -174,6 +189,28 @@
       "wallet",
       "whoami"
     ]
+  },
+  {
+    "slug": "lorebook",
+    "command": "hearthroom lorebook",
+    "short": "Build lorebook.json from one Markdown file per entry, and check the entries",
+    "parent": "hearthroom",
+    "children": [
+      "lorebook/build",
+      "lorebook/check"
+    ]
+  },
+  {
+    "slug": "lorebook/build",
+    "command": "hearthroom lorebook build",
+    "short": "Write lorebook.json from worldbook/*.md",
+    "parent": "lorebook"
+  },
+  {
+    "slug": "lorebook/check",
+    "command": "hearthroom lorebook check",
+    "short": "Compare worldbook/*.md with lorebook.json and look for keyword problems",
+    "parent": "lorebook"
   },
   {
     "slug": "media",

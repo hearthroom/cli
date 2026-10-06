@@ -41,7 +41,8 @@ func AgentsGuide(name string) string {
 		"hearthroom card check .                    # local: rules, markers, sandbox API use; free, no sign-in\n" +
 		"hearthroom card push . --validate --json   # private trial card + the provider's report\n" +
 		"hearthroom card render . --json            # the opening after display rules, per-rule outcome\n" +
-		"hearthroom card preview . --open           # the real sandbox shell on a local port, offline\n" +
+		"hearthroom card preview . --check          # headless: screenshots + facts + findings under preview/shots/\n" +
+		"hearthroom card preview . --open           # the same shell in your browser, interactive\n" +
 		"hearthroom play . --new-session -m \"...\" --allow-spend --json   # one real turn; spends the author's credits\n" +
 		"hearthroom card check . --replay history.txt   # protocol health from real replies\n" +
 		"hearthroom lorebook build .                # worldbook/*.md -> lorebook.json\n" +

@@ -120,7 +120,7 @@ build. Exit code 1 when there are errors; warnings do not fail.`,
 				}
 			}
 			if res.Errors() > 0 {
-				return output.Exitf(1, "check found errors")
+				return output.ExitQuiet(1, "check found errors")
 			}
 			return nil
 		},

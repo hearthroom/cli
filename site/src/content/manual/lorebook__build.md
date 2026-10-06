@@ -1,24 +1,18 @@
 ---
-slug: "card/init"
-command: "hearthroom card init"
-short: "Create a new card folder"
-parent: "card"
+slug: "lorebook/build"
+command: "hearthroom lorebook build"
+short: "Write lorebook.json from worldbook/*.md"
+parent: "lorebook"
 ---
 
-# hearthroom card init
+# hearthroom lorebook build
 
-Create a new card folder
+Write lorebook.json from worldbook/*.md
 
 ## Usage
 
 ```
-hearthroom card init <dir> [flags]
-```
-
-## Options
-
-```
-      --name string   card name (default: folder name)
+hearthroom lorebook build [dir]
 ```
 
 ## Global options
@@ -32,4 +26,4 @@ hearthroom card init <dir> [flags]
 
 ## See also
 
-- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list
+- [`hearthroom lorebook`](/manual/lorebook/) — Build lorebook.json from one Markdown file per entry, and check the entries

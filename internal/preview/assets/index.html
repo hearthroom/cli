@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>card preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 13px/1.4 system-ui, sans-serif; }
+  #wrap { display: flex; height: 100%; }
+  #side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-right: 1px solid #333; overflow: auto; }
+  #stage { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 12px; overflow: auto; background: #1a1a1a; }
+  #frame { width: 390px; height: 844px; border: 1px solid #444; background: #000; box-shadow: 0 0 24px rgba(0,0,0,.6); }
+  button, select, input, textarea { font: inherit; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  textarea { width: 100%; min-height: 110px; background: #181818; color: #ddd; border: 1px solid #444; }
+  #log { flex: 1; min-height: 120px; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 11px; color: #9f9; overflow: auto; }
+  .warn { color: #fd6; } .err { color: #f88; }
+  /* ?bare=1：只剩殼（截圖用），視口＝iframe */
+  body.bare #side { display: none; }
+  body.bare #stage { padding: 0; }
+  body.bare #frame { width: 100vw; height: 100vh; border: 0; box-shadow: none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="side">
+    <div class="row">
+      <select id="size">
+        <option value="390x844">phone 390×844</option>
+        <option value="844x390">phone landscape 844×390</option>
+        <option value="900x640">unfolded 900×640</option>
+        <option value="768x1024">tablet 768×1024</option>
+        <option value="1280x800">desktop 1280×800</option>
+      </select>
+      <select id="theme"><option value="dark">dark</option><option value="light">light</option></select>
+      <select id="chrome"><option value="shell">shell chrome</option><option value="host">host chrome</option></select>
+    </div>
+    <div class="row">
+      <button id="reload">reload card</button>
+      <button id="switch">switch conversation</button>
+      <button id="rerun">re-run scripts</button>
+    </div>
+    <textarea id="reply" placeholder="an AI reply to stream (or pick one from preview/replies.md)"></textarea>
+    <div class="row">
+      <select id="samples"></select>
+      <button id="stream">stream reply</button>
+      <button id="instant">add instantly</button>
+      <button id="user">add player line</button>
+    </div>
+    <div id="log"></div>
+  </div>
+  <div id="stage"><iframe id="frame" src="/sandbox/" sandbox="allow-scripts allow-same-origin"></iframe></div>
+</div>
+<script src="./preview.js"></script>
+</body>
+</html>

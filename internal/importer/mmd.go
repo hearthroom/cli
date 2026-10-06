@@ -34,6 +34,56 @@ type RuleSet struct {
 	Lowered   bool
 	PageMode  string // "" | "sandbox"
 	Format    string // "" (mmd) | "tavern"
+	// Personality is the six-key export's persona text, used as the definition when no
+	// persona TXT is in the set.
+	Personality string
+	// Dropped lists the regex-script fields the folder has no place for (SillyTavern-only
+	// flags such as markdownOnly), when any script set one.
+	Dropped []string
+}
+
+// droppedScriptFields are SillyTavern regex-script options the display rule engine does
+// not have. They are reported, not silently lost.
+var droppedScriptFields = []string{"trimStrings", "markdownOnly", "promptOnly", "runOnEdit", "substituteRegex", "minDepth", "maxDepth"}
+
+func droppedFieldsOf(scripts any) []string {
+	arr, ok := scripts.([]any)
+	if !ok {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range arr {
+		m, ok := s.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, k := range droppedScriptFields {
+			v, present := m[k]
+			if !present || seen[k] {
+				continue
+			}
+			switch t := v.(type) {
+			case nil:
+				continue
+			case bool:
+				if !t {
+					continue
+				}
+			case string:
+				if t == "" {
+					continue
+				}
+			case []any:
+				if len(t) == 0 {
+					continue
+				}
+			}
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // MMDFile is one classified file.
@@ -216,10 +266,11 @@ func RuleSetFromImport(raw any) (*RuleSet, string) {
 	if len(rules) == 0 {
 		return nil, ""
 	}
-	set := &RuleSet{Rules: rules}
+	set := &RuleSet{Rules: rules, Dropped: droppedFieldsOf(scripts)}
 	welcome := ""
 	if isObj {
 		set.Statusbar = strText(obj["statusbar"])
+		set.Personality = strings.TrimSpace(strText(obj["personality"]))
 		set.Lowered = LoweredFromPageDepth(obj["pageDepth"])
 		if IsSandboxChatVersion(obj["chatVersion"]) {
 			set.PageMode = "sandbox"
@@ -291,6 +342,13 @@ func MergeMMDFiles(files []*MMDFile, language string) *Result {
 	if rules != nil {
 		r.Welcome = rules.Welcome
 		r.Rules = rules.Set
+		if def == nil && rules.Set != nil && rules.Set.Personality != "" {
+			r.Definition = rules.Set.Personality
+			r.Notes = append(r.Notes, "the persona came from the rules file's personality field (no persona TXT was given); review definition.md")
+		}
+		if rules.Set != nil && len(rules.Set.Dropped) > 0 {
+			r.Notes = append(r.Notes, "regex-script fields with no place in display rules were dropped: "+strings.Join(rules.Set.Dropped, ", "))
+		}
 	}
 	if book != nil {
 		name := book.Book.Name
@@ -300,10 +358,11 @@ func MergeMMDFiles(files []*MMDFile, language string) *Result {
 		r.Lorebook = &LorebookDraft{Name: name, Description: book.Book.Description, Entries: BookEntriesToDrafts(book.Book.Entries, language)}
 		r.Notes = append(r.Notes, BookEntryNotes(book.Book.Entries, language)...)
 	}
+	personaFromRules := def == nil && rules != nil && rules.Set != nil && rules.Set.Personality != ""
 	for _, part := range []struct {
 		name string
 		have bool
-	}{{"regex export (rules, statusbar, opening)", rules != nil}, {"World Info JSON (Lorebook)", book != nil}, {"persona TXT (definition)", def != nil}} {
+	}{{"regex export (rules, statusbar, opening)", rules != nil}, {"World Info JSON (Lorebook)", book != nil}, {"persona TXT (definition)", def != nil || personaFromRules}} {
 		if !part.have {
 			r.Notes = append(r.Notes, "MMD set is missing the "+part.name+"; that part was left empty")
 		}

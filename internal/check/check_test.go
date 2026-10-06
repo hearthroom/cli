@@ -175,6 +175,23 @@ func TestReplayHealthAndTranscripts(t *testing.T) {
 	if h.Overhead <= 0 || h.Overhead >= 1 {
 		t.Fatalf("overhead %v", h.Overhead)
 	}
+	// a kit card's rules consume [status]: keys still tallied, characters counted once; a
+	// card's own marker reports its share
+	k := ReplayHealth(replies, ReplayOptions{RequiredKeys: []string{"hp", "mood"}, Markers: []Marker{{Name: "status"}, {Name: "choices"}}})
+	if k.WithBlock != 2 || k.MissingClose != 1 || k.Keys["hp"].Count != 2 || k.Keys["mood"].Count != 2 {
+		t.Fatalf("consumed: %+v", k)
+	}
+	if d := k.Overhead - h.Overhead; d > 0.02 || d < -0.02 {
+		t.Fatalf("overhead %v vs %v", k.Overhead, h.Overhead)
+	}
+	if k.Markers["status"].Rate < 0.6 || k.Markers["status"].Share <= 0 || k.Markers["choices"].Rate != 0 {
+		t.Fatalf("markers: %+v", k.Markers)
+	}
+	wrapped := []string{"Prose first. <shi>史官曰：有人來了。</shi> More prose.\n[tug]3[/tug]", "Only prose here, nothing else at all."}
+	w := ReplayHealth(wrapped, ReplayOptions{Markers: []Marker{{Name: "shi", Angle: true}, {Name: "tug"}}})
+	if w.Markers["shi"].Rate != 0.5 || w.Markers["shi"].PerReply != 0.5 || w.Markers["shi"].Share <= 0.1 || w.Markers["tug"].Rate != 0.5 {
+		t.Fatalf("wrapped: %+v", w.Markers)
+	}
 	history := "Conversation x with y (3 messages)\n\n[AI]\nHello.\n[status]\nhp: 1\n[/status]\n\n[USER]\nhi\n\n[AI]\nBye.\n"
 	if got := RepliesFrom(history); len(got) != 2 || !strings.HasPrefix(got[0], "Hello.") {
 		t.Fatalf("history: %q", got)

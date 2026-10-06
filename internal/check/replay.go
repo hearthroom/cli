@@ -25,6 +25,17 @@ type Health struct {
 	Keys              map[string]KeyRate `json:"keys"`
 	RequiredKeysBelow []string           `json:"requiredKeysBelow90"`
 	VolatileKeys      []string           `json:"volatileKeys"`
+	// Markers the rules consume (any marker, not only [status]): how often each appears
+	// and how much of the replies it wraps. A marker that wraps prose (dialogue, a
+	// chapter head) counts its whole span, so read the per-marker shares before cutting.
+	Markers map[string]MarkerRate `json:"markers"`
+}
+
+// MarkerRate is how one rule-consumed marker shows up across the replies.
+type MarkerRate struct {
+	Rate     float64 `json:"rate"`     // share of replies containing it at least once
+	PerReply float64 `json:"perReply"` // occurrences per reply
+	Share    float64 `json:"share"`    // characters inside it / all reply characters
 }
 
 // KeyRate is how often one key appeared.
@@ -38,6 +49,17 @@ type ReplayOptions struct {
 	Threshold    float64  // 0 means 0.15
 	RequiredKeys []string // keys the schema expects on every ordinary turn
 	VolatileKeys []string // scene-only keys, never counted as forgotten
+	Markers      []Marker // what the display rules consume (from Result.Markers)
+}
+
+// markerRegexp matches one occurrence of a marker and what it wraps: up to its closer
+// when the closer comes before another marker, otherwise up to the next marker start.
+func markerRegexp(m Marker) *regexp.Regexp {
+	n := regexp.QuoteMeta(m.Name)
+	if m.Angle {
+		return regexp.MustCompile(`(?s)<` + n + `[^>]*>(?:[^<]|<[^a-zA-Z/])*(?:</` + n + `>)?`)
+	}
+	return regexp.MustCompile(`(?s)\[` + n + `\][^\[]*(?:\[/` + n + `\])?`)
 }
 
 var (
@@ -59,11 +81,38 @@ func ReplayHealth(replies []string, opts ReplayOptions) *Health {
 	}
 	counts := map[string]int{}
 	blockChars, replyChars := 0, 0
+	type markerStat struct{ replies, count, chars int }
+	markerStats := map[string]*markerStat{}
+	consumedBlock := map[string]bool{}
+	markerRes := make([]*regexp.Regexp, len(opts.Markers))
+	for i, m := range opts.Markers {
+		markerRes[i] = markerRegexp(m)
+		markerStats[m.Name] = &markerStat{}
+		if !m.Angle && (m.Name == "status" || m.Name == "choices") {
+			consumedBlock[m.Name] = true
+		}
+	}
 	for _, reply := range replies {
 		replyChars += len([]rune(reply))
 		found, chars := 0, 0
+		for i, m := range opts.Markers {
+			hits := markerRes[i].FindAllString(reply, -1)
+			st := markerStats[m.Name]
+			if len(hits) > 0 {
+				st.replies++
+				st.count += len(hits)
+			}
+			for _, h := range hits {
+				st.chars += len([]rune(h))
+				chars += len([]rune(h))
+			}
+		}
 		for _, m := range blockRe.FindAllStringSubmatch(reply, -1) {
-			chars += len([]rune(m[0]))
+			// a block a rule consumes (every kit card) is already in chars from the marker pass;
+			// its keys are still tallied
+			if !consumedBlock[m[1]] {
+				chars += len([]rune(m[0]))
+			}
 			if m[1] == "choices" {
 				h.ChoicesBlocks++
 				continue
@@ -117,6 +166,14 @@ func ReplayHealth(replies []string, opts ReplayOptions) *Health {
 	h.OverThreshold = h.Overhead > threshold
 	for k, c := range counts {
 		h.Keys[k] = KeyRate{Count: c, Rate: float64(c) / n}
+	}
+	h.Markers = map[string]MarkerRate{}
+	for name, st := range markerStats {
+		share := 0.0
+		if replyChars > 0 {
+			share = float64(st.chars) / float64(replyChars)
+		}
+		h.Markers[name] = MarkerRate{Rate: float64(st.replies) / n, PerReply: float64(st.count) / n, Share: math.Round(share*1000) / 1000}
 	}
 	need := int(math.Ceil(n * 0.9))
 	for _, k := range opts.RequiredKeys {

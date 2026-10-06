@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -59,7 +60,7 @@ build. Exit code 1 when there are errors; warnings do not fail.`,
 					}
 					replies = append(replies, check.RepliesFrom(string(b))...)
 				}
-				opts := check.ReplayOptions{Threshold: res.Declared.Threshold}
+				opts := check.ReplayOptions{Threshold: res.Declared.Threshold, Markers: res.Markers}
 				if b, err := os.ReadFile(filepath.Join(dir, "kit.config.json")); err == nil {
 					opts.RequiredKeys, opts.VolatileKeys = check.KitFields(b)
 				}
@@ -87,9 +88,22 @@ build. Exit code 1 when there are errors; warnings do not fail.`,
 					if h.OverThreshold {
 						over = "  OVER"
 					}
-					a.Out.Line("  status overhead %.1f%% (threshold %.0f%%, worst reply %.0f%%)%s", h.Overhead*100, h.Threshold*100, h.WorstReply*100, over)
+					a.Out.Line("  marked-up share %.1f%% (threshold %.0f%%, worst reply %.0f%%)%s", h.Overhead*100, h.Threshold*100, h.WorstReply*100, over)
 					if len(h.RequiredKeysBelow) > 0 {
 						a.Out.Line("  keys written in fewer than 90%% of replies: %s", strings.Join(h.RequiredKeysBelow, ", "))
+					}
+					if len(h.Markers) > 0 {
+						names := make([]string, 0, len(h.Markers))
+						for k := range h.Markers {
+							names = append(names, k)
+						}
+						sort.Strings(names)
+						parts := make([]string, 0, len(names))
+						for _, k := range names {
+							v := h.Markers[k]
+							parts = append(parts, fmt.Sprintf("%s in %.0f%% of replies (%.1f/reply, %.0f%% of characters)", k, v.Rate*100, v.PerReply, v.Share*100))
+						}
+						a.Out.Line("  markers the rules consume: %s", strings.Join(parts, ", "))
 					}
 					var per []string
 					for k, v := range h.Keys {

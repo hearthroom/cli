@@ -112,6 +112,11 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 		}
 		fields["cardMeta"] = meta
 	}
+	// Sent only when card.json has the key: an empty object clears the server's
+	// defaults, an absent key leaves them alone (and leaves the digest unchanged).
+	if m.ResponseDefaults != nil {
+		fields["responseDefaults"] = map[string]string(m.ResponseDefaults)
+	}
 	if u := resolveMedia(m.Media.Portrait, urls); u != "" {
 		fields["roleAvatar"] = u
 	}
@@ -234,29 +239,30 @@ func nonNil(s []string) []string {
 
 // RemoteDetail is the subset of GET /open/v1/role/detail the folder uses.
 type RemoteDetail struct {
-	RoleID                  string          `json:"characterRoleId"`
-	RoleName                string          `json:"roleName"`
-	RoleDesc                string          `json:"roleDesc"`
-	RoleTag                 []string        `json:"roleTag"`
-	RoleType                string          `json:"roleType"`
-	RoleSex                 string          `json:"roleSex"`
-	UserName                string          `json:"userName"`
-	Nickname                string          `json:"nickname"`
-	RoleAvatar              string          `json:"roleAvatar"`
-	RoleBackground          string          `json:"roleBackground"`
-	RoleBackgroundLandscape string          `json:"roleBackgroundLandscape"`
-	RoleDetailDesc          string          `json:"roleDetailDesc"`
-	RoleWelcome             string          `json:"roleWelcome"`
-	RoleWelcomeAlts         []string        `json:"roleWelcomeAlternates"`
-	RolePrologue            []string        `json:"rolePrologue"`
-	TalkExample             []TalkExample   `json:"talkExample"`
-	RoleOutputContract      string          `json:"roleOutputContract"`
-	CustomInstructions      string          `json:"customInstructions"`
-	CardMeta                json.RawMessage `json:"cardMeta"`
-	Language                string          `json:"language"`
-	Visibility              string          `json:"roleVisibility"`
-	ReviewStatus            string          `json:"reviewStatus"`
-	CreationMethod          string          `json:"creationMethod"`
+	RoleID                  string            `json:"characterRoleId"`
+	RoleName                string            `json:"roleName"`
+	RoleDesc                string            `json:"roleDesc"`
+	RoleTag                 []string          `json:"roleTag"`
+	RoleType                string            `json:"roleType"`
+	RoleSex                 string            `json:"roleSex"`
+	UserName                string            `json:"userName"`
+	Nickname                string            `json:"nickname"`
+	RoleAvatar              string            `json:"roleAvatar"`
+	RoleBackground          string            `json:"roleBackground"`
+	RoleBackgroundLandscape string            `json:"roleBackgroundLandscape"`
+	RoleDetailDesc          string            `json:"roleDetailDesc"`
+	RoleWelcome             string            `json:"roleWelcome"`
+	RoleWelcomeAlts         []string          `json:"roleWelcomeAlternates"`
+	RolePrologue            []string          `json:"rolePrologue"`
+	TalkExample             []TalkExample     `json:"talkExample"`
+	RoleOutputContract      string            `json:"roleOutputContract"`
+	CustomInstructions      string            `json:"customInstructions"`
+	CardMeta                json.RawMessage   `json:"cardMeta"`
+	ResponseDefaults        map[string]string `json:"responseDefaults"`
+	Language                string            `json:"language"`
+	Visibility              string            `json:"roleVisibility"`
+	ReviewStatus            string            `json:"reviewStatus"`
+	CreationMethod          string            `json:"creationMethod"`
 }
 
 // RemoteEntry is one Lorebook entry from GET /open/v1/worldbook/entry/list.
@@ -310,6 +316,9 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 	}
 	if len(d.CardMeta) > 0 && string(d.CardMeta) != "null" && string(d.CardMeta) != "{}" {
 		f.Manifest.CardMeta = d.CardMeta
+	}
+	if len(d.ResponseDefaults) > 0 {
+		f.Manifest.ResponseDefaults = ResponseDefaults(d.ResponseDefaults)
 	}
 	f.Definition = d.RoleDetailDesc
 	f.Welcome = d.RoleWelcome

@@ -35,22 +35,23 @@ const (
 // Manifest is card.json. Short structured fields live here; long text lives
 // in Markdown files. Unknown keys are kept in Extra and written back.
 type Manifest struct {
-	FormatVersion      int             `json:"formatVersion"`
-	Name               string          `json:"name"`
-	Summary            string          `json:"summary,omitempty"`
-	Tags               []string        `json:"tags,omitempty"`
-	Type               string          `json:"type,omitempty"`
-	Sex                string          `json:"sex,omitempty"`
-	PlayerName         string          `json:"playerName,omitempty"`
-	Nickname           string          `json:"nickname,omitempty"`
-	OutputContract     string          `json:"outputContract,omitempty"`
-	CustomInstructions string          `json:"customInstructions,omitempty"`
-	TalkExample        []TalkExample   `json:"talkExample,omitempty"`
-	Prologue           []string        `json:"prologue,omitempty"`
-	CardMeta           json.RawMessage `json:"cardMeta,omitempty"`
-	Media              Media           `json:"media"`
-	Language           string          `json:"language,omitempty"`
-	Extra              map[string]any  `json:"-"`
+	FormatVersion      int              `json:"formatVersion"`
+	Name               string           `json:"name"`
+	Summary            string           `json:"summary,omitempty"`
+	Tags               []string         `json:"tags,omitempty"`
+	Type               string           `json:"type,omitempty"`
+	Sex                string           `json:"sex,omitempty"`
+	PlayerName         string           `json:"playerName,omitempty"`
+	Nickname           string           `json:"nickname,omitempty"`
+	OutputContract     string           `json:"outputContract,omitempty"`
+	CustomInstructions string           `json:"customInstructions,omitempty"`
+	TalkExample        []TalkExample    `json:"talkExample,omitempty"`
+	Prologue           []string         `json:"prologue,omitempty"`
+	CardMeta           json.RawMessage  `json:"cardMeta,omitempty"`
+	ResponseDefaults   ResponseDefaults `json:"responseDefaults,omitempty"`
+	Media              Media            `json:"media"`
+	Language           string           `json:"language,omitempty"`
+	Extra              map[string]any   `json:"-"`
 }
 
 // TalkExample is one example line; roleType is `user` or `ai`.
@@ -320,7 +321,7 @@ func (m Manifest) MarshalJSON() ([]byte, error) {
 		obj[k] = b
 	}
 	order := []string{"formatVersion", "name", "summary", "tags", "type", "sex", "playerName", "nickname", "language",
-		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "media"}
+		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "media"}
 	seen := map[string]bool{}
 	var b strings.Builder
 	b.WriteString("{\n")
@@ -371,7 +372,7 @@ func (m *Manifest) UnmarshalJSON(raw []byte) error {
 	}
 	known := map[string]bool{}
 	for _, k := range []string{"formatVersion", "name", "summary", "tags", "type", "sex", "playerName", "nickname", "language",
-		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "media"} {
+		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "media"} {
 		known[k] = true
 	}
 	for k, v := range all {

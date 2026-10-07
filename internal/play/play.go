@@ -59,13 +59,33 @@ func Start(ctx context.Context, c *api.Client, roleID string, greetingIndex, fir
 // keeps it as history when it has a user message, otherwise discards it) and
 // opens a fresh one. Two folders that share a card no longer step on each
 // other's conversation.
+//
+// save-and-start-new opens the next conversation itself, always with the main
+// opening, so a later start would only resume it. For an alternate opening the
+// fresh conversation (no user message yet) is deleted and started again with
+// the requested greeting.
 func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, firstPageSize int) (*StartResponse, error) {
 	current, err := Start(ctx, c, roleID, 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.OpenPost(ctx, "/conversation/save-and-start-new", map[string]any{"conversationId": current.ConversationID, "save": true}, nil); err != nil {
+	var fresh struct {
+		ConversationID string `json:"conversationId"`
+	}
+	if err := c.OpenPost(ctx, "/conversation/save-and-start-new", map[string]any{"conversationId": current.ConversationID, "save": true}, &fresh); err != nil {
 		return nil, fmt.Errorf("start new conversation: %w", err)
+	}
+	if greetingIndex != 0 {
+		if fresh.ConversationID == "" {
+			again, err := Start(ctx, c, roleID, 0, 0)
+			if err != nil {
+				return nil, err
+			}
+			fresh.ConversationID = again.ConversationID
+		}
+		if err := c.OpenPost(ctx, "/conversation/delete", map[string]any{"conversationId": fresh.ConversationID}, nil); err != nil {
+			return nil, fmt.Errorf("start new conversation with opening %d: %w", greetingIndex, err)
+		}
 	}
 	return Start(ctx, c, roleID, greetingIndex, firstPageSize)
 }

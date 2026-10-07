@@ -277,6 +277,12 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.LorebookID = ""
 		f.State.AuthorAssetVersion = 0
 	}
+	if roleID != f.State.RoleID || f.State.Target != "owned" {
+		// The section hashes describe what the previous target holds (a trial
+		// card, or another owned card). Against a new target they would make
+		// every section look unchanged and leave the card empty.
+		f.State.LocalHashes = map[string]string{}
+	}
 	f.State.Target = "owned"
 	f.State.RoleID = roleID
 	f.State.API = c.API

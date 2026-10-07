@@ -200,6 +200,15 @@ func TestReplayHealthAndTranscripts(t *testing.T) {
 	if got := RepliesFrom(jsonl); len(got) != 1 || !strings.Contains(got[0], "hp: 1") {
 		t.Fatalf("jsonl: %q", got)
 	}
+	// "hearthroom play --history --json": newest first, summary rows skipped.
+	played := `{"conversationId":"c","history":{"total":4,"chats":[` +
+		`{"chatRole":"AI","chatMessage":"Second.\n[status]\nhp: 2\n[/status]","isFirst":false},` +
+		`{"chatRole":"AI","chatMessage":"recap","isSummary":true},` +
+		`{"chatRole":"USER","chatMessage":"go on"},` +
+		`{"chatRole":"AI","chatMessage":"Opening.","isFirst":true}]}}`
+	if got := RepliesFrom(played); len(got) != 2 || got[0] != "Opening." || !strings.HasPrefix(got[1], "Second.") {
+		t.Fatalf("play --history --json: %q", got)
+	}
 	samples := "## one\nFirst reply.\n\n## two\nSecond reply.\n"
 	if got := RepliesFrom(samples); len(got) != 2 || got[1] != "Second reply." {
 		t.Fatalf("samples: %q", got)

@@ -33,7 +33,7 @@ hearthroom play [dir] [flags]
 ```
       --agent string              agent mode for this turn: on or off (default: saved preference)
       --allow-spend               confirm that this turn may spend credits
-      --greeting int              opening to use when a new conversation is created (0 = main, 1.. = alternates)
+      --greeting int              opening for a new conversation (0 = main, 1.. = alternates); an existing conversation is resumed as is, so pair it with --new-session
       --history                   print recent messages instead of sending
       --language string           reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)
       --limit int                 messages to show with --history (default 20)

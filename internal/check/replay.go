@@ -242,8 +242,11 @@ func repliesFromJSON(t string) []string {
 		if !ok {
 			return
 		}
-		role, _ := firstString(m, "role", "roleType", "from")
-		content, ok := firstString(m, "content", "text", "message")
+		if summary, _ := m["isSummary"].(bool); summary {
+			return
+		}
+		role, _ := firstString(m, "role", "chatRole", "roleType", "from")
+		content, ok := firstString(m, "content", "chatMessage", "text", "message")
 		if !ok {
 			return
 		}
@@ -263,6 +266,11 @@ func repliesFromJSON(t string) []string {
 				for _, v := range msgs {
 					take(v)
 				}
+			} else if chats, ok := historyChats(d); ok {
+				// "hearthroom play --history --json": a messages page, newest first.
+				for i := len(chats) - 1; i >= 0; i-- {
+					take(chats[i])
+				}
 			} else {
 				take(d)
 			}
@@ -280,6 +288,16 @@ func repliesFromJSON(t string) []string {
 		}
 	}
 	return out
+}
+
+// historyChats finds the chats of a messages page, either at the top level or
+// under "history" as "hearthroom play --history --json" prints it.
+func historyChats(d map[string]any) ([]any, bool) {
+	if h, ok := d["history"].(map[string]any); ok {
+		d = h
+	}
+	chats, ok := d["chats"].([]any)
+	return chats, ok
 }
 
 func firstString(m map[string]any, keys ...string) (string, bool) {

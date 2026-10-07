@@ -192,3 +192,44 @@ func TestStartNewArchivesThenOpens(t *testing.T) {
 		t.Fatalf("archived=%v res=%+v starts=%d", archived, res, starts)
 	}
 }
+
+// save-and-start-new opens the next conversation with the main opening, so an
+// alternate opening needs that fresh conversation deleted and started again.
+func TestStartNewWithAlternateGreeting(t *testing.T) {
+	var calls []string
+	var greeting float64 = -1
+	deleted := ""
+	mux := http.NewServeMux()
+	mux.HandleFunc("/open/v1/conversation/save-and-start-new", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "save")
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": "conv2", "defaultRelay": "main"})
+	})
+	mux.HandleFunc("/open/v1/conversation/delete", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "delete")
+		var in map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		deleted, _ = in["conversationId"].(string)
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": "ok"})
+	})
+	mux.HandleFunc("/open/v1/conversation/start", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "start")
+		var in map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		greeting, _ = in["greetingIndex"].(float64)
+		id := "conv1"
+		if deleted != "" {
+			id = "conv3"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": id, "defaultRelay": "alt", "roleInfo": map[string]any{"roleName": "Mira"}})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := api.New(srv.URL, "http://site", "t", func(context.Context) (string, error) { return "tok", nil })
+	res, err := StartNew(context.Background(), c, "r1", 2, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(calls, ","); got != "start,save,delete,start" || deleted != "conv2" || greeting != 2 || res.ConversationID != "conv3" {
+		t.Fatalf("calls=%s deleted=%q greeting=%v res=%+v", got, deleted, greeting, res)
+	}
+}

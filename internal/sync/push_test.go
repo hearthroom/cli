@@ -70,3 +70,45 @@ func TestTrialPushSetsTheLandscapeBackground(t *testing.T) {
 		t.Fatalf("document fields = %v, want both backgrounds", fields)
 	}
 }
+
+// A folder pushed as a trial card remembers the section hashes it sent. A new
+// owned card holds none of it, so --create has to write every section.
+func TestCreateAfterTrialWritesEverySection(t *testing.T) {
+	var wrote []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/open/v1/role":
+			json.NewEncoder(w).Encode(map[string]any{"roleId": "owned1"})
+		case r.Method == http.MethodPost && r.URL.Path == "/open/v1/role/owned1/document":
+			wrote = append(wrote, card.SectionCard)
+			w.Write([]byte("{}"))
+		case r.Method == http.MethodPatch && r.URL.Path == "/open/v1/role/owned1/welcome":
+			wrote = append(wrote, card.SectionWelcome)
+			w.Write([]byte("{}"))
+		default:
+			w.Write([]byte("{}"))
+		}
+	}))
+	defer srv.Close()
+	f, err := card.Init(t.TempDir(), "Trial then owned")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Welcome = "Hello there."
+	payload, err := f.Build(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.State.Target = "trial"
+	f.State.RoleID = "trial1"
+	f.State.TrialKey = "k"
+	f.State.LocalHashes = payload.Digests()
+	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+	res, err := Push(context.Background(), c, f, PushOptions{Create: true, SkipMedia: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RoleID != "owned1" || len(wrote) < 2 || wrote[0] != card.SectionCard || wrote[1] != card.SectionWelcome {
+		t.Fatalf("role %s wrote %v unchanged %v", res.RoleID, wrote, res.Unchanged)
+	}
+}

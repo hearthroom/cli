@@ -74,6 +74,10 @@ With --json, every server event is printed as one JSON object per line.`,
 			if err != nil {
 				return err
 			}
+			greetingIgnored := greeting != 0 && start.HistoryConversation
+			if greetingIgnored {
+				a.Out.Note("--greeting %d was not used: it only applies to a new conversation, and this one already exists. Add --new-session to start over with that opening.", greeting)
+			}
 			if f != nil && f.State.ConversationID != start.ConversationID {
 				f.State.ConversationID = start.ConversationID
 				_ = f.SaveState()
@@ -114,7 +118,11 @@ With --json, every server event is printed as one JSON object per line.`,
 			}
 			if message == "" {
 				if a.Out.JSON {
-					return a.Out.JSONValue(map[string]any{"conversationId": start.ConversationID, "new": !start.HistoryConversation, "opening": start.DefaultRelay, "role": start.RoleInfo.RoleName})
+					out := map[string]any{"conversationId": start.ConversationID, "new": !start.HistoryConversation, "opening": start.DefaultRelay, "role": start.RoleInfo.RoleName}
+					if greetingIgnored {
+						out["greetingIgnored"] = true
+					}
+					return a.Out.JSONValue(out)
 				}
 				if start.HistoryConversation {
 					a.Out.Line("Resumed conversation %s with %s.", start.ConversationID, start.RoleInfo.RoleName)
@@ -198,7 +206,7 @@ With --json, every server event is printed as one JSON object per line.`,
 	c.Flags().StringVar(&model, "model", "", "model value from `hearthroom models` (default: provider default)")
 	c.Flags().StringVar(&thinking, "thinking", "", "thinking depth override for models that support it")
 	c.Flags().StringVar(&agent, "agent", "", "agent mode for this turn: on or off (default: saved preference)")
-	c.Flags().IntVar(&greeting, "greeting", 0, "opening to use when a new conversation is created (0 = main, 1.. = alternates)")
+	c.Flags().IntVar(&greeting, "greeting", 0, "opening for a new conversation (0 = main, 1.. = alternates); an existing conversation is resumed as is, so pair it with --new-session")
 	c.Flags().BoolVar(&history, "history", false, "print recent messages instead of sending")
 	c.Flags().IntVar(&historyN, "limit", 20, "messages to show with --history")
 	c.Flags().BoolVar(&stop, "stop", false, "stop the reply currently being generated")

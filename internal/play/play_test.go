@@ -233,3 +233,37 @@ func TestStartNewWithAlternateGreeting(t *testing.T) {
 		t.Fatalf("calls=%s deleted=%q greeting=%v res=%+v", got, deleted, greeting, res)
 	}
 }
+
+// A server that knows greetingIndex opens the conversation with it and says so;
+// nothing is deleted.
+func TestStartNewWithGreetingOnAServerThatTakesIt(t *testing.T) {
+	var calls []string
+	var sent map[string]any
+	mux := http.NewServeMux()
+	mux.HandleFunc("/open/v1/conversation/save-and-start-new", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "save")
+		_ = json.NewDecoder(r.Body).Decode(&sent)
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": "conv2", "defaultRelay": "alt", "greetingIndex": 2})
+	})
+	mux.HandleFunc("/open/v1/conversation/delete", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "delete")
+	})
+	mux.HandleFunc("/open/v1/conversation/start", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "start")
+		id := "conv1"
+		if sent != nil {
+			id = "conv2"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": id, "historyConversation": sent != nil, "defaultRelay": "alt", "roleInfo": map[string]any{"roleName": "Mira"}})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := api.New(srv.URL, "http://site", "t", func(context.Context) (string, error) { return "tok", nil })
+	res, err := StartNew(context.Background(), c, "r1", 2, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(calls, ","); got != "start,save,start" || sent["greetingIndex"] != float64(2) || res.ConversationID != "conv2" || res.HistoryConversation {
+		t.Fatalf("calls=%s sent=%v res=%+v", got, sent, res)
+	}
+}

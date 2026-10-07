@@ -42,6 +42,7 @@ my-card/
   ],
   "prologue": ["You arrive at dusk."],
   "cardMeta": {"creator": "…", "characterVersion": "1.0"},
+  "responseDefaults": {"perspective": "third_limited", "length": "target", "lengthTarget": "1200"},
   "media": {
     "portrait": "assets/mira.png",
     "background": "",
@@ -65,12 +66,45 @@ my-card/
 | `talkExample` | `talkExample` | `roleType` is `user` or `ai` |
 | `prologue` | opening prologue options | player-side first lines |
 | `cardMeta` | `cardMeta` | Character Card V3 provenance, kept verbatim |
+| `responseDefaults` | `responseDefaults` | optional author defaults for the player's response preferences (see [Response defaults](#response-defaults)) |
 | `media.portrait` | `roleAvatar` | relative path under `assets/` or an absolute URL |
 | `media.background` | `roleBackground` | same; on HarperHarbor the portrait doubles as the background |
 | `media.folder` | — | media-library folder for `assets/`; defaults to the card name on the first push (see [Media folder](#media-folder)) |
 | `media.backgroundLandscape` | `roleBackgroundLandscape` | optional landscape (16:9) background; the chat page prefers it on wide screens and falls back to the portrait one. Both are cropped to cover the screen, so keep important elements in the central 75% |
 
 Unknown keys are preserved on load and save and never sent to the provider.
+
+### Response defaults
+
+Players can tune each conversation under **Response preferences**: who may
+write the player character's part, prose style, narrative perspective, reply
+length and pacing, each with an optional one-line note. The platform picks a
+default for each. `responseDefaults` replaces those defaults for this card,
+for example a card that is meant to be read in third person, or one whose
+status blocks need long replies:
+
+- A player who has not changed an axis gets your value, and the preferences
+  panel shows it selected. "Reset" returns to your value.
+- An axis the player changes uses the player's choice. Your note, custom
+  style or length target for that axis stops applying with it.
+- Changing `responseDefaults` and pushing reaches existing conversations from
+  their next reply, except on axes the player has changed.
+
+| Key | Values |
+|---|---|
+| `agency` | `protect` (never writes the player's part, the platform default), `assist` (fills in the details of actions the player stated), `lines` (may write the player character's lines but not their decisions), `coauthor` (may write the player character's words, actions and decisions) |
+| `style` | `default` (platform writing guide, the platform default), `guided` (lighter guide that defers to your material), `card` (no platform guide; your definition and examples set the voice), `custom` (needs `customStyle`) |
+| `customStyle` | style description, at most 1000 characters; only with `style: custom` |
+| `perspective` | `card` (follow the material, the platform default), `first_character`, `second_user`, `third_limited`, `third_omniscient` |
+| `length` | `auto` (the platform default), `recommended` (2 to 5 paragraphs, about 2500 characters), `target` (needs `lengthTarget`) |
+| `lengthTarget` | one of 200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 7000, 10000 (characters; words for English); only with `length: target`. A string or a number |
+| `pace` | `natural` (the platform default), `linger`, `advance` |
+| `agencyNote`, `styleNote`, `perspectiveNote`, `lengthNote`, `paceNote` | a one-line refinement of that axis, at most 200 characters; where it differs from the option, the note wins |
+
+Leave out any key to keep the platform default for it. To remove every
+default from the server, set `"responseDefaults": {}` and push; deleting the
+key from card.json leaves the server's copy untouched. `hearthroom validate`
+checks the values before a push.
 
 ## Markdown files
 

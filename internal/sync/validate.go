@@ -80,6 +80,7 @@ func LocalCheck(f *card.Folder) []string {
 			}
 		}
 	}
+	problems = append(problems, card.CheckResponseDefaults(f.Manifest.ResponseDefaults)...)
 	if f.Rules != nil {
 		switch f.Rules.MountLayer {
 		case "", "under", "over", "cover":

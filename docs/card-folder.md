@@ -85,8 +85,10 @@ status blocks need long replies:
 
 - A player who has not changed an axis gets your value, and the preferences
   panel shows it selected. "Reset" returns to your value.
-- An axis the player changes uses the player's choice. Your note, custom
-  style or length target for that axis stops applying with it.
+- An axis where the player picks a different option uses the player's
+  choice, and your note, custom style or length target for that axis stops
+  applying with it. Picking your own option again changes nothing: it is
+  still your default, with your note and text.
 - Changing `responseDefaults` and pushing reaches existing conversations from
   their next reply, except on axes the player has changed.
 

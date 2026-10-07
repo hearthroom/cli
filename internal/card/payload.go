@@ -126,6 +126,9 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 	if u := resolveMedia(m.Media.BackgroundLandscape, urls); u != "" {
 		fields["roleBackgroundLandscape"] = u
 	}
+	if u := resolveMedia(m.Media.Share, urls); u != "" {
+		fields["roleShareImage"] = u
+	}
 	p.Card = fields
 
 	if w := Body(f.Welcome); w != "" || len(f.Alternates) > 0 || len(m.Prologue) > 0 {
@@ -250,6 +253,7 @@ type RemoteDetail struct {
 	RoleAvatar              string            `json:"roleAvatar"`
 	RoleBackground          string            `json:"roleBackground"`
 	RoleBackgroundLandscape string            `json:"roleBackgroundLandscape"`
+	RoleShareImage          string            `json:"roleShareImage"`
 	RoleDetailDesc          string            `json:"roleDetailDesc"`
 	RoleWelcome             string            `json:"roleWelcome"`
 	RoleWelcomeAlts         []string          `json:"roleWelcomeAlternates"`
@@ -309,7 +313,7 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		TalkExample:        d.TalkExample,
 		Prologue:           d.RolePrologue,
 		Language:           d.Language,
-		Media:              Media{Portrait: d.RoleAvatar, Background: d.RoleBackground, BackgroundLandscape: d.RoleBackgroundLandscape},
+		Media:              Media{Portrait: d.RoleAvatar, Background: d.RoleBackground, BackgroundLandscape: d.RoleBackgroundLandscape, Share: d.RoleShareImage},
 	}
 	if d.RoleBackground == d.RoleAvatar {
 		f.Manifest.Media.Background = ""

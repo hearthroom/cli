@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hearthroom/cli/internal/api"
@@ -62,12 +63,13 @@ func TestTrialPushSetsTheLandscapeBackground(t *testing.T) {
 	}
 	f.Manifest.Media.Background = "https://cdn/tall.png"
 	f.Manifest.Media.BackgroundLandscape = "https://cdn/wide.png"
+	f.Manifest.Media.Share = "https://cdn/share.png"
 	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
 	if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true}); err != nil {
 		t.Fatal(err)
 	}
-	if fields["roleBackground"] != "https://cdn/tall.png" || fields["roleBackgroundLandscape"] != "https://cdn/wide.png" {
-		t.Fatalf("document fields = %v, want both backgrounds", fields)
+	if fields["roleBackground"] != "https://cdn/tall.png" || fields["roleBackgroundLandscape"] != "https://cdn/wide.png" || fields["roleShareImage"] != "https://cdn/share.png" {
+		t.Fatalf("document fields = %v, want both backgrounds and the share image", fields)
 	}
 }
 
@@ -110,5 +112,23 @@ func TestCreateAfterTrialWritesEverySection(t *testing.T) {
 	}
 	if res.RoleID != "owned1" || len(wrote) < 2 || wrote[0] != card.SectionCard || wrote[1] != card.SectionWelcome {
 		t.Fatalf("role %s wrote %v unchanged %v", res.RoleID, wrote, res.Unchanged)
+	}
+}
+
+// A share image that points at a missing file is caught before any upload.
+func TestLocalCheckReportsAMissingShareImage(t *testing.T) {
+	f, err := card.Init(t.TempDir(), "Share")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Manifest.Media.Share = "assets/share.png"
+	found := false
+	for _, p := range LocalCheck(f) {
+		if strings.Contains(p, "assets/share.png") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("LocalCheck = %v, want the missing share image reported", LocalCheck(f))
 	}
 }

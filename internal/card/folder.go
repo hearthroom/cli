@@ -67,6 +67,9 @@ type Media struct {
 	// BackgroundLandscape is the optional landscape (16:9) background the chat
 	// page prefers on wide screens; it falls back to Background when empty.
 	BackgroundLandscape string `json:"backgroundLandscape,omitempty"`
+	// Share is the optional link-preview image (1.91:1, 1200x630). When it is
+	// empty the provider generates one from the portrait.
+	Share string `json:"share,omitempty"`
 	// Folder is the media-library folder the card's assets/ tree is uploaded
 	// into: assets/<path> is served at <libraryPrefix>/<Folder>/<path>. Empty
 	// means the CLI picks one from the card name on the first push and keeps
@@ -561,6 +564,7 @@ func (f *Folder) AssetRefs() (present, missing []string) {
 	add(f.Manifest.Media.Portrait)
 	add(f.Manifest.Media.Background)
 	add(f.Manifest.Media.BackgroundLandscape)
+	add(f.Manifest.Media.Share)
 	f.scanRefs(func(ref string) {
 		p, _ := refTarget(ref)
 		add(p)

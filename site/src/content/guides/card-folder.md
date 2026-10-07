@@ -71,6 +71,7 @@ my-card/
 | `media.background` | `roleBackground` | same; on HarperHarbor the portrait doubles as the background |
 | `media.folder` | — | media-library folder for `assets/`; defaults to the card name on the first push (see [Media folder](#media-folder)) |
 | `media.backgroundLandscape` | `roleBackgroundLandscape` | optional landscape (16:9) background; the chat page prefers it on wide screens and falls back to the portrait one. Both are cropped to cover the screen, so keep important elements in the central 75% |
+| `media.share` | `roleShareImage` | optional 1.91:1 link-preview image (1200×630) shown when the card's link is shared on Discord, LINE, X and similar. Put the title and main subject in the centre and keep the sides to background only, since some platforms crop to 2:1 or show a square thumbnail. Without it, Hearthroom generates one from the portrait (blurred backdrop with the full portrait centred) |
 
 Unknown keys are preserved on load and save and never sent to the provider.
 

@@ -122,7 +122,7 @@ func TestBodyIgnoresPlaceholders(t *testing.T) {
 
 func TestFromRemoteRoundTrip(t *testing.T) {
 	d := RemoteDetail{RoleID: "r1", RoleName: "Mira", RoleDesc: "s", RoleTag: []string{"a"}, RoleType: "story",
-		RoleAvatar: "https://cdn/a.png", RoleBackground: "https://cdn/a.png", RoleBackgroundLandscape: "https://cdn/wide.png", RoleDetailDesc: "def", RoleWelcome: "hi",
+		RoleAvatar: "https://cdn/a.png", RoleBackground: "https://cdn/a.png", RoleBackgroundLandscape: "https://cdn/wide.png", RoleShareImage: "https://cdn/share.png", RoleDetailDesc: "def", RoleWelcome: "hi",
 		RoleWelcomeAlts: []string{"alt"}, RolePrologue: []string{"p"}, CreationMethod: "trial", CardMeta: json.RawMessage(`{"creator":"x"}`)}
 	entries := []RemoteEntry{{EntryID: "e1", Name: "n", Content: "c", Keywords: []string{"k"}, IsEnabled: true, MatchOptions: json.RawMessage("null")}}
 	asset := &RemoteAsset{Rules: []DisplayRule{{ID: "1", Find: "a", Replace: "b", Enabled: true}}, MountLayer: "under", PageMode: "classic", Version: 3}
@@ -137,7 +137,7 @@ func TestFromRemoteRoundTrip(t *testing.T) {
 	if back.State.RoleID != "r1" || back.State.Target != "trial" || back.State.LorebookID != "wb1" || back.State.AuthorAssetVersion != 3 {
 		t.Fatalf("state = %+v", back.State)
 	}
-	if back.Manifest.Media.Background != "" || back.Manifest.Media.Portrait != "https://cdn/a.png" || back.Manifest.Media.BackgroundLandscape != "https://cdn/wide.png" {
+	if back.Manifest.Media.Background != "" || back.Manifest.Media.Portrait != "https://cdn/a.png" || back.Manifest.Media.BackgroundLandscape != "https://cdn/wide.png" || back.Manifest.Media.Share != "https://cdn/share.png" {
 		t.Fatalf("media = %+v", back.Manifest.Media)
 	}
 	if back.Lorebook.Entries[0].ID != "e1" || back.Lorebook.Entries[0].MatchOptions != nil {
@@ -269,5 +269,58 @@ func TestDirectoryReferenceUploadsEveryFileAndRewrites(t *testing.T) {
 	}
 	if present, _ := f.AssetRefs(); len(present) != 4 {
 		t.Fatalf("root present: %v", present)
+	}
+}
+
+// Link previews crop the portrait to 1.91:1; the folder carries a dedicated
+// share image as media.share and push sends it as roleShareImage.
+func TestBuildSendsTheShareImage(t *testing.T) {
+	f := sample(t)
+	f.Manifest.Media.Share = "assets/share.png"
+	if err := os.WriteFile(filepath.Join(f.Dir, "assets", "share.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	urls := map[string]string{"assets/mira.png": "https://cdn/mira.png", "assets/share.png": "https://cdn/share.png"}
+	p, err := f.Build(urls)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Card["roleShareImage"] != "https://cdn/share.png" {
+		t.Fatalf("card = %v", p.Card)
+	}
+	if refs, _ := f.AssetRefs(); !contains(refs, "assets/share.png") {
+		t.Fatalf("share image not collected for upload: %v", refs)
+	}
+}
+
+// Without media.share nothing changes: no roleShareImage key in the payload,
+// and no "share" key written to card.json.
+func TestShareImageAbsentLeavesPayloadAlone(t *testing.T) {
+	f := sample(t)
+	p, err := f.Build(map[string]string{"assets/mira.png": "https://cdn/mira.png"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := p.Card["roleShareImage"]; ok {
+		t.Fatalf("card = %v", p.Card)
+	}
+	if err := f.Save(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(f.Dir, ManifestFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), `"share"`) {
+		t.Fatalf("card.json gained a share key: %s", raw)
+	}
+}
+
+func TestAgentsGuideDescribesTheShareImage(t *testing.T) {
+	g := AgentsGuide("Mira")
+	for _, want := range []string{"media.share", "1.91:1", "1200"} {
+		if !strings.Contains(g, want) {
+			t.Errorf("AGENTS.md lacks %q", want)
+		}
 	}
 }

@@ -85,7 +85,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	}
 	if f.State.AssetFolder == "" {
 		if caps, err := media.Probe(ctx, c); err == nil && caps.LibraryPrefix != "" {
-			for _, u := range []string{d.RoleAvatar, d.RoleBackground, d.RoleBackgroundLandscape} {
+			for _, u := range []string{d.RoleAvatar, d.RoleBackground, d.RoleBackgroundLandscape, d.RoleShareImage} {
 				if folder := media.FolderOf(caps.LibraryPrefix, u); folder != "" {
 					f.State.AssetFolder = folder
 					break
@@ -127,6 +127,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		fetch(&f.Manifest.Media.Portrait, "portrait")
 		fetch(&f.Manifest.Media.Background, "background")
 		fetch(&f.Manifest.Media.BackgroundLandscape, "background-landscape")
+		fetch(&f.Manifest.Media.Share, "share")
 	}
 
 	if err := f.Save(); err != nil {

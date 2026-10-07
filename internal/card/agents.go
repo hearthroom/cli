@@ -21,7 +21,9 @@ func AgentsGuide(name string) string {
 		"(`" + DefinitionFile + "`, `" + WelcomeFile + "`, `openings/alt-NN.md`), short fields in `" + ManifestFile + "`,\n" +
 		"the Lorebook in `" + LorebookFile + "`, display rules in `" + RulesFile + "`, media under `" + AssetsDir + "/`\n" +
 		"(`media.portrait`, `media.background` for the portrait 9:16 background, and `media.backgroundLandscape`\n" +
-		"for the landscape 16:9 background wide screens prefer; keep key elements in the central 75%).\n" +
+		"for the landscape 16:9 background wide screens prefer; keep key elements in the central 75%;\n" +
+		"optional `media.share` for link previews: 1.91:1, 1200x630, title and main subject in the centre,\n" +
+		"sides only background, since some sites crop to 2:1 or a square; without it one is made from the portrait).\n" +
 		"Format: https://cli.hearthroom.club/guides/card-folder/\n\n" +
 		"## Before writing\n\n" +
 		"Install the writing skills and start from their router: " + SkillsRepo + "\n" +

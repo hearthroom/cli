@@ -203,7 +203,7 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	// The trial contract ignores image fields; the trial role is still an
 	// owned private card, so its images go through the document route.
 	images := map[string]any{}
-	for _, k := range []string{"roleAvatar", "roleBackground", "roleBackgroundLandscape"} {
+	for _, k := range []string{"roleAvatar", "roleBackground", "roleBackgroundLandscape", "roleShareImage"} {
 		if v, ok := p.Card[k]; ok {
 			images[k] = v
 		}

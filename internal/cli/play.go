@@ -59,6 +59,15 @@ With --json, every server event is printed as one JSON object per line.`,
 				}
 				roleID = f.State.RoleID
 			}
+			if f != nil && greeting > len(f.Alternates) {
+				// Checked before anything is archived: the server would refuse the
+				// index only after --new-session had already put the current
+				// conversation away.
+				return output.Exitf(2, "--greeting %d: this folder has %d alternate opening(s) in %s/", greeting, len(f.Alternates), card.OpeningsDir)
+			}
+			if greeting < 0 {
+				return output.Exitf(2, "--greeting must be 0 (main) or an alternate's number")
+			}
 			ctx := cmd.Context()
 			pageSize := 0
 			if history {

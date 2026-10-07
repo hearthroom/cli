@@ -87,7 +87,14 @@ func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, 
 			return nil, fmt.Errorf("start new conversation with opening %d: %w", greetingIndex, err)
 		}
 	}
-	return Start(ctx, c, roleID, greetingIndex, firstPageSize)
+	out, err := Start(ctx, c, roleID, greetingIndex, firstPageSize)
+	if err != nil {
+		return nil, err
+	}
+	// The conversation was opened by this call even when the last start
+	// resumed the one save-and-start-new had just made.
+	out.HistoryConversation = false
+	return out, nil
 }
 
 // Message is one row of a conversation.

@@ -3,6 +3,7 @@ package play
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -265,5 +266,30 @@ func TestStartNewWithGreetingOnAServerThatTakesIt(t *testing.T) {
 	}
 	if got := strings.Join(calls, ","); got != "start,save,start" || sent["greetingIndex"] != float64(2) || res.ConversationID != "conv2" || res.HistoryConversation {
 		t.Fatalf("calls=%s sent=%v res=%+v", got, sent, res)
+	}
+}
+
+// When save-and-start-new hands back a conversation that already existed, the
+// fallback must not delete it: it may hold the player's messages.
+func TestStartNewNeverDeletesAnExistingConversation(t *testing.T) {
+	var calls []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/open/v1/conversation/save-and-start-new", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "save")
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": "other", "historyConversation": true})
+	})
+	mux.HandleFunc("/open/v1/conversation/delete", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "delete")
+	})
+	mux.HandleFunc("/open/v1/conversation/start", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "start")
+		_ = json.NewEncoder(w).Encode(map[string]any{"conversationId": "conv1", "defaultRelay": "hi", "roleInfo": map[string]any{"roleName": "Mira"}})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := api.New(srv.URL, "http://site", "t", func(context.Context) (string, error) { return "tok", nil })
+	_, err := StartNew(context.Background(), c, "r1", 1, 0)
+	if !errors.Is(err, ErrGreetingNotApplied) || strings.Join(calls, ",") != "start,save" {
+		t.Fatalf("err=%v calls=%v", err, calls)
 	}
 }

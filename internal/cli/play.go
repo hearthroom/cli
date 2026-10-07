@@ -77,6 +77,9 @@ With --json, every server event is printed as one JSON object per line.`,
 			var err error
 			if newSession {
 				start, err = play.StartNew(ctx, a.Client(), roleID, greeting, pageSize)
+				if errors.Is(err, play.ErrGreetingNotApplied) {
+					return output.Exit(2, err)
+				}
 			} else {
 				start, err = play.Start(ctx, a.Client(), roleID, greeting, pageSize)
 			}

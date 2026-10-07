@@ -55,6 +55,10 @@ func Start(ctx context.Context, c *api.Client, roleID string, greetingIndex, fir
 	return &out, nil
 }
 
+// ErrGreetingNotApplied is returned when a fresh conversation could not be
+// opened with the requested greeting because the card already had a current one.
+var ErrGreetingNotApplied = errors.New("the card already had a current conversation, so --greeting was not applied; run the command again")
+
 // StartNew archives the current conversation with the card (the provider
 // keeps it as history when it has a user message, otherwise discards it) and
 // opens a fresh one. Two folders that share a card no longer step on each
@@ -71,8 +75,9 @@ func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, 
 		return nil, err
 	}
 	var fresh struct {
-		ConversationID string `json:"conversationId"`
-		GreetingIndex  *int   `json:"greetingIndex"`
+		ConversationID      string `json:"conversationId"`
+		GreetingIndex       *int   `json:"greetingIndex"`
+		HistoryConversation bool   `json:"historyConversation"`
 	}
 	body := map[string]any{"conversationId": current.ConversationID, "save": true}
 	if greetingIndex != 0 {
@@ -83,6 +88,12 @@ func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, 
 	}
 	applied := fresh.GreetingIndex != nil && *fresh.GreetingIndex == greetingIndex
 	if greetingIndex != 0 && !applied {
+		if fresh.HistoryConversation {
+			// The server handed back a conversation that already existed (a
+			// concurrent start, or a newer revision of the card). It may hold the
+			// player's messages, so it is never deleted here.
+			return nil, ErrGreetingNotApplied
+		}
 		if fresh.ConversationID == "" {
 			again, err := Start(ctx, c, roleID, 0, 0)
 			if err != nil {

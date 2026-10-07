@@ -60,10 +60,11 @@ func Start(ctx context.Context, c *api.Client, roleID string, greetingIndex, fir
 // opens a fresh one. Two folders that share a card no longer step on each
 // other's conversation.
 //
-// save-and-start-new opens the next conversation itself, always with the main
-// opening, so a later start would only resume it. For an alternate opening the
-// fresh conversation (no user message yet) is deleted and started again with
-// the requested greeting.
+// save-and-start-new opens the next conversation itself. A server that knows
+// greetingIndex opens it with the requested greeting and echoes the index back.
+// An older server always uses the main opening, so a later start would only
+// resume it: then the fresh conversation (no user message yet) is deleted and
+// started again with the requested greeting.
 func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, firstPageSize int) (*StartResponse, error) {
 	current, err := Start(ctx, c, roleID, 0, 0)
 	if err != nil {
@@ -71,11 +72,17 @@ func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, 
 	}
 	var fresh struct {
 		ConversationID string `json:"conversationId"`
+		GreetingIndex  *int   `json:"greetingIndex"`
 	}
-	if err := c.OpenPost(ctx, "/conversation/save-and-start-new", map[string]any{"conversationId": current.ConversationID, "save": true}, &fresh); err != nil {
+	body := map[string]any{"conversationId": current.ConversationID, "save": true}
+	if greetingIndex != 0 {
+		body["greetingIndex"] = greetingIndex
+	}
+	if err := c.OpenPost(ctx, "/conversation/save-and-start-new", body, &fresh); err != nil {
 		return nil, fmt.Errorf("start new conversation: %w", err)
 	}
-	if greetingIndex != 0 {
+	applied := fresh.GreetingIndex != nil && *fresh.GreetingIndex == greetingIndex
+	if greetingIndex != 0 && !applied {
 		if fresh.ConversationID == "" {
 			again, err := Start(ctx, c, roleID, 0, 0)
 			if err != nil {

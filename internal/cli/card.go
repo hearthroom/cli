@@ -96,6 +96,11 @@ website's card inventory does not list trial cards. To keep the card, push with
 --create once; the folder then remembers the new private card and later pushes
 update it. --to <roleId> writes into a card you already own.
 
+The Play link it prints opens your saved draft (?mode=source). Once a card has
+passed review, players keep the approved copy until you submit the update for
+review; the website shows the owner a "Play draft" button and an "edited since
+review" notice until then.
+
 Files under assets/ go to one folder of your media library, named after the
 card unless media.folder in card.json names it: assets/art/a.webp is served at
 <libraryPrefix>/<folder>/art/a.webp. A referenced directory ("assets/art/", or
@@ -213,7 +218,7 @@ func (a *App) printPush(res *sync.PushResult) {
 		a.Out.Line("  trial slots:        %v of %v used", res.Slots["used"], res.Slots["max"])
 	}
 	if res.RoleID != "" && !res.DryRun {
-		a.Out.Line("Play: %s/play/%s", a.Site, res.RoleID)
+		a.Out.Line("Play: %s", sync.PreviewURL(a.Site, res.RoleID))
 	}
 }
 

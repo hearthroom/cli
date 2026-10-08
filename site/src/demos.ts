@@ -72,7 +72,7 @@ export function heroScenes(locale: Locale): Scene[] {
       "  sections sent:   card, welcome, worldbook, authorAsset, media",
       "  trial expires:   2026-10-02T09:12:00Z",
       "  trial slots:     1 of 5 used",
-      `Play: https://hearthroom.club/play/${ROLE}`,
+      `Play: https://hearthroom.club/play/${ROLE}?mode=source`,
       ok("Validation: PASS"),
       dim("Budget (~1240 tokens): definition 3120 / 50000 · opening 610 / 10000"),
     ] },

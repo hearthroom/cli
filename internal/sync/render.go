@@ -102,6 +102,9 @@ func Render(ctx context.Context, c *api.Client, roleID string, opening int) (*Re
 
 // PreviewURL is where the community site plays the pushed card; the same
 // page the web editor's test panel opens. Site is the community site base.
+// mode=source plays the author's saved draft: without it a card that has
+// passed review opens its approved copy, so the author would test the old
+// version instead of what they just pushed.
 func PreviewURL(site, roleID string) string {
-	return site + "/play/" + url.PathEscape(roleID)
+	return site + "/play/" + url.PathEscape(roleID) + "?mode=source"
 }

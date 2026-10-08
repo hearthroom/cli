@@ -45,7 +45,7 @@ func TestRenderCallsTheProviderAndFillsDefaults(t *testing.T) {
 	if got.URL.Query().Has("opening") {
 		t.Errorf("opening=0 should not be sent: %s", got.URL)
 	}
-	if u := sync.PreviewURL("https://site.test", "r 1"); u != "https://site.test/play/r%201" {
+	if u := sync.PreviewURL("https://site.test", "r 1"); u != "https://site.test/play/r%201?mode=source" {
 		t.Errorf("preview url = %q", u)
 	}
 }

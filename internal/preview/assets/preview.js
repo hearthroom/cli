@@ -63,7 +63,7 @@
     user: { nickname: state.playerName, avatarUrl: '' },
     card: state.card,
     variants: null,
-    capabilities: { saves: true, edit: false, send: true },
+    capabilities: { saves: true, edit: false, send: true, archive: true },
     composer: true,
     chrome: document.getElementById('chrome').value === 'host' ? 'host' : 'shell',
     saves: {},
@@ -85,6 +85,8 @@
       cardReady.then(() => {
         post({ type: 'hello', config: hello() })
         state.messages = [{ id: 'greeting', role: 'ai', content: state.welcome, serverId: null, state: 'done' }]
+        state.archives = [newArchive(state.messages)]
+        state.current = state.archives[0].id
         post({ type: 'messages', messages: state.messages })
         post({ type: 'history', more: false, loading: false })
       })
@@ -101,6 +103,7 @@
         setTimeout(() => streamReply(next), 300)
         return
       }
+      if (String(m.op).startsWith('archive.')) { archiveRequest(m); return }
       post({ type: 'reply', reqId: m.reqId, ok: true, value: null })
       return
     }
@@ -136,6 +139,81 @@
     state.messages.push({ id, role: 'ai', content: text, serverId: String(9000 + state.seq) })
     post({ type: 'message.new', message: { id, role: 'ai', content: text, serverId: String(9000 + state.seq) } })
     post({ type: 'message.done', id, content: text, serverId: String(9000 + state.seq) })
+  }
+  // 平台對話存檔的模擬（sdk.archive.*）：記在這一頁的記憶體，上限 20 段（含目前這段），行為照 Harbor：
+  // 讀檔＝切過去、原本那段原樣留著；存檔＝從最新一則分叉、留下的那份取名；分叉＝複製到那一則為止；滿了回 LIMIT_REACHED。
+  const ARCHIVE_LIMIT = 20
+  function newArchive(messages, title = '') {
+    const now = new Date().toISOString()
+    return { id: 'c' + Math.random().toString(36).slice(2, 8), title, messages, createTime: now, lastUpdateTime: now }
+  }
+  const currentArchive = () => state.archives.find((a) => a.id === state.current)
+  function adoptArchive(a) {
+    state.current = a.id
+    state.messages = a.messages
+    post({ type: 'conversation.switch', conversationId: a.id })
+    post({ type: 'messages', messages: state.messages })
+  }
+  function archiveRequest(m) {
+    const ok = (value) => post({ type: 'reply', reqId: m.reqId, ok: true, value })
+    const fail = (code, data) => post({ type: 'reply', reqId: m.reqId, ok: false, error: { code, ...(data ? { data } : {}) } })
+    const full = () => state.archives.length >= ARCHIVE_LIMIT
+    const copy = (list) => list.map((x) => ({ ...x }))
+    const [a0, a1] = m.args || []
+    switch (m.op) {
+      case 'archive.list':
+        return ok({
+          items: state.archives.slice().reverse().map((a) => ({ id: a.id, title: a.title, isCurrent: a.id === state.current, messageCount: a.messages.length, lastMessage: String(a.messages[a.messages.length - 1]?.content || '').replace(/\s+/g, ' ').slice(0, 80), createTime: a.createTime, lastUpdateTime: a.lastUpdateTime })),
+          count: state.archives.length, limit: ARCHIVE_LIMIT,
+        })
+      case 'archive.save': {
+        if (full()) return fail('LIMIT_REACHED', { count: state.archives.length, limit: ARCHIVE_LIMIT })
+        const kept = currentArchive()
+        if (a0) kept.title = String(a0)
+        const next = newArchive(copy(kept.messages))
+        state.archives.push(next)
+        adoptArchive(next)
+        return ok({ id: kept.id, current: next.id })
+      }
+      case 'archive.fork': {
+        if (full()) return fail('LIMIT_REACHED', { count: state.archives.length, limit: ARCHIVE_LIMIT })
+        const at = state.messages.findIndex((x) => x.serverId === String(a0))
+        if (at < 0) return fail('INVALID_ARGS')
+        const next = newArchive(copy(state.messages.slice(0, at + 1)))
+        state.archives.push(next)
+        adoptArchive(next)
+        return ok({ id: next.id })
+      }
+      case 'archive.open': {
+        const a = state.archives.find((x) => x.id === String(a0))
+        if (!a) return fail('INVALID_ARGS')
+        if (a.id !== state.current) adoptArchive(a)
+        return ok()
+      }
+      case 'archive.new': {
+        if (full()) return fail('LIMIT_REACHED', { count: state.archives.length, limit: ARCHIVE_LIMIT })
+        const next = newArchive([{ id: 'greeting', role: 'ai', content: state.welcome, serverId: null, state: 'done' }])
+        state.archives.push(next)
+        adoptArchive(next)
+        return ok({ id: next.id })
+      }
+      case 'archive.rename': {
+        const a = state.archives.find((x) => x.id === String(a0))
+        if (!a) return fail('INVALID_ARGS')
+        a.title = String(a1 || '')
+        return ok()
+      }
+      case 'archive.remove': {
+        const i = state.archives.findIndex((x) => x.id === String(a0))
+        if (i < 0) return ok()
+        const wasCurrent = state.archives[i].id === state.current
+        state.archives.splice(i, 1)
+        if (wasCurrent) adoptArchive(state.archives[state.archives.length - 1] || (state.archives.push(newArchive([{ id: 'greeting', role: 'ai', content: state.welcome, serverId: null, state: 'done' }])), state.archives[0]))
+        return ok()
+      }
+      default:
+        return fail('UNKNOWN_CAPABILITY')
+    }
   }
   function switchConversation() {
     post({ type: 'conversation.switch' })

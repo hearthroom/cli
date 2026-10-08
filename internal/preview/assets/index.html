@@ -43,6 +43,11 @@
     <textarea id="reply" placeholder="an AI reply to stream (or pick one from preview/replies.md)"></textarea>
     <div class="row">
       <select id="samples"></select>
+      <select id="wait" title="what the reply waits on before its first word">
+        <option value="">no wait</option>
+        <option value="think">model thinks 3 s</option>
+        <option value="summarize">plot summary 3 s + thinks 3 s</option>
+      </select>
       <button id="stream">stream reply</button>
       <button id="instant">add instantly</button>
       <button id="user">add player line</button>

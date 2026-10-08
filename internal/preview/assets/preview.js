@@ -123,14 +123,20 @@
     state.busy = true
     const id = `l${++state.seq}`
     post({ type: 'message.new', message: { id, role: 'ai', content: '', serverId: null } })
-    post({ type: 'generation', busy: true })
+    // the waits before the first word, as the platform reports them (sdk.generation / generation:phase)
+    const wait = (document.getElementById('wait') || {}).value || ''
+    const phase = async (p, ms) => { post({ type: 'generation', busy: true, phase: p }); log(`phase ${p}`); await new Promise((r) => setTimeout(r, ms)) }
+    await phase('preparing', 500)
+    if (wait === 'summarize') await phase('summarizing', 3000)
+    if (wait === 'think' || wait === 'summarize') await phase('thinking', 3000)
+    post({ type: 'generation', busy: true, phase: 'writing' })
     const step = Math.max(1, Math.ceil(text.length / chunks))
     for (let k = step; k < text.length; k += step) {
       post({ type: 'message.stream', id, content: text.slice(0, k) })
       await new Promise((r) => setTimeout(r, 60))
     }
     post({ type: 'message.done', id, content: text, serverId: String(9000 + state.seq) })
-    post({ type: 'generation', busy: false })
+    post({ type: 'generation', busy: false, phase: 'idle' })
     state.messages.push({ id, role: 'ai', content: text, serverId: String(9000 + state.seq) })
     state.busy = false
   }

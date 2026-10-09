@@ -297,12 +297,22 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		return opts.Force || f.State.LocalHashes[s] != digests[s]
 	}
 
-	// card fields
-	if changed(card.SectionCard) {
-		if err := c.OpenPost(ctx, "/role/"+roleID+"/document", map[string]any{"fields": p.Card}, nil); err != nil {
+	// card fields. A Chinese card can switch between zh-Hant and zh-Hans after
+	// creation, so its language rides with the card fields and counts toward
+	// their digest; other languages are fixed and never sent.
+	cardFields, cardDigest := p.Card, OwnedDigest(f, digests, card.SectionCard)
+	if lang, ok := switchableScript(f); ok {
+		cardFields = make(map[string]any, len(p.Card)+1)
+		for k, v := range p.Card {
+			cardFields[k] = v
+		}
+		cardFields["language"] = lang
+	}
+	if opts.Force || f.State.LocalHashes[card.SectionCard] != cardDigest {
+		if err := c.OpenPost(ctx, "/role/"+roleID+"/document", map[string]any{"fields": cardFields}, nil); err != nil {
 			return nil, fmt.Errorf("write card fields: %w", err)
 		}
-		f.State.LocalHashes[card.SectionCard] = digests[card.SectionCard]
+		f.State.LocalHashes[card.SectionCard] = cardDigest
 		res.Changed = append(res.Changed, card.SectionCard)
 	} else {
 		res.Unchanged = append(res.Unchanged, card.SectionCard)
@@ -537,4 +547,22 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		_ = f.Save()
 	}
 	return nil
+}
+
+// switchableScript is the folder's language when it is one of the two Chinese
+// scripts an owned card may switch between.
+func switchableScript(f *card.Folder) (string, bool) {
+	lang := f.Manifest.Language
+	return lang, lang == "zh-Hant" || lang == "zh-Hans"
+}
+
+// OwnedDigest is the stored hash a section is compared with. For an owned
+// Chinese card the card section also covers its language, so a script switch
+// alone counts as a change (push sends it; status reports it).
+func OwnedDigest(f *card.Folder, digests map[string]string, section string) string {
+	d := digests[section]
+	if lang, ok := switchableScript(f); ok && section == card.SectionCard && f.State.Target == "owned" {
+		d += "|language=" + lang
+	}
+	return d
 }

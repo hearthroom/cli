@@ -531,7 +531,7 @@ func (a *App) cardStatus() *cobra.Command {
 			digests := p.Digests()
 			changed := []string{}
 			for _, s := range card.Sections {
-				if d, ok := digests[s]; ok && f.State.LocalHashes[s] != d {
+				if _, ok := digests[s]; ok && f.State.LocalHashes[s] != sync.OwnedDigest(f, digests, s) {
 					changed = append(changed, s)
 				}
 			}

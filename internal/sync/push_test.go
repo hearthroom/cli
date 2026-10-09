@@ -156,3 +156,56 @@ func TestLocalCheckReportsAMissingShareImage(t *testing.T) {
 		t.Fatalf("LocalCheck = %v, want the missing share image reported", LocalCheck(f))
 	}
 }
+
+// An owned Chinese card can switch between zh-Hant and zh-Hans; push sends the
+// folder's language with the card fields, and a language change alone is
+// enough to resend them. Other languages are never sent (fixed after creation).
+func TestOwnedPushSendsChineseScript(t *testing.T) {
+	var sent []any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/open/v1/role/owned1/document" {
+			var body struct{ Fields map[string]any }
+			json.NewDecoder(r.Body).Decode(&body)
+			sent = append(sent, body.Fields["language"])
+		}
+		w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+	f, err := card.Init(t.TempDir(), "Script", "zh-Hant")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.State.Target, f.State.RoleID = "owned", "owned1"
+	push := func() {
+		t.Helper()
+		if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	push()
+	push() // nothing changed: no second document write
+	f.Manifest.Language = "zh-Hans"
+	push()
+	if len(sent) != 2 || sent[0] != "zh-Hant" || sent[1] != "zh-Hans" {
+		t.Fatalf("document language sent = %v", sent)
+	}
+	// card status compares the same digest, so a pushed folder reads as unchanged.
+	built, err := f.Build(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.State.LocalHashes[card.SectionCard] != OwnedDigest(f, built.Digests(), card.SectionCard) {
+		t.Fatal("status would report the card section as changed right after a push")
+	}
+
+	sent = nil
+	en, _ := card.Init(t.TempDir(), "English", "en")
+	en.State.Target, en.State.RoleID = "owned", "owned1"
+	if _, err := Push(context.Background(), c, en, PushOptions{SkipMedia: true}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent) != 1 || sent[0] != nil {
+		t.Fatalf("english card sent language %v", sent)
+	}
+}

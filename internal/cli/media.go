@@ -137,7 +137,7 @@ func (a *App) mediaCommand() *cobra.Command {
 		},
 	}
 	ls.Flags().StringVar(&q, "q", "", "file name substring")
-	ls.Flags().StringVar(&kind, "kind", "all", "image, video, audio, font or all")
+	ls.Flags().StringVar(&kind, "kind", "all", "image, video, audio, font, code (JS, WASM), data (JSON) or all")
 	ls.Flags().StringVar(&scope, "scope", "", "role, folder or unfiled")
 	ls.Flags().IntVar(&page, "page", 1, "page number")
 	ls.Flags().IntVar(&size, "limit", 50, "entries per page")

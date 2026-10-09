@@ -18,7 +18,7 @@ hearthroom media ls [flags]
 ## Options
 
 ```
-      --kind string    image, video, audio, font or all (default "all")
+      --kind string    image, video, audio, font, code (JS, WASM), data (JSON) or all (default "all")
       --limit int      entries per page (default 50)
       --page int       page number (default 1)
       --q string       file name substring

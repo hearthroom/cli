@@ -240,3 +240,27 @@ func TestSyncUploadsAgainWhatTheLibraryDeleted(t *testing.T) {
 		t.Fatalf("re-upload: %v %v", lib.puts, err)
 	}
 }
+
+// A dry run must report a .mov as refused, not as "would upload".
+func TestSyncDryRunRefusesQuickTime(t *testing.T) {
+	_, c, f := setup(t)
+	full := filepath.Join(f.Dir, "assets", "clip.mov")
+	if err := os.WriteFile(full, []byte("mov"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.Manifest.Media.Background = "assets/clip.mov"
+	caps, _ := Probe(context.Background(), c)
+	_, outcomes, err := Sync(context.Background(), c, f, caps, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range outcomes {
+		if o.Path == "assets/clip.mov" {
+			if o.Uploaded || !strings.Contains(o.Err, "MP4") {
+				t.Fatalf("outcome: %+v", o)
+			}
+			return
+		}
+	}
+	t.Fatalf("clip.mov missing from %+v", outcomes)
+}

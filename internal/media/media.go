@@ -332,6 +332,11 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 				continue
 			}
 		}
+		if isQuickTimeName(local) {
+			// Refused here too, so --dry-run reports it instead of "would upload".
+			outcomes = append(outcomes, Outcome{Path: rel, Err: quickTimeMessage(filepath.Base(local))})
+			continue
+		}
 		if dryRun {
 			outcomes = append(outcomes, Outcome{Path: rel, Uploaded: true, Previous: previous})
 			continue

@@ -74,6 +74,7 @@ var (
 	moduleSyn   = regexp.MustCompile(`\bimport\s+[\w{*]|\bexport\s+(default|const|function)`)
 	httpScript  = regexp.MustCompile(`<script[^>]+src=["']http://`)
 	scriptTag   = regexp.MustCompile(`(?is)<script\b([^>]*)>(.*?)</script\s*>`)
+	typeModule  = regexp.MustCompile(`(?i)\btype\s*=\s*["']?module\b`)
 	styleTag    = regexp.MustCompile(`(?is)<style\b[^>]*>.*?</style\s*>`)
 	authorAttr  = regexp.MustCompile(`<[a-zA-Z][^>]*\s(data-[\w-]+|aria-[\w-]+|role)=`)
 	svgBlock    = regexp.MustCompile(`(?is)<svg\b.*?</svg>`)
@@ -240,7 +241,8 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 			if strings.Contains(strings.ToLower(m[1]), "src=") {
 				continue
 			}
-			scanScript(m[2], rw, r)
+			// The sandbox shell keeps type="module" on rule scripts; the classic page does not.
+			scanScript(m[2], rw, sandbox && typeModule.MatchString(m[1]), r)
 		}
 		scanHTML(rule.Replace, rw, r, true)
 		for _, m := range assetLit.FindAllStringSubmatch(rule.Replace, -1) {
@@ -380,7 +382,7 @@ func compileJS(source, flags string) (*regexp.Regexp, error) {
 	return regexp.Compile(prefix + src)
 }
 
-func scanScript(code, where string, r *report) {
+func scanScript(code, where string, module bool, r *report) {
 	caps := contract.SDK.Capabilities
 	for _, m := range sdkCap.FindAllStringSubmatch(code, -1) {
 		key, method := m[1], m[2]
@@ -408,8 +410,8 @@ func scanScript(code, where string, r *report) {
 			r.errorf(where, "%s is not provided by any Hearthroom chat page", api)
 		}
 	}
-	if moduleSyn.MatchString(code) {
-		r.errorf(where, "ES module syntax: rule scripts run as classic scripts")
+	if !module && moduleSyn.MatchString(code) {
+		r.errorf(where, `ES module syntax in a classic script: use <script type="module"> (sandbox page only)`)
 	}
 	if awaitSend.MatchString(code) {
 		r.warnf(where, "an await before sdk.message.send leaves the click gesture: the player will be asked to confirm")

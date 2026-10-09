@@ -233,3 +233,23 @@ func TestCardLanguageIsRequired(t *testing.T) {
 		}
 	}
 }
+
+// The sandbox shell keeps type="module" on rule scripts, so import/export
+// there is valid. A classic <script> with module syntax still fails to parse.
+func TestModuleSyntaxAllowedInSandboxModuleScripts(t *testing.T) {
+	dir := write(t, t.TempDir(), map[string]string{
+		"card.json":  `{"formatVersion":1,"name":"x","language":"en"}`,
+		"README.md":  "uiRole: assist\n",
+		"rules.json": `{"pageMode":"sandbox","rules":[{"id":"m","name":"m","find":"[[m]]","replace":"<script type=\"module\">import { go } from \"https://assets.harperharbor.com/u/x/lib.mjs\"; go()</script>","enabled":true},{"id":"c","name":"c","find":"[[c]]","replace":"<script>import x from \"y\"</script>","enabled":true}]}`,
+	})
+	r, _ := Card(dir)
+	n := 0
+	for _, f := range r.Findings {
+		if strings.Contains(f.Msg, "ES module syntax") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("module findings = %d, want 1 (the classic script): %v", n, msgs(r))
+	}
+}

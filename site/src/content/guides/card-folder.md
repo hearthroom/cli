@@ -126,6 +126,12 @@ and the served URL mirrors the path: `assets/art/expr/happy.webp` becomes
 `<libraryPrefix>/<folder>/art/expr/happy.webp`. Paths are case-sensitive;
 non-ASCII folder names are percent-escaped in the URL.
 
+The library accepts images (PNG, JPEG, GIF, WebP, SVG), video (MP4, WebM),
+audio (MP3, WAV, Ogg), fonts (WOFF, WOFF2), code (`.js`, `.mjs`, `.wasm`) and
+data (`.json`). The type is declared from the file extension and the provider
+checks the bytes, so keep the extension true to the content. QuickTime `.mov`
+is refused; export the video as MP4 (H.264) first.
+
 - The folder is `media.folder` when set, otherwise the card name. The first
   push records it in `.hearthroom/state.json`, so renaming the card later does
   not move its files. A folder that already held uploads before this field

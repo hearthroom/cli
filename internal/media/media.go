@@ -4,6 +4,7 @@ package media
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -75,8 +76,12 @@ type uploadResponse struct {
 }
 
 // Upload sends one file. relativePath is used when the provider supports it;
-// roleID may be empty.
+// roleID may be empty. A .mov file is refused before anything is sent.
 func Upload(ctx context.Context, c *api.Client, localPath, relativePath, roleID string) (UploadResult, error) {
+	name := filepath.Base(localPath)
+	if isQuickTimeName(name) {
+		return UploadResult{}, errors.New(quickTimeMessage(name))
+	}
 	f, err := os.Open(localPath)
 	if err != nil {
 		return UploadResult{}, err
@@ -90,11 +95,14 @@ func Upload(ctx context.Context, c *api.Client, localPath, relativePath, roleID 
 		fields["roleId"] = []string{roleID}
 	}
 	var resp uploadResponse
-	if err := c.UploadFile(ctx, "/image/upload", fields, "file", filepath.Base(localPath), f, &resp); err != nil {
+	if err := c.UploadFile(ctx, "/image/upload", fields, "file", name, ContentType(name), f, &resp); err != nil {
+		if isQuickTimeRefusal(err) {
+			return UploadResult{}, errors.New(quickTimeMessage(name))
+		}
 		return UploadResult{}, err
 	}
 	if resp.Data.ImageURL == "" {
-		return UploadResult{}, fmt.Errorf("upload %s: no URL in response", filepath.Base(localPath))
+		return UploadResult{}, fmt.Errorf("upload %s: no URL in response", name)
 	}
 	return resp.Data, nil
 }

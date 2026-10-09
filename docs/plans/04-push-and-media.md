@@ -40,7 +40,10 @@ site (`<site>/play/<roleId>`; the site resolves availability).
 4. Rewrite references to served URLs **in the payload only**; local files keep
    relative paths so the folder stays portable.
 5. Accepted types and the size limit come from the endpoint contract
-   (images, mp4/webm, mp3/wav/ogg, woff/woff2/ttf/otf; 100 MB). Rejections are
+   (png/jpeg/gif/webp/svg, mp4/webm, mp3/wav/ogg, woff/woff2, js/mjs/wasm,
+   json; 100 MB). The file part declares its type from the extension, since
+   JS and JSON are accepted only when declared; `.mov` is refused locally with
+   "export as MP4". Rejections are
    reported per file; the push continues for the rest and exits non-zero.
 
 `hearthroom media upload <file> [--path rel]` and `media ls [--q text]` expose

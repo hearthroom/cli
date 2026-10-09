@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/hearthroom/cli/internal/card"
 	"github.com/hearthroom/cli/internal/importer"
 	"github.com/hearthroom/cli/internal/output"
 )
@@ -30,6 +31,9 @@ Formats are detected by content:
 Every source field that has no place in the folder is listed in the report.`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := card.CheckLanguage(language); err != nil {
+				return fmt.Errorf("--language: %w", err)
+			}
 			var result *importer.Result
 			var mmdFiles []*importer.MMDFile
 			for _, path := range args {
@@ -99,7 +103,8 @@ Every source field that has no place in the folder is listed in the report.`,
 		},
 	}
 	c.Flags().StringVar(&out, "out", "", "folder to write (default: derived from the card name)")
-	c.Flags().StringVar(&language, "language", "en", "card language: picks the creator note and sets the Lorebook entry length limit (en, zh-Hant, zh-Hans, ja, ko)")
+	c.Flags().StringVar(&language, "language", "", "the language the card is written in (required): "+strings.Join(card.Languages, ", ")+"; also picks the creator note and the Lorebook entry length limit")
+	_ = c.MarkFlagRequired("language")
 	c.Flags().BoolVar(&force, "force", false, "overwrite an existing card folder")
 	c.Flags().BoolVar(&mmd, "mmd", false, "treat JSON inputs as MMD set parts even if they look like a card")
 	return c

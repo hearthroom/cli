@@ -16,7 +16,7 @@ import (
 // same way an owned card is checked later, so a trial push must say which
 // language the folder declares.
 func TestTrialPushSendsTheCardLanguage(t *testing.T) {
-	for _, tc := range []struct{ manifest, header string }{{"en", "en"}, {"", ""}} {
+	for _, tc := range []struct{ manifest, header string }{{"en", "en"}, {"zh-Hans", "zh-Hans"}} {
 		var got string
 		var seen bool
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +25,7 @@ func TestTrialPushSendsTheCardLanguage(t *testing.T) {
 			}
 			json.NewEncoder(w).Encode(map[string]any{"clientKey": "k", "roleId": "r", "created": true, "sections": map[string]string{}})
 		}))
-		f, err := card.Init(t.TempDir(), "Language")
+		f, err := card.Init(t.TempDir(), "Language", "en")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,7 +57,7 @@ func TestTrialPushSetsTheLandscapeBackground(t *testing.T) {
 		json.NewEncoder(w).Encode(map[string]any{"clientKey": "k", "roleId": "r", "created": true, "sections": map[string]string{}})
 	}))
 	defer srv.Close()
-	f, err := card.Init(t.TempDir(), "Landscape")
+	f, err := card.Init(t.TempDir(), "Landscape", "en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,6 +70,30 @@ func TestTrialPushSetsTheLandscapeBackground(t *testing.T) {
 	}
 	if fields["roleBackground"] != "https://cdn/tall.png" || fields["roleBackgroundLandscape"] != "https://cdn/wide.png" || fields["roleShareImage"] != "https://cdn/share.png" {
 		t.Fatalf("document fields = %v, want both backgrounds and the share image", fields)
+	}
+}
+
+// The provider files an undeclared card as zh-Hant, so a Simplified card
+// pushed without a language would be shown to its players unconverted in
+// the wrong script. Push refuses before anything is uploaded.
+func TestPushRefusesAMissingOrUnsupportedLanguage(t *testing.T) {
+	for _, lang := range []string{"", "zh", "zh-TW"} {
+		called := false
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true }))
+		f, err := card.Init(t.TempDir(), "NoLanguage", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Manifest.Language = lang
+		c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+		_, err = Push(context.Background(), c, f, PushOptions{SkipMedia: true})
+		srv.Close()
+		if err == nil || !strings.Contains(err.Error(), "card.json") || !strings.Contains(err.Error(), "zh-Hant, zh-Hans") {
+			t.Fatalf("language %q: err = %v, want a card.json language error", lang, err)
+		}
+		if called {
+			t.Fatalf("language %q: pushed to the server anyway", lang)
+		}
 	}
 }
 
@@ -92,7 +116,7 @@ func TestCreateAfterTrialWritesEverySection(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	f, err := card.Init(t.TempDir(), "Trial then owned")
+	f, err := card.Init(t.TempDir(), "Trial then owned", "en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +141,7 @@ func TestCreateAfterTrialWritesEverySection(t *testing.T) {
 
 // A share image that points at a missing file is caught before any upload.
 func TestLocalCheckReportsAMissingShareImage(t *testing.T) {
-	f, err := card.Init(t.TempDir(), "Share")
+	f, err := card.Init(t.TempDir(), "Share", "en")
 	if err != nil {
 		t.Fatal(err)
 	}

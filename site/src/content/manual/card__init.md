@@ -18,7 +18,8 @@ hearthroom card init <dir> [flags]
 ## Options
 
 ```
-      --name string   card name (default: folder name)
+      --language string   the language the card is written in (required): zh-Hant, zh-Hans, en, ja, ko
+      --name string       card name (default: folder name)
 ```
 
 ## Global options

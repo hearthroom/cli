@@ -49,7 +49,7 @@ func loadFolder(args []string) (*card.Folder, error) {
 }
 
 func (a *App) cardInit() *cobra.Command {
-	var name string
+	var name, language string
 	c := &cobra.Command{
 		Use:   "init <dir>",
 		Short: "Create a new card folder",
@@ -59,7 +59,7 @@ func (a *App) cardInit() *cobra.Command {
 			if name == "" {
 				name = filepath.Base(absPath(dir))
 			}
-			f, err := card.Init(dir, name)
+			f, err := card.Init(dir, name, language)
 			if err != nil {
 				return err
 			}
@@ -78,6 +78,8 @@ func (a *App) cardInit() *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&name, "name", "", "card name (default: folder name)")
+	c.Flags().StringVar(&language, "language", "", "the language the card is written in (required): "+strings.Join(card.Languages, ", "))
+	_ = c.MarkFlagRequired("language")
 	return c
 }
 

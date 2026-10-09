@@ -78,6 +78,9 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 	if opts.Create && opts.To != "" {
 		return nil, errors.New("--create and --to cannot be combined")
 	}
+	if err := card.CheckLanguage(f.Manifest.Language); err != nil {
+		return nil, fmt.Errorf("%s: %w", card.ManifestFile, err)
+	}
 	owned := opts.Create || opts.To != "" || (f.State.Target == "owned" && f.State.RoleID != "")
 	if opts.To != "" && f.State.RoleID != "" && f.State.RoleID != opts.To && f.State.Target == "owned" && !opts.Force {
 		return nil, fmt.Errorf("this folder is linked to card %s; pass --to %s again with --force to relink", f.State.RoleID, opts.To)

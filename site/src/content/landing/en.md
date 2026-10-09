@@ -44,7 +44,7 @@ More: /guides/install/ · builds for every platform: https://github.com/hearthro
 
 ```sh
 hearthroom auth login
-hearthroom card import mira.png            # → folder "Mira", with a report of unmapped fields
+hearthroom card import mira.png --language en  # → folder "Mira", with a report of unmapped fields
 hearthroom card push Mira --validate --json
 hearthroom play Mira -m "Is the light on tonight?" --allow-spend --json
 hearthroom card push Mira --create         # keep it

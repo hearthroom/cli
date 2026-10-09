@@ -60,7 +60,7 @@ my-card/
 | `sex` | `roleSex` | stored as-is |
 | `playerName` | `userName` | what the card calls the player |
 | `nickname` | `nickname` | what `{{char}}` expands to when it differs from `name` |
-| `language` | card language | required, one of `zh-Hant`, `zh-Hans`, `en`, `ja`, `ko` (`card push` and `card check` refuse anything else); set when the card is created; it picks the leaderboard, the field limits (`en` gets the longer ones) and the Chinese script players convert from |
+| `language` | card language | required, one of `zh-Hant`, `zh-Hans`, `en`, `ja`, `ko` (`card push` and `card check` refuse anything else); set when the card is created (a Chinese card can later switch between `zh-Hant` and `zh-Hans`: change it here and push); it picks the leaderboard, the field limits (`en` gets the longer ones) and the Chinese script players convert from |
 | `outputContract` | `roleOutputContract` | |
 | `customInstructions` | `customInstructions` | |
 | `talkExample` | `talkExample` | `roleType` is `user` or `ai` |

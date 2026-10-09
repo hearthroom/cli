@@ -49,7 +49,7 @@ The installer also sets up tab completion for your shell (bash, zsh or fish; `he
 
 ```sh
 hearthroom auth login                      # sign in with a one-time code (works over SSH)
-hearthroom card init my-card               # card.json, definition.md, welcome.md, assets/
+hearthroom card init my-card --language zh-Hant  # card.json, definition.md, welcome.md, assets/
 $EDITOR my-card/definition.md my-card/welcome.md
 hearthroom card push my-card --validate    # private trial card + the provider's report
 hearthroom card render my-card             # the opening after your display rules, plus the play link
@@ -59,8 +59,8 @@ hearthroom play my-card -m "Hello?" --allow-spend
 Coming from SillyTavern or MMD? Import first, then push:
 
 ```sh
-hearthroom card import mira.png                          # PNG, JSON or CHARX
-hearthroom card import rules.json book.json persona.txt  # MMD three-file set
+hearthroom card import mira.png --language en           # PNG, JSON or CHARX
+hearthroom card import rules.json book.json persona.txt --language zh-Hans  # MMD three-file set
 hearthroom card push Mira
 ```
 

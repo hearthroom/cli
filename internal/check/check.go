@@ -137,6 +137,8 @@ func Card(dir string) (*Result, error) {
 	if raw := read(card.ManifestFile); raw != "" {
 		if err := json.Unmarshal([]byte(raw), &manifest); err != nil {
 			r.errorf(card.ManifestFile, "not valid JSON: %v", err)
+		} else if err := card.CheckLanguage(manifest.Language); err != nil {
+			r.errorf(card.ManifestFile, "%v", err)
 		}
 	}
 	var lorebook card.Lorebook

@@ -18,7 +18,7 @@ var tinyPNG = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x
 func fixtureFolder(t *testing.T) *card.Folder {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "e2e-card")
-	f, err := card.Init(dir, "E2E Card")
+	f, err := card.Init(dir, "E2E Card", "en")
 	if err != nil {
 		t.Fatal(err)
 	}

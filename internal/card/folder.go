@@ -165,14 +165,17 @@ type Asset struct {
 var ErrNotCardFolder = errors.New("not a card folder (no card.json)")
 
 // Init creates a minimal folder. It refuses to overwrite an existing card.json.
-func Init(dir, name string) (*Folder, error) {
+func Init(dir, name, language string) (*Folder, error) {
 	if _, err := os.Stat(filepath.Join(dir, ManifestFile)); err == nil {
 		return nil, fmt.Errorf("%s already contains %s", dir, ManifestFile)
+	}
+	if err := CheckLanguage(language); err != nil {
+		return nil, fmt.Errorf("--language: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, AssetsDir), 0o755); err != nil {
 		return nil, err
 	}
-	f := &Folder{Dir: dir, Manifest: Manifest{FormatVersion: FormatVersion, Name: name, Type: "story"}}
+	f := &Folder{Dir: dir, Manifest: Manifest{FormatVersion: FormatVersion, Name: name, Type: "story", Language: language}}
 	f.Welcome = ""
 	f.Definition = ""
 	if err := f.Save(); err != nil {

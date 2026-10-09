@@ -59,7 +59,7 @@ Starting a conversation, reading history, pushing, validating, rendering, import
 ## A typical loop
 
 ```sh
-hearthroom card import mira.png                 # SillyTavern PNG → folder, with a report of unmapped fields
+hearthroom card import mira.png --language en   # SillyTavern PNG → folder, with a report of unmapped fields
 $EDITOR Mira/definition.md Mira/welcome.md
 hearthroom card push Mira --validate --json     # private trial card + the provider's report
 hearthroom card render Mira --json              # the opening after the display rules, each rule's outcome, a static scan

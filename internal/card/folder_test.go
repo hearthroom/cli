@@ -164,7 +164,7 @@ func TestLoadRejectsNewerFormat(t *testing.T) {
 // folder carries the pointer to the writing toolkit and the CLI loop.
 func TestInitWritesTheAgentsGuide(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "mira")
-	if _, err := Init(dir, "Mira"); err != nil {
+	if _, err := Init(dir, "Mira", "en"); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(filepath.Join(dir, AgentsFile))

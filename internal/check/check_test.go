@@ -46,7 +46,7 @@ func has(list []string, parts ...string) bool {
 
 func TestCleanSandboxCard(t *testing.T) {
 	dir := write(t, t.TempDir(), map[string]string{
-		"card.json":     `{"formatVersion":1,"name":"Mira"}`,
+		"card.json":     `{"formatVersion":1,"name":"Mira","language":"en"}`,
 		"README.md":     "uiRole: assist\n",
 		"definition.md": "# Role\nEnd every reply with a [status] block: hp: a/b, mood: word.",
 		"welcome.md":    "Hello.\n[status]\nhp: 10/10\nmood: calm\n[/status]",
@@ -67,7 +67,7 @@ func TestCleanSandboxCard(t *testing.T) {
 func TestRuleErrors(t *testing.T) {
 	big := strings.Repeat("y", contract.Provider.ReplaceMaxBytes+1)
 	dir := write(t, t.TempDir(), map[string]string{
-		"card.json":  `{"formatVersion":1,"name":"x"}`,
+		"card.json":  `{"formatVersion":1,"name":"x","language":"en"}`,
 		"rules.json": `{"pageMode":"sandbox","rules":[{"id":"a","find":"/(/","replace":"x","enabled":true},{"id":"b","find":"/a*/","replace":"x","enabled":true},{"id":"c","find":"  ","replace":"x","enabled":true},{"id":"d","find":"d","replace":"` + big + `","enabled":true},{"id":"e","find":"/e/v","replace":"x","enabled":true},{"id":"e","find":"f","replace":"x","enabled":true}]}`,
 	})
 	r, _ := Card(dir)
@@ -81,7 +81,7 @@ func TestRuleErrors(t *testing.T) {
 
 func TestSDKMisuseAndClassicPage(t *testing.T) {
 	dir := write(t, t.TempDir(), map[string]string{
-		"card.json":  `{"formatVersion":1,"name":"x"}`,
+		"card.json":  `{"formatVersion":1,"name":"x","language":"en"}`,
 		"rules.json": `{"pageMode":"classic","rules":[{"id":"k","find":"{{k}}","replace":"<script>sdk.on(\"message:finish\", f); sdk.save.put(\"a\", 1); sdk.once(\"ready\", f); sdk.vars.get(\"x\"); import x from \"y\"; save.set(\"bad:key\", 1)</script>","enabled":true}]}`,
 	})
 	r, _ := Card(dir)
@@ -95,7 +95,7 @@ func TestSDKMisuseAndClassicPage(t *testing.T) {
 
 func TestSanitizerTraps(t *testing.T) {
 	dir := write(t, t.TempDir(), map[string]string{
-		"card.json":  `{"formatVersion":1,"name":"x"}`,
+		"card.json":  `{"formatVersion":1,"name":"x","language":"en"}`,
 		"rules.json": `{"pageMode":"sandbox","rules":[{"id":"h","find":"{{h}}","replace":"<div data-x=\"1\"><svg onclick=\"a()\"></svg><状态>x</状态><hc-btn>b</hc-btn>{{random:a|b}}</div>","enabled":true}]}`,
 	})
 	r, _ := Card(dir)
@@ -109,7 +109,7 @@ func TestSanitizerTraps(t *testing.T) {
 
 func TestRenderIsNotGeneration(t *testing.T) {
 	base := map[string]string{
-		"card.json":     `{"formatVersion":1,"name":"x"}`,
+		"card.json":     `{"formatVersion":1,"name":"x","language":"en"}`,
 		"definition.md": "# Role\nDescribe the scene before each line; a scene is a place and a time.",
 		"welcome.md":    "Hi.",
 		"rules.json":    `{"pageMode":"sandbox","rules":[{"id":"s","find":"/\\[scene\\]([\\s\\S]*?)\\[\\/scene\\]/g","replace":"<b>$1</b>","enabled":true}]}`,
@@ -131,7 +131,7 @@ func TestRenderIsNotGeneration(t *testing.T) {
 
 func TestAssetsAndDeclarations(t *testing.T) {
 	dir := write(t, t.TempDir(), map[string]string{
-		"card.json":     `{"formatVersion":1,"name":"x"}`,
+		"card.json":     `{"formatVersion":1,"name":"x","language":"en"}`,
 		"README.md":     "uiRole: core\n",
 		"assets/a.webp": "x",
 		"rules.json":    `{"pageMode":"sandbox","rules":[{"id":"i","find":"{{i}}","replace":"<img src=\"assets/a.webp\"><img src=\"assets/missing.webp\"><script>var p = \"assets/\" + id + \".webp\"</script>","enabled":true}]}`,
@@ -216,5 +216,20 @@ func TestReplayHealthAndTranscripts(t *testing.T) {
 	req, vol := KitFields([]byte(`{"schema":{"fields":[{"key":"hp"},{"key":"danger","volatile":true},{"key":"secret","hidden":true}]}}`))
 	if strings.Join(req, ",") != "hp,secret" || strings.Join(vol, ",") != "danger" {
 		t.Fatalf("fields: %v %v", req, vol)
+	}
+}
+
+// The provider files an undeclared card as zh-Hant and cannot tell zh-Hant
+// from zh-Hans by "zh", so check flags the language before push refuses it.
+func TestCardLanguageIsRequired(t *testing.T) {
+	for _, manifest := range []string{`{"formatVersion":1,"name":"x"}`, `{"formatVersion":1,"name":"x","language":"zh"}`} {
+		dir := write(t, t.TempDir(), map[string]string{"card.json": manifest, "README.md": "uiRole: assist\n"})
+		r, err := Card(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !has(msgs(r), "error:", "zh-Hant, zh-Hans, en, ja, ko") {
+			t.Fatalf("%s: findings %v, want a language error", manifest, msgs(r))
+		}
 	}
 }

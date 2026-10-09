@@ -324,3 +324,30 @@ func TestAgentsGuideDescribesTheShareImage(t *testing.T) {
 		}
 	}
 }
+
+// Card code references scripts, WebAssembly, data and vector images the same
+// way as pictures; every one is found and rewritten.
+func TestAssetRefsFindCodeAndDataFiles(t *testing.T) {
+	f := sample(t)
+	files := []string{"app.js", "lib/game.mjs", "engine.wasm", "data/items.json", "icon.svg"}
+	for _, p := range files {
+		full := filepath.Join(f.Dir, "assets", filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(p), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.Rules.Rules[0].Replace = `<script src="assets/app.js"></script><script type="module">import g from "assets/lib/game.mjs"; WebAssembly.instantiateStreaming(fetch('assets/engine.wasm'));</script><img src="assets/icon.svg">`
+	f.Definition = "Item table: fetch(`assets/data/items.json`)."
+	present, _ := f.AssetRefs()
+	want := "assets/app.js,assets/data/items.json,assets/engine.wasm,assets/icon.svg,assets/lib/game.mjs,assets/mira.png"
+	if strings.Join(present, ",") != want {
+		t.Fatalf("present: %v", present)
+	}
+	out := Rewrite(f.Rules.Rules[0].Replace, map[string]string{"assets/lib/game.mjs": "https://cdn/g.mjs", "assets/engine.wasm": "https://cdn/e.wasm"})
+	if !strings.Contains(out, `from "https://cdn/g.mjs"`) || !strings.Contains(out, `fetch('https://cdn/e.wasm')`) {
+		t.Fatalf("rewrite: %s", out)
+	}
+}

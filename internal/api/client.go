@@ -12,6 +12,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"time"
@@ -180,8 +181,9 @@ func (c *Client) Form(ctx context.Context, path string, form url.Values, out any
 	return c.send(req, out)
 }
 
-// UploadFile posts one multipart file with extra fields.
-func (c *Client) UploadFile(ctx context.Context, path string, fields map[string][]string, fileField, fileName string, r io.Reader, out any) error {
+// UploadFile posts one multipart file with extra fields. contentType is the
+// file part's declared type; empty means application/octet-stream.
+func (c *Client) UploadFile(ctx context.Context, path string, fields map[string][]string, fileField, fileName, contentType string, r io.Reader, out any) error {
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	for k, vs := range fields {
@@ -191,7 +193,13 @@ func (c *Client) UploadFile(ctx context.Context, path string, fields map[string]
 			}
 		}
 	}
-	fw, err := mw.CreateFormFile(fileField, fileName)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, quoteEscaper.Replace(fileField), quoteEscaper.Replace(fileName)))
+	h.Set("Content-Type", contentType)
+	fw, err := mw.CreatePart(h)
 	if err != nil {
 		return err
 	}
@@ -211,6 +219,10 @@ func (c *Client) UploadFile(ctx context.Context, path string, fields map[string]
 	}
 	return c.send(req, out)
 }
+
+// quoteEscaper escapes a multipart header parameter the way
+// mime/multipart.CreateFormFile does.
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
 
 // Download fetches a URL (used for media) and returns the body.
 func (c *Client) Download(ctx context.Context, rawURL string) (io.ReadCloser, string, error) {

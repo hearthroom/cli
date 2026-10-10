@@ -24,6 +24,7 @@ type ratingSite struct {
 	submits     []map[string]any
 	auths       []string
 	cardReplies []int
+	listed      bool
 }
 
 func (s *ratingSite) server(t *testing.T) *httptest.Server {
@@ -96,7 +97,11 @@ func (s *ratingSite) server(t *testing.T) *httptest.Server {
 			_, _ = w.Write([]byte(`{"error":"upstream_error"}`))
 			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"id": body["roleId"], "status": "pending", "versionId": "ver-1"})
+		listing := "pending"
+		if s.listed {
+			listing = "approved"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": body["roleId"], "status": listing, "versionId": "ver-1"})
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -327,5 +332,33 @@ func TestSubmitTrialCard(t *testing.T) {
 	}
 	if len(site.submits) != 0 {
 		t.Fatal("submitted a trial card")
+	}
+}
+
+// Resubmitting a listed card: the reply's status is the listing's ("approved"),
+// but the new version is only waiting for review.
+func TestSubmitListedCardWaitsForReview(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	site := &ratingSite{listed: true}
+	srv := site.server(t)
+	dir := ratingFolder(t, card.State{Target: "owned", RoleID: "role-1"})
+	if err := card.WriteRating(dir, &card.Rating{Answers: card.RatingAnswers{Version: 1, Topics: map[string]string{"sex": "sex.kiss"}, Other: "other.none"}, Rating: "P"}); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"card", "submit", dir, "--api", srv.URL, "--site", srv.URL, "--config-dir", cfg}
+	stdout, _, err := runCLI(t, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, "waiting for review") || strings.Contains(stdout, ": approved") || !strings.Contains(stdout, "listed version stays up") {
+		t.Fatalf("output: %s", stdout)
+	}
+	stdout, _, err = runCLI(t, append(args, "--json")...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout, `"review": "pending"`) {
+		t.Fatalf("json: %s", stdout)
 	}
 }

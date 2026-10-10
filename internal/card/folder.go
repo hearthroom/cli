@@ -24,12 +24,16 @@ const (
 	ManifestFile   = "card.json"
 	DefinitionFile = "definition.md"
 	WelcomeFile    = "welcome.md"
-	OpeningsDir    = "openings"
-	LorebookFile   = "lorebook.json"
-	RulesFile      = "rules.json"
-	AssetsDir      = "assets"
-	StateDir       = ".hearthroom"
-	StateFile      = "state.json"
+	// IntroFile is the public card-page introduction (roleReadme). It is shown
+	// on the card page and never sent to the model. It is not named readme.md:
+	// on case-insensitive file systems that is README.md, the private notes.
+	IntroFile    = "intro.md"
+	OpeningsDir  = "openings"
+	LorebookFile = "lorebook.json"
+	RulesFile    = "rules.json"
+	AssetsDir    = "assets"
+	StateDir     = ".hearthroom"
+	StateFile    = "state.json"
 )
 
 // Manifest is card.json. Short structured fields live here; long text lives
@@ -124,6 +128,9 @@ type Folder struct {
 	Dir        string
 	Manifest   Manifest
 	Definition string
+	// Intro is intro.md; nil when the file does not exist, so the field is
+	// left alone on push. An existing empty file clears it.
+	Intro      *string
 	Welcome    string
 	Alternates []Opening
 	Lorebook   *Lorebook
@@ -231,6 +238,15 @@ func Load(dir string) (*Folder, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err := os.Stat(filepath.Join(dir, IntroFile)); err == nil {
+		text, err := readText(filepath.Join(dir, IntroFile))
+		if err != nil {
+			return nil, err
+		}
+		f.Intro = &text
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
 	f.Alternates, err = readOpenings(dir)
 	if err != nil {
 		return nil, err
@@ -281,6 +297,11 @@ func (f *Folder) Save() error {
 	}
 	if err := writeText(filepath.Join(f.Dir, WelcomeFile), f.Welcome); err != nil {
 		return err
+	}
+	if f.Intro != nil {
+		if err := writeText(filepath.Join(f.Dir, IntroFile), *f.Intro); err != nil {
+			return err
+		}
 	}
 	if len(f.Alternates) > 0 {
 		if err := os.MkdirAll(filepath.Join(f.Dir, OpeningsDir), 0o755); err != nil {
@@ -527,6 +548,9 @@ func (f *Folder) scanRefs(add func(string)) {
 		}
 	}
 	scan(f.Definition)
+	if f.Intro != nil {
+		scan(*f.Intro)
+	}
 	scan(f.Welcome)
 	for _, o := range f.Alternates {
 		scan(o.Text)

@@ -28,6 +28,7 @@ type TokenBudget struct {
 	EstimatedTokens         int64            `json:"estimatedTokens"`
 	TotalChars              int64            `json:"totalChars"`
 	RoleDescChars           int64            `json:"roleDescChars"`
+	RoleReadmeChars         int64            `json:"roleReadmeChars"` // card page only; not in totalChars or estimatedTokens
 	RoleDetailDescChars     int64            `json:"roleDetailDescChars"`
 	RoleWelcomeChars        int64            `json:"roleWelcomeChars"`
 	RoleOutputContractChars int64            `json:"roleOutputContractChars"`

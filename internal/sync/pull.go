@@ -134,6 +134,13 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		return nil, err
 	}
 	res.Files = []string{card.ManifestFile, card.DefinitionFile, card.WelcomeFile}
+	if f.Intro != nil {
+		res.Files = append(res.Files, card.IntroFile)
+	} else if err := os.Remove(filepath.Join(dir, card.IntroFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		// The card has no introduction: a file left from an earlier pull
+		// would put it back on the next push.
+		return nil, err
+	}
 	for _, o := range f.Alternates {
 		res.Files = append(res.Files, o.File)
 	}

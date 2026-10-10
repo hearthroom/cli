@@ -488,17 +488,28 @@ listing quota. Run it only when the author asks.`,
 			if err := f.SaveState(); err != nil {
 				return err
 			}
-			if a.Out.JSON {
-				return a.Out.JSONValue(raw)
-			}
+			// The reply is the card as listed: its "status" is the listing's
+			// ("approved" once an earlier version is up), not this submission's.
+			// A submission the site accepted always waits for review.
 			var out struct {
 				Status    string `json:"status"`
 				VersionID string `json:"versionId"`
 			}
 			_ = json.Unmarshal(raw, &out)
-			a.Out.Line("Submitted card %s for review with rating %s: %s", f.State.RoleID, rating.Rating, out.Status)
+			if a.Out.JSON {
+				reply := map[string]any{}
+				if err := json.Unmarshal(raw, &reply); err != nil {
+					return a.Out.JSONValue(raw)
+				}
+				reply["review"] = "pending"
+				return a.Out.JSONValue(reply)
+			}
+			a.Out.Line("Submitted card %s for review with rating %s: waiting for review", f.State.RoleID, rating.Rating)
 			if out.VersionID != "" {
 				a.Out.Line("  version: %s", out.VersionID)
+			}
+			if out.Status == "approved" {
+				a.Out.Line("  the listed version stays up until reviewers approve this one")
 			}
 			return nil
 		},

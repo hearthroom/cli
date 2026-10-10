@@ -21,7 +21,9 @@ without signing in or sending anything:
     the definition, the output contract, a constant Lorebook entry or an opening tells
     the model to write, or the panel appears once and never updates;
   - README.md (never sent) declarations: uiRole: assist | core and, for a core card,
-    statusOverheadThreshold.
+    statusOverheadThreshold;
+  - rating.json (never sent): whether the content rating that card submit needs is
+    there and has the shape this build knows (card rate writes it).
 
 --replay reads replies ("hearthroom play --history" text or --json output,
 preview/replies.md with "## " headings, or paragraphs) and reports protocol health:
@@ -53,4 +55,4 @@ hearthroom card check [dir] [--replay file...] [flags]
 
 ## See also
 
-- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list
+- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list, rate, submit

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -37,6 +38,10 @@ type App struct {
 	API     string
 	Site    string
 	jsonOut bool
+	// In is where interactive answers are read; interactive reports whether
+	// a person is at it (nil: In is a terminal).
+	In          io.Reader
+	interactive func() bool
 
 	flagAPI, flagSite, flagConfigDir string
 	client                           *api.Client
@@ -46,13 +51,13 @@ type App struct {
 // NewRoot builds the full command tree without executing it. Documentation
 // generators use it so the published manual is exactly what --help says.
 func NewRoot(info BuildInfo) *cobra.Command {
-	app := &App{Info: info, Out: output.Printer{Out: os.Stdout, Err: os.Stderr}}
+	app := &App{Info: info, Out: output.Printer{Out: os.Stdout, Err: os.Stderr}, In: os.Stdin}
 	return app.rootCommand()
 }
 
 // Main runs the CLI and returns the process exit code.
 func Main(ctx context.Context, info BuildInfo, args []string) int {
-	app := &App{Info: info, Out: output.Printer{Out: os.Stdout, Err: os.Stderr}}
+	app := &App{Info: info, Out: output.Printer{Out: os.Stdout, Err: os.Stderr}, In: os.Stdin}
 	root := app.rootCommand()
 	root.SetArgs(args)
 	code := 0
@@ -85,6 +90,15 @@ func (a *App) printUpdateNotice() {
 		}
 	case <-time.After(1500 * time.Millisecond):
 	}
+}
+
+// Interactive reports whether questions can be asked on In.
+func (a *App) Interactive() bool {
+	if a.interactive != nil {
+		return a.interactive()
+	}
+	f, ok := a.In.(*os.File)
+	return ok && isTerminal(f)
 }
 
 func isTerminal(f *os.File) bool {

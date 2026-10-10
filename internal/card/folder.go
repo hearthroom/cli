@@ -151,6 +151,17 @@ type State struct {
 	LorebookEntryIDs   []string          `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
 	ConversationID     string            `json:"conversationId,omitempty"`
 	AssetFolder        string            `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
+	// Submission is a review submission that has not been confirmed yet. Its
+	// operation id is sent again on retry, so a lost reply cannot submit twice.
+	Submission *Submission `json:"submission,omitempty"`
+}
+
+// Submission is a pending `card submit`: the operation id is reused while the
+// card and what is sent stay the same, and cleared once the site accepts it.
+type Submission struct {
+	RoleID      string `json:"roleId"`
+	OperationID string `json:"operationId"`
+	Digest      string `json:"digest"` // of the answers and fandom sent with this id
 }
 
 // Asset records an uploaded file.

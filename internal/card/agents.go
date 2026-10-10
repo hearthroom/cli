@@ -54,7 +54,13 @@ func AgentsGuide(name string) string {
 		"Read it first; keep it current.\n\n" +
 		"Pushing, validating and rendering are free. Only `play -m` spends credits and\n" +
 		"needs `--allow-spend`; ask the author before the first turn. Do not run\n" +
-		"`card push --create` or submit the card for review unless asked.\n" +
+		"`card push --create` or submit the card for review unless asked.\n\n" +
+		"## Publishing\n\n" +
+		"Review needs a content rating in `" + RatingFile + "` (never sent to the provider). You may\n" +
+		"fill it from the card's content: `hearthroom card rate --questions --json` prints the\n" +
+		"questionnaire; write the answers to a file, then `hearthroom card rate . --answers <file> --json`.\n" +
+		"Tell the author the rating so they can check it. Run `hearthroom card submit .` only when\n" +
+		"the author asks: it submits the owned card for review.\n\n" +
 		"Manual: https://cli.hearthroom.club/llms-full.txt\n"
 }
 

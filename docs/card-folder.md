@@ -17,6 +17,7 @@ my-card/
   assets/            media referenced by relative path
   AGENTS.md          written by init and import for coding agents; never sent to the provider
   README.md          optional notes; never sent to the provider
+  rating.json        content-rating answers for review (written by `card rate`); never sent to the provider
   .hearthroom/
     state.json       sync state written by the CLI
 ```
@@ -195,6 +196,35 @@ entries are not sent to trial cards.
 
 `mountLayer` is `under`, `over` or `cover`; `pageMode` is `classic`,
 `immersive` or `sandbox`. `id` defaults to `rule-NN`.
+
+## rating.json
+
+Submitting a card for review on the community site needs a content rating.
+The questionnaire follows Taiwan's game software rating (GSRR); the site
+computes the rating from the answers. `hearthroom card rate` asks the questions
+(or takes `--answers` from an agent) and writes this file;
+`hearthroom card submit` sends the answers with the card.
+
+```json
+{
+  "answers": {
+    "version": 1,
+    "topics": {"violence": "violence.bloody", "romance": "romance.dating"},
+    "other": "other.none"
+  },
+  "rating": "PG15",
+  "descriptors": ["violence", "romance"]
+}
+```
+
+`answers` is the source: `version` is the questionnaire version, `topics` holds
+one option id for each content type the card has (`{}` when none applies), and
+`other` is required. `rating` (G, P, PG12, PG15 or R, low to high) and
+`descriptors` are what the site computed when the file was written, kept for
+reading. When the site changes the questionnaire it refuses older answers on
+submit; run `card rate` again. `card check` reports a missing or malformed
+file without failing. The file is not part of the card: `push` never sends it,
+and the rating is attached to each review submission instead.
 
 ## Sections and sync
 

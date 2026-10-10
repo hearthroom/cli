@@ -177,6 +177,7 @@ func Card(dir string) (*Result, error) {
 		}
 	}
 	scanHTML(playerText, card.WelcomeFile, r, false)
+	checkRating(read(card.RatingFile), r)
 	res.Findings = r.findings
 	res.Markers = r.markers
 	if res.Findings == nil {
@@ -187,6 +188,33 @@ func Card(dir string) (*Result, error) {
 		res.Status = "error"
 	}
 	return res, nil
+}
+
+// checkRating looks at rating.json's presence and shape only. Whether the
+// answers match the site's current questionnaire is the site's call on submit.
+func checkRating(raw string, r *report) {
+	where := card.RatingFile
+	if strings.TrimSpace(raw) == "" {
+		r.infof(where, "no rating.json: submitting the card for review needs a content rating; run `hearthroom card rate` to answer the questionnaire")
+		return
+	}
+	var rf struct {
+		Answers *card.RatingAnswers `json:"answers"`
+	}
+	if err := json.Unmarshal([]byte(raw), &rf); err != nil {
+		r.warnf(where, "not valid JSON: %v; run `hearthroom card rate` again", err)
+		return
+	}
+	switch {
+	case rf.Answers == nil:
+		r.warnf(where, "rating.json has no answers; run `hearthroom card rate` again")
+	case rf.Answers.Version < card.RatingQuestionnaireVersion:
+		r.warnf(where, "answers are for questionnaire version %d, this build knows version %d; run `hearthroom card rate` again", rf.Answers.Version, card.RatingQuestionnaireVersion)
+	case rf.Answers.Version > card.RatingQuestionnaireVersion:
+		r.infof(where, "answers are for questionnaire version %d, newer than this build knows (%d); `hearthroom upgrade` updates the checks", rf.Answers.Version, card.RatingQuestionnaireVersion)
+	case rf.Answers.Other == "":
+		r.warnf(where, "answers have no `other` option; run `hearthroom card rate` again")
+	}
 }
 
 func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *report) {

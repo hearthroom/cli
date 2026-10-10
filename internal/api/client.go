@@ -166,6 +166,15 @@ func (c *Client) SiteGet(ctx context.Context, path string, q url.Values, out any
 	return c.do(ctx, http.MethodGet, c.Site+"/v1"+path, q, nil, out, mode)
 }
 
+// SitePost posts JSON to the community API; auth works as in SiteGet.
+func (c *Client) SitePost(ctx context.Context, path string, body, out any, auth bool) error {
+	mode := authNone
+	if auth {
+		mode = authOptional
+	}
+	return c.do(ctx, http.MethodPost, c.Site+"/v1"+path, nil, body, out, mode)
+}
+
 // SiteDo calls a member endpoint of the community API (bearer required).
 func (c *Client) SiteDo(ctx context.Context, method, path string, body, out any) error {
 	return c.do(ctx, method, c.Site+"/v1"+path, nil, body, out, authRequired)

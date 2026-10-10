@@ -70,7 +70,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 
 - **Cards are folders.** Long text in Markdown (`definition.md`, `welcome.md`, `openings/*.md`), short fields in `card.json`, the Lorebook in `lorebook.json`, display rules in `rules.json`, media under `assets/`. The format is versioned and documented in [docs/card-folder.md](docs/card-folder.md), so you can keep cards in git and let agents edit them.
 - **Push is one command.** Assets referenced from the folder are uploaded once and rewritten to their served URLs; the card is written in sections and only changed sections travel.
-- **Trial cards are a sandbox.** By default `push` writes to a private *trial card*: it expires three days after the last push, the provider keeps at most five per account (`--evict` frees the oldest), and the website's card inventory does not list it, though the play link works. When the card is ready to keep, `push --create` makes a real private card that shows up on the site and can be submitted for review, and later pushes update it; `push --to <id>` writes into a card you already own, for example one you pulled.
+- **Trial cards are a sandbox.** By default `push` writes to a private *trial card*: it expires three days after the last push, the provider keeps at most five per account (`--evict` frees the oldest), and the website's card inventory does not list it, though the play link works. When the card is ready to keep, `push --create` makes a real private card that shows up on the site and can be submitted for review (`card rate`, then `card submit`), and later pushes update it; `push --to <id>` writes into a card you already own, for example one you pulled.
 - **Validate is the provider's word.** Character limits and quality checks come from the server per card language; the CLI shows them next to your counts and exits non-zero on blockers.
 - **Play is opt-in.** Starting a conversation and reading history are free. Sending a message spends credits, so it runs only with `--allow-spend`, streams the reply, and reports what was settled.
 - **Everything speaks JSON.** Add `--json` to any command for stable machine output; `play --json` emits one event per line.
@@ -89,6 +89,8 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `card preview [dir]` | The folder in the site's real sandbox shell on a local port, offline; `--open`, `--port`, `--shell dir` |
 | `card pull <id> [dir]` | One of your cards → folder; `--download` fetches media |
 | `card status [dir]` | Linked card and changed sections |
+| `card rate [dir]` | Answer the content-rating questionnaire into `rating.json`; `--questions --json` and `--answers file` for agents |
+| `card submit [dir]` | Submit the linked owned card for review with its rating; `--fandom` |
 | `lorebook build [dir]` · `lorebook check [dir]` | `worldbook/*.md` → `lorebook.json`; drift and keyword collisions |
 | `card list` · `card view <id>` | Your cards on the provider; a community card |
 | `search [text]` · `tags` · `author <handle>` | Browse the board: `--zone`, `--sort`, `--tag`, `--author` |

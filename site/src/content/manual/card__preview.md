@@ -62,4 +62,4 @@ hearthroom card preview [dir] [flags]
 
 ## See also
 
-- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list
+- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list, rate, submit

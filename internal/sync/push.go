@@ -556,6 +556,21 @@ func switchableScript(f *card.Folder) (string, bool) {
 	return lang, lang == "zh-Hant" || lang == "zh-Hans"
 }
 
+// StoredURLs is the asset URL map the last push built the card with: the
+// served URL of every uploaded file plus each referenced directory's URL.
+// Comparing local sections against the last push must build with this, not
+// the file URLs alone.
+func StoredURLs(f *card.Folder) map[string]string {
+	urls := map[string]string{}
+	for p, a := range f.State.Assets {
+		if a.URL != "" {
+			urls[p] = a.URL
+		}
+	}
+	media.AddDirURLs(f, urls)
+	return urls
+}
+
 // OwnedDigest is the stored hash a section is compared with. For an owned
 // Chinese card the card section also covers its language, so a script switch
 // alone counts as a change (push sends it; status reports it).

@@ -520,11 +520,7 @@ func (a *App) cardStatus() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			urls := map[string]string{}
-			for p, as := range f.State.Assets {
-				urls[p] = as.URL
-			}
-			p, err := f.Build(urls)
+			p, err := f.Build(sync.StoredURLs(f))
 			if err != nil {
 				return err
 			}

@@ -273,6 +273,21 @@ func escapePath(p string) string {
 // returns the path→URL map, including referenced directories. assets/<path>
 // goes to <folder>/<path> (see Folder). Failures are reported per file; the
 // map still contains every asset that has a URL.
+// AddDirURLs sets the URL of each referenced asset directory from the files
+// already in urls: a directory is served at the URL its files share. Push and
+// the commands that compare against the last push both need it, or a card that
+// builds paths at runtime looks changed after every push.
+func AddDirURLs(f *card.Folder, urls map[string]string) {
+	for _, dir := range f.AssetDirs() {
+		for rel, u := range urls {
+			if tail := escapePath(strings.TrimPrefix(rel, dir)); strings.HasPrefix(rel, dir) && strings.HasSuffix(u, "/"+tail) {
+				urls[dir] = strings.TrimSuffix(u, tail)
+				break
+			}
+		}
+	}
+}
+
 func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities, dryRun bool) (map[string]string, []Outcome, error) {
 	present, missing := f.AssetRefs()
 	urls := map[string]string{}
@@ -360,16 +375,11 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 	}
 	// A referenced directory is served at the URL its files share, so card
 	// code can append a file name at runtime.
-	for _, dir := range f.AssetDirs() {
-		if !caps.RelativePaths {
+	if caps.RelativePaths {
+		AddDirURLs(f, urls)
+	} else {
+		for _, dir := range f.AssetDirs() {
 			outcomes = append(outcomes, Outcome{Path: dir, Err: "this provider cannot serve files by folder path; reference each file literally"})
-			continue
-		}
-		for rel, u := range urls {
-			if tail := escapePath(strings.TrimPrefix(rel, dir)); strings.HasPrefix(rel, dir) && strings.HasSuffix(u, "/"+tail) {
-				urls[dir] = strings.TrimSuffix(u, tail)
-				break
-			}
 		}
 	}
 	if !dryRun && caps.RelativePaths {

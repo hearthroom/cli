@@ -48,6 +48,13 @@
       statusbar: rulesOff ? '' : assets(rules.mountTrigger || ''),
     }
     state.welcome = assets(welcome)
+    // 替代開場 openings/alt-01.md、alt-02.md…（讀到第一個沒有的為止）：sdk.archive.start(n) 用，0＝主開場、1 起＝替代開場
+    state.openings = [state.welcome]
+    for (let i = 1; i < 100; i++) {
+      const alt = await fetchText('openings/alt-' + String(i).padStart(2, '0') + '.md')
+      if (alt == null) break
+      state.openings.push(assets(alt))
+    }
     state.name = cardJson.name || 'Card'
     state.playerName = cardJson.playerName || 'You'
     state.pageMode = rules.pageMode || 'classic'
@@ -197,8 +204,11 @@
         return ok()
       }
       case 'archive.new': {
+        // sdk.archive.start(n) 送 archive.new [n]：從第 n 個開場另開新檔（0＝主開場、1 起＝替代開場），目前這段留在清單裡
+        const n = a0 == null ? 0 : Number(a0)
+        if (!Number.isInteger(n) || n < 0 || n >= state.openings.length) return fail('INVALID_ARGS')
         if (full()) return fail('LIMIT_REACHED', { count: state.archives.length, limit: ARCHIVE_LIMIT })
-        const next = newArchive([{ id: 'greeting', role: 'ai', content: state.welcome, serverId: null, state: 'done' }])
+        const next = newArchive([{ id: 'greeting', role: 'ai', content: state.openings[n], serverId: null, state: 'done' }])
         state.archives.push(next)
         adoptArchive(next)
         return ok({ id: next.id })

@@ -10,6 +10,7 @@ my-card/
   card.json          manifest (required)
   definition.md      the private definition of the character (roleDetailDesc)
   welcome.md         the opening message (roleWelcome)
+  intro.md           optional card page introduction in Markdown (roleReadme); not sent to the model
   openings/          optional alternate openings, one Markdown file each, in file-name order
     alt-01.md
   lorebook.json      optional Lorebook
@@ -55,7 +56,7 @@ my-card/
 | Key | Provider field | Notes |
 |---|---|---|
 | `name` | `roleName` | required |
-| `summary` | `roleDesc` | short public intro |
+| `summary` | `roleDesc` | one-line public summary for board tiles; the longer card page introduction is `intro.md` |
 | `tags` | `roleTag` | |
 | `type` | `roleType` | `companion`, `story`, `game`, `generator` |
 | `sex` | `roleSex` | stored as-is |
@@ -113,6 +114,13 @@ checks the values before a push.
 ## Markdown files
 
 - `definition.md` → `roleDetailDesc`. `welcome.md` → `roleWelcome`.
+- `intro.md` → `roleReadme`: the introduction shown on the public card page,
+  like a repository README. It is never sent to the model during chat. The
+  file is optional: without it the card page keeps whatever introduction it
+  has; an empty file (or one holding only a comment) clears it. `card pull`
+  writes it only when the card has an introduction. It is not called
+  `readme.md` because on macOS and Windows that is the same file as
+  `README.md`, the private notes.
 - `openings/*.md` → alternate openings, sorted by file name.
 - A file whose only content is an HTML comment (`<!-- … -->`) counts as empty.
 - Text is trimmed. Line endings are normalised to `\n`.
@@ -234,7 +242,7 @@ the last push, so only changed sections are sent.
 
 | Section | Built from |
 |---|---|
-| `card` | `card.json` (except `prologue` and `media`, which are resolved) + `definition.md` |
+| `card` | `card.json` (except `prologue` and `media`, which are resolved) + `definition.md` + `intro.md` |
 | `welcome` | `welcome.md`, `openings/*.md`, `card.json.prologue` |
 | `worldbook` | `lorebook.json` |
 | `authorAsset` | `rules.json` |

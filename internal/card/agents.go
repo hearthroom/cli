@@ -52,6 +52,7 @@ func AgentsGuide(name string) string {
 		"`" + ReadmeFile + "` is the card's working notes (never sent): `uiRole: assist | core`, the status\n" +
 		"overhead threshold, decisions, rejected directions and the evidence of each version.\n" +
 		"Read it first; keep it current.\n\n" +
+		"`" + IntroFile + "` (optional) is the card page introduction in Markdown; it is not sent to the model.\n\n" +
 		"Pushing, validating and rendering are free. Only `play -m` spends credits and\n" +
 		"needs `--allow-spend`; ask the author before the first turn. Do not run\n" +
 		"`card push --create` or submit the card for review unless asked.\n\n" +

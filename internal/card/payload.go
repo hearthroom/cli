@@ -85,6 +85,11 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 	if v := Body(f.Definition); v != "" {
 		fields["roleDetailDesc"] = Rewrite(v, urls)
 	}
+	// Sent only when intro.md exists: an empty file clears the card page
+	// introduction, a missing one leaves it (and the digest) alone.
+	if f.Intro != nil {
+		fields["roleReadme"] = Rewrite(Body(*f.Intro), urls)
+	}
 	if v := strings.TrimSpace(m.OutputContract); v != "" {
 		fields["roleOutputContract"] = v
 	}
@@ -255,6 +260,7 @@ type RemoteDetail struct {
 	RoleBackgroundLandscape string            `json:"roleBackgroundLandscape"`
 	RoleShareImage          string            `json:"roleShareImage"`
 	RoleDetailDesc          string            `json:"roleDetailDesc"`
+	RoleReadme              string            `json:"roleReadme"`
 	RoleWelcome             string            `json:"roleWelcome"`
 	RoleWelcomeAlts         []string          `json:"roleWelcomeAlternates"`
 	RolePrologue            []string          `json:"rolePrologue"`
@@ -325,6 +331,10 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		f.Manifest.ResponseDefaults = ResponseDefaults(d.ResponseDefaults)
 	}
 	f.Definition = d.RoleDetailDesc
+	if strings.TrimSpace(d.RoleReadme) != "" {
+		readme := d.RoleReadme
+		f.Intro = &readme
+	}
 	f.Welcome = d.RoleWelcome
 	for i, a := range d.RoleWelcomeAlts {
 		f.Alternates = append(f.Alternates, Opening{File: fmt.Sprintf("%s/alt-%02d.md", OpeningsDir, i+1), Text: a})

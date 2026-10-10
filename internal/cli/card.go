@@ -70,6 +70,7 @@ func (a *App) cardInit() *cobra.Command {
 			a.Out.Line("  %-14s name, tags and short fields", card.ManifestFile)
 			a.Out.Line("  %-14s the private definition", card.DefinitionFile)
 			a.Out.Line("  %-14s the opening message", card.WelcomeFile)
+			a.Out.Line("  %-14s optional: the card page introduction in Markdown (not sent to the model)", card.IntroFile)
 			a.Out.Line("  %-14s working notes: uiRole, decisions, evidence by version (never sent)", card.ReadmeFile)
 			a.Out.Line("  %-14s what an AI agent should read first", card.AgentsFile)
 			a.Out.Line("Next: edit the files, then `hearthroom card push %s`", dir)
@@ -407,6 +408,7 @@ func (a *App) printReport(r *sync.Report) {
 			}
 		}
 		row("summary", tb.RoleDescChars, "roleDescMaxChars")
+		row("intro", tb.RoleReadmeChars, "roleReadmeMaxChars")
 		row("definition", tb.RoleDetailDescChars, "roleDetailDescMaxChars")
 		row("opening", tb.RoleWelcomeChars, "roleWelcomeMaxChars")
 		row("output contract", tb.RoleOutputContractChars, "roleOutputContractMaxChars")

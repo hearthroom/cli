@@ -253,3 +253,42 @@ func TestModuleSyntaxAllowedInSandboxModuleScripts(t *testing.T) {
 		t.Fatalf("module findings = %d, want 1 (the classic script): %v", n, msgs(r))
 	}
 }
+
+// Review submission needs rating.json; check says so without failing and
+// without asking the site.
+func TestRatingNotice(t *testing.T) {
+	base := map[string]string{"card.json": `{"formatVersion":1,"name":"x","language":"en"}`, "README.md": "uiRole: assist\n"}
+	for _, tc := range []struct {
+		rating string
+		want   []string
+	}{
+		{"", []string{"info:", "rating.json", "hearthroom card rate"}},
+		{`{"answers":{"version":0,"topics":{},"other":"other.none"}}`, []string{"warning:", "version 0", "hearthroom card rate"}},
+		{`{"answers":`, []string{"warning:", "not valid JSON"}},
+		{`{"answers":{"version":2,"topics":{},"other":"other.none"}}`, []string{"info:", "version 2", "hearthroom upgrade"}},
+		{`{"answers":{"version":1,"topics":{}}}`, []string{"warning:", "other"}},
+	} {
+		files := map[string]string{}
+		for k, v := range base {
+			files[k] = v
+		}
+		if tc.rating != "" {
+			files["rating.json"] = tc.rating
+		}
+		r, err := Card(write(t, t.TempDir(), files))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Errors() != 0 || !has(msgs(r), tc.want...) {
+			t.Fatalf("rating %q: findings %v, want %v", tc.rating, msgs(r), tc.want)
+		}
+	}
+	files := map[string]string{"rating.json": `{"answers":{"version":1,"topics":{},"other":"other.none"},"rating":"G"}`}
+	for k, v := range base {
+		files[k] = v
+	}
+	r, _ := Card(write(t, t.TempDir(), files))
+	if has(msgs(r), "rating.json") {
+		t.Fatalf("a current rating.json still reported: %v", msgs(r))
+	}
+}

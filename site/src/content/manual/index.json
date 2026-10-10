@@ -37,7 +37,7 @@
   {
     "slug": "card",
     "command": "hearthroom card",
-    "short": "Work with card folders: init, check, push, validate, render, preview, pull, import, list",
+    "short": "Work with card folders: init, check, push, validate, render, preview, pull, import, list, rate, submit",
     "parent": "hearthroom",
     "children": [
       "card/check",
@@ -47,8 +47,10 @@
       "card/preview",
       "card/pull",
       "card/push",
+      "card/rate",
       "card/render",
       "card/status",
+      "card/submit",
       "card/validate",
       "card/view"
     ]
@@ -96,6 +98,12 @@
     "parent": "card"
   },
   {
+    "slug": "card/rate",
+    "command": "hearthroom card rate",
+    "short": "Answer the content-rating questionnaire and write rating.json",
+    "parent": "card"
+  },
+  {
     "slug": "card/render",
     "command": "hearthroom card render",
     "short": "Show an opening after the card's display rules, as the player's renderer receives it",
@@ -105,6 +113,12 @@
     "slug": "card/status",
     "command": "hearthroom card status",
     "short": "Show what a folder is linked to and which sections changed",
+    "parent": "card"
+  },
+  {
+    "slug": "card/submit",
+    "command": "hearthroom card submit",
+    "short": "Submit the linked card for review on the community site, with its content rating",
     "parent": "card"
   },
   {

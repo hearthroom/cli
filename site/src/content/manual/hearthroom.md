@@ -22,7 +22,7 @@ AGENTS.md in the folder that says so).
 
 - [`hearthroom auth`](/manual/auth/) — Sign in to the connected card provider
 - [`hearthroom author`](/manual/author/) — Show a community author
-- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list
+- [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list, rate, submit
 - [`hearthroom completion`](/manual/completion/) — Shell completion: install, uninstall, or print the script
 - [`hearthroom lorebook`](/manual/lorebook/) — Build lorebook.json from one Markdown file per entry, and check the entries
 - [`hearthroom media`](/manual/media/) — Upload and list files in your media library

@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -207,5 +208,51 @@ func TestOwnedPushSendsChineseScript(t *testing.T) {
 	}
 	if len(sent) != 1 || sent[0] != nil {
 		t.Fatalf("english card sent language %v", sent)
+	}
+}
+
+// rating.json is a community-site submission attribute: the provider never
+// receives it, on a trial push or an owned one.
+func TestPushDoesNotSendTheRatingFile(t *testing.T) {
+	for _, create := range []bool{false, true} {
+		var bodies []string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			b, _ := io.ReadAll(r.Body)
+			bodies = append(bodies, r.Method+" "+r.URL.Path+" "+string(b))
+			switch {
+			case r.Method == http.MethodPost && r.URL.Path == "/open/v1/role":
+				json.NewEncoder(w).Encode(map[string]any{"roleId": "owned1"})
+			default:
+				json.NewEncoder(w).Encode(map[string]any{"clientKey": "k", "roleId": "r", "created": true, "sections": map[string]string{}})
+			}
+		}))
+		f, err := card.Init(t.TempDir(), "Rated", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Definition = "A keeper of the lamp."
+		f.Welcome = "Hello."
+		if err := card.WriteRating(f.Dir, &card.Rating{Answers: card.RatingAnswers{Version: 1, Topics: map[string]string{"violence": "violence.bloody"}, Other: "other.none"}, Rating: "PG15", Descriptors: []string{"violence"}}); err != nil {
+			t.Fatal(err)
+		}
+		f, err = card.Load(f.Dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+		if _, err := Push(context.Background(), c, f, PushOptions{Create: create}); err != nil {
+			t.Fatal(err)
+		}
+		srv.Close()
+		if len(bodies) == 0 {
+			t.Fatal("nothing pushed")
+		}
+		for _, b := range bodies {
+			for _, leak := range []string{"violence.bloody", "other.none", "PG15", card.RatingFile, "ratingAnswers"} {
+				if strings.Contains(b, leak) {
+					t.Fatalf("create=%v: request carries %q: %s", create, leak, b)
+				}
+			}
+		}
 	}
 }

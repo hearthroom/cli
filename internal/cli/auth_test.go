@@ -68,12 +68,18 @@ func codeProvider(t *testing.T, offerDevice bool) *httptest.Server {
 // runCLI executes the command tree with captured output.
 func runCLI(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
-	var out, errOut bytes.Buffer
-	app := &App{Info: BuildInfo{Version: "dev"}, Out: output.Printer{Out: &out, Err: &errOut}}
+	app, out, errOut := testApp()
 	root := app.rootCommand()
 	root.SetArgs(args)
 	err = root.ExecuteContext(context.Background())
 	return out.String(), errOut.String(), err
+}
+
+// testApp builds an App with captured output and no terminal on stdin.
+func testApp() (*App, *bytes.Buffer, *bytes.Buffer) {
+	var out, errOut bytes.Buffer
+	app := &App{Info: BuildInfo{Version: "dev"}, Out: output.Printer{Out: &out, Err: &errOut}, In: strings.NewReader("")}
+	return app, &out, &errOut
 }
 
 func authTestEnv(t *testing.T) string {

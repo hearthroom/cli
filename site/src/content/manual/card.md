@@ -1,7 +1,7 @@
 ---
 slug: "card"
 command: "hearthroom card"
-short: "Work with card folders: init, check, push, validate, render, preview, pull, import, list"
+short: "Work with card folders: init, check, push, validate, render, preview, pull, import, list, rate, submit"
 parent: "hearthroom"
 ---
 
@@ -21,8 +21,10 @@ card-writing skills are: https://github.com/hearthroom/skills.
 - [`hearthroom card preview`](/manual/card/preview/) — Open the folder in the real sandbox chat shell with a fake host, offline
 - [`hearthroom card pull`](/manual/card/pull/) — Write one of your cards to a folder
 - [`hearthroom card push`](/manual/card/push/) — Sync the folder to the provider (a private trial card by default)
+- [`hearthroom card rate`](/manual/card/rate/) — Answer the content-rating questionnaire and write rating.json
 - [`hearthroom card render`](/manual/card/render/) — Show an opening after the card's display rules, as the player's renderer receives it
 - [`hearthroom card status`](/manual/card/status/) — Show what a folder is linked to and which sections changed
+- [`hearthroom card submit`](/manual/card/submit/) — Submit the linked card for review on the community site, with its content rating
 - [`hearthroom card validate`](/manual/card/validate/) — Show the provider's pre-publish validation for the pushed card
 - [`hearthroom card view`](/manual/card/view/) — Show a community card
 

@@ -509,11 +509,7 @@ listing quota. Run it only when the author asks.`,
 
 // unpushedSections lists the sections that changed since the last push.
 func unpushedSections(f *card.Folder) []string {
-	urls := map[string]string{}
-	for p, as := range f.State.Assets {
-		urls[p] = as.URL
-	}
-	p, err := f.Build(urls)
+	p, err := f.Build(sync.StoredURLs(f))
 	if err != nil {
 		return nil
 	}

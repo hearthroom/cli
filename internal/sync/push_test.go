@@ -6,11 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
+	"github.com/hearthroom/cli/internal/media"
 )
 
 // The server checks trial-card field limits against the card's language, the
@@ -254,5 +257,42 @@ func TestPushDoesNotSendTheRatingFile(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// A rule that builds asset paths at runtime references a directory, and push
+// builds the card with that directory's URL. Comparing against the last push
+// must build the same way, or status and submit report the rules as unpushed
+// right after a push.
+func TestStoredURLsIncludeReferencedDirectories(t *testing.T) {
+	f, err := card.Init(t.TempDir(), "Runtime paths", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	full := filepath.Join(f.Dir, "assets", "art", "face", "smile.webp")
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.Rules = &card.Rules{Rules: []card.DisplayRule{{Find: "face", Replace: `<img src="assets/art/face/$1.webp">`, Enabled: true}}}
+	f.State.Assets = map[string]card.Asset{"assets/art/face/smile.webp": {URL: "https://cdn/u/x/Card/art/face/smile.webp"}}
+	urls := StoredURLs(f)
+	if urls["assets/art/face/"] != "https://cdn/u/x/Card/art/face/" {
+		t.Fatalf("directory url: %v", urls)
+	}
+	pushed := map[string]string{"assets/art/face/smile.webp": "https://cdn/u/x/Card/art/face/smile.webp"}
+	media.AddDirURLs(f, pushed)
+	a, err := f.Build(pushed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := f.Build(urls)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Digests()[card.SectionAuthorAsset] != b.Digests()[card.SectionAuthorAsset] {
+		t.Fatal("the rules built for comparison differ from the rules push sent")
 	}
 }

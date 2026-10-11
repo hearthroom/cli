@@ -463,7 +463,10 @@ listing quota. Run it only when the author asks.`,
 			}
 
 			fandom = strings.TrimSpace(fandom)
-			digest := card.Digest(map[string]any{"roleId": f.State.RoleID, "answers": rating.Answers, "fandom": fandom})
+			// The digest covers the card as last pushed: the site answers a known
+			// operation id with the version it already made, so a retry may reuse
+			// the id only while the card is the one that id was first sent for.
+			digest := card.Digest(map[string]any{"roleId": f.State.RoleID, "answers": rating.Answers, "fandom": fandom, "sections": f.State.Sections})
 			sub := f.State.Submission
 			if sub == nil || sub.RoleID != f.State.RoleID || sub.Digest != digest {
 				id, err := newUUID()

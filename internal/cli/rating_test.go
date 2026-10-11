@@ -304,6 +304,35 @@ func TestSubmitRetriesWithTheSameOperationID(t *testing.T) {
 	}
 }
 
+func TestSubmitAfterAPushIsANewOperation(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	site := &ratingSite{cardReplies: []int{http.StatusBadGateway, http.StatusCreated}}
+	srv := site.server(t)
+	dir := ratingFolder(t, card.State{Target: "owned", RoleID: "role-1", Sections: map[string]string{card.SectionCard: "h1"}})
+	if err := card.WriteRating(dir, &card.Rating{Answers: card.RatingAnswers{Version: 1, Other: "other.none"}, Rating: "G"}); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"card", "submit", dir, "--api", srv.URL, "--site", srv.URL, "--config-dir", cfg}
+	if _, _, err := runCLI(t, args...); err == nil {
+		t.Fatal("first submit should fail")
+	}
+	// Only the card changed (say its introduction) and was pushed again: the
+	// pending id belongs to the old card, and the site would answer it with
+	// the version it made for that one.
+	f, _ := card.Load(dir)
+	f.State.Sections = map[string]string{card.SectionCard: "h2"}
+	if err := f.SaveState(); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runCLI(t, args...); err != nil {
+		t.Fatal(err)
+	}
+	if len(site.submits) != 2 || site.submits[0]["operationId"] == site.submits[1]["operationId"] {
+		t.Fatalf("a pushed change reused the pending operation id: %v", site.submits)
+	}
+}
+
 func TestSubmitWithoutRatingFile(t *testing.T) {
 	cfg := authTestEnv(t)
 	t.Setenv(auth.EnvToken, "tok")

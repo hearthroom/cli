@@ -14,6 +14,8 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,14 +44,22 @@ type Client struct {
 	HTTP      *http.Client
 }
 
+// MaxIdleConnsPerHost is how many connections to one host stay open between
+// requests. Concurrent media uploads use up to this many at once; the default
+// transport keeps only two, so every other upload would open a new TLS
+// connection.
+const MaxIdleConnsPerHost = 16
+
 // New builds a client with sane timeouts.
 func New(api, site, userAgent string, token TokenSource) *Client {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.MaxIdleConnsPerHost = MaxIdleConnsPerHost
 	return &Client{
 		API:       strings.TrimRight(api, "/"),
 		Site:      strings.TrimRight(site, "/"),
 		UserAgent: userAgent,
 		Token:     token,
-		HTTP:      &http.Client{Timeout: 120 * time.Second},
+		HTTP:      &http.Client{Timeout: 120 * time.Second, Transport: tr},
 	}
 }
 
@@ -191,10 +201,12 @@ func (c *Client) Form(ctx context.Context, path string, form url.Values, out any
 }
 
 // UploadFile posts one multipart file with extra fields. contentType is the
-// file part's declared type; empty means application/octet-stream.
+// file part's declared type; empty means application/octet-stream. A file
+// (anything with Stat) is streamed from disk with a known length instead of
+// being read into memory first.
 func (c *Client) UploadFile(ctx context.Context, path string, fields map[string][]string, fileField, fileName, contentType string, r io.Reader, out any) error {
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
+	var head bytes.Buffer
+	mw := multipart.NewWriter(&head)
 	for k, vs := range fields {
 		for _, v := range vs {
 			if err := mw.WriteField(k, v); err != nil {
@@ -208,19 +220,51 @@ func (c *Client) UploadFile(ctx context.Context, path string, fields map[string]
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, quoteEscaper.Replace(fileField), quoteEscaper.Replace(fileName)))
 	h.Set("Content-Type", contentType)
-	fw, err := mw.CreatePart(h)
-	if err != nil {
+	if _, err := mw.CreatePart(h); err != nil {
 		return err
 	}
-	if _, err := io.Copy(fw, r); err != nil {
-		return err
-	}
+	headLen := head.Len()
 	if err := mw.Close(); err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.API+"/open/v1"+path, &buf)
+	// mw.Close wrote only the closing boundary after the part header.
+	tail := append([]byte(nil), head.Bytes()[headLen:]...)
+	head.Truncate(headLen)
+
+	size := int64(-1)
+	if st, ok := r.(interface{ Stat() (os.FileInfo, error) }); ok {
+		if fi, err := st.Stat(); err == nil && fi.Mode().IsRegular() {
+			size = fi.Size()
+		}
+	}
+	if size < 0 {
+		raw, err := io.ReadAll(r)
+		if err != nil {
+			return err
+		}
+		r, size = bytes.NewReader(raw), int64(len(raw))
+	}
+	body := io.MultiReader(bytes.NewReader(head.Bytes()), io.LimitReader(r, size), bytes.NewReader(tail))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.API+"/open/v1"+path, body)
 	if err != nil {
 		return err
+	}
+	req.ContentLength = int64(head.Len()) + size + int64(len(tail))
+	if file, ok := r.(*os.File); ok {
+		// Lets the transport send the request again when a kept-alive
+		// connection turns out to be closed, as it does for in-memory bodies.
+		name, headBytes := file.Name(), head.Bytes()
+		req.GetBody = func() (io.ReadCloser, error) {
+			again, err := os.Open(name)
+			if err != nil {
+				return nil, err
+			}
+			body := io.MultiReader(bytes.NewReader(headBytes), io.LimitReader(again, size), bytes.NewReader(tail))
+			return struct {
+				io.Reader
+				io.Closer
+			}{body, again}, nil
+		}
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	if err := c.authorize(ctx, req, authRequired); err != nil {
@@ -321,7 +365,13 @@ func (c *Client) send(req *http.Request, out any) error {
 		return err
 	}
 	if resp.StatusCode >= 300 {
-		return parseError(req, resp.StatusCode, raw)
+		err := parseError(req, resp.StatusCode, raw)
+		if e, ok := err.(*Error); ok && e.RetryAfter == 0 {
+			if n, convErr := strconv.Atoi(strings.TrimSpace(resp.Header.Get("Retry-After"))); convErr == nil && n > 0 {
+				e.RetryAfter = n
+			}
+		}
+		return err
 	}
 	if out == nil || len(bytes.TrimSpace(raw)) == 0 {
 		return nil

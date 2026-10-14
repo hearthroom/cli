@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -95,7 +96,7 @@ func setup(t *testing.T, existing ...string) (*fakeLibrary, *api.Client, *card.F
 func TestSyncUsesCardFolderAndServesDirectories(t *testing.T) {
 	lib, c, f := setup(t)
 	caps, _ := Probe(context.Background(), c)
-	urls, outcomes, err := Sync(context.Background(), c, f, caps, false)
+	urls, outcomes, err := Sync(context.Background(), c, f, caps, SyncOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,6 +105,8 @@ func TestSyncUsesCardFolderAndServesDirectories(t *testing.T) {
 			t.Fatalf("outcome: %+v", o)
 		}
 	}
+	// Uploads run in parallel, so the provider sees them in any order.
+	sort.Strings(lib.puts)
 	if strings.Join(lib.puts, ",") != "天道非要我成仙/expr/happy.webp,天道非要我成仙/expr/sad.webp,天道非要我成仙/portrait.webp" {
 		t.Fatalf("puts: %v", lib.puts)
 	}
@@ -119,12 +122,12 @@ func TestSyncUsesCardFolderAndServesDirectories(t *testing.T) {
 func TestSyncMovesFilesWhenFolderChanges(t *testing.T) {
 	lib, c, f := setup(t)
 	caps, _ := Probe(context.Background(), c)
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	lib.puts = nil
 	f.Manifest.Media.Folder = "tiandao"
-	_, outcomes, err := Sync(context.Background(), c, f, caps, false)
+	_, outcomes, err := Sync(context.Background(), c, f, caps, SyncOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +139,7 @@ func TestSyncMovesFilesWhenFolderChanges(t *testing.T) {
 	}
 	// A pushed-again folder with unchanged files uploads nothing.
 	lib.puts = nil
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil || len(lib.puts) != 0 {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil || len(lib.puts) != 0 {
 		t.Fatalf("second push: %v %v", lib.puts, err)
 	}
 }
@@ -144,7 +147,7 @@ func TestSyncMovesFilesWhenFolderChanges(t *testing.T) {
 func TestSyncRefusesAnotherCardsFolderUnlessExplicit(t *testing.T) {
 	lib, c, f := setup(t, "天道非要我成仙/bg-day.webp")
 	caps, _ := Probe(context.Background(), c)
-	_, _, err := Sync(context.Background(), c, f, caps, false)
+	_, _, err := Sync(context.Background(), c, f, caps, SyncOptions{})
 	if err == nil || !strings.Contains(err.Error(), "media.folder") || !strings.Contains(err.Error(), "天道非要我成仙/bg-day.webp") {
 		t.Fatalf("want collision error, got %v", err)
 	}
@@ -152,7 +155,7 @@ func TestSyncRefusesAnotherCardsFolderUnlessExplicit(t *testing.T) {
 		t.Fatalf("uploaded despite collision: %v", lib.puts)
 	}
 	f.Manifest.Media.Folder = "天道非要我成仙"
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil {
 		t.Fatalf("explicit share: %v", err)
 	}
 }
@@ -162,14 +165,14 @@ func TestSyncRefusesAnotherCardsFolderUnlessExplicit(t *testing.T) {
 func TestSyncIgnoresLibraryRenames(t *testing.T) {
 	lib, c, f := setup(t)
 	caps, _ := Probe(context.Background(), c)
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	a := f.State.Assets["assets/portrait.webp"]
 	a.FileName = "renamed in the library.webp"
 	f.State.Assets["assets/portrait.webp"] = a
 	lib.puts = nil
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil || len(lib.puts) != 0 {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil || len(lib.puts) != 0 {
 		t.Fatalf("re-uploaded after a rename: %v %v", lib.puts, err)
 	}
 }
@@ -178,7 +181,7 @@ func TestSyncKeepsFolderOfEarlierUploads(t *testing.T) {
 	lib, c, f := setup(t)
 	f.State.Assets = map[string]card.Asset{"assets/portrait.webp": {SHA256: "old", URL: prefix + "/01a0f07d/portrait.webp", FileName: "01a0f07d/portrait.webp"}}
 	caps, _ := Probe(context.Background(), c)
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if f.State.AssetFolder != "01a0f07d" || !strings.HasPrefix(lib.puts[0], "01a0f07d/") {
@@ -206,12 +209,12 @@ func (l *fakeLibrary) rename(from, to string) {
 func TestSyncFollowsALibraryRename(t *testing.T) {
 	lib, c, f := setup(t)
 	caps, _ := Probe(context.Background(), c)
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	lib.rename("天道非要我成仙", "tiandao")
 	lib.puts = nil
-	urls, _, err := Sync(context.Background(), c, f, caps, false)
+	urls, _, err := Sync(context.Background(), c, f, caps, SyncOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +224,7 @@ func TestSyncFollowsALibraryRename(t *testing.T) {
 	// A media.folder that still names the old folder is a conflict to resolve, not a re-upload.
 	lib.rename("tiandao", "renamed-again")
 	f.Manifest.Media.Folder = "tiandao"
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err == nil || !strings.Contains(err.Error(), "renamed-again") {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err == nil || !strings.Contains(err.Error(), "renamed-again") {
 		t.Fatalf("explicit folder conflict: %v", err)
 	}
 }
@@ -229,14 +232,14 @@ func TestSyncFollowsALibraryRename(t *testing.T) {
 func TestSyncUploadsAgainWhatTheLibraryDeleted(t *testing.T) {
 	lib, c, f := setup(t)
 	caps, _ := Probe(context.Background(), c)
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	lib.mu.Lock()
 	delete(lib.files, "天道非要我成仙/portrait.webp")
 	lib.mu.Unlock()
 	lib.puts = nil
-	if _, _, err := Sync(context.Background(), c, f, caps, false); err != nil || strings.Join(lib.puts, ",") != "天道非要我成仙/portrait.webp" {
+	if _, _, err := Sync(context.Background(), c, f, caps, SyncOptions{}); err != nil || strings.Join(lib.puts, ",") != "天道非要我成仙/portrait.webp" {
 		t.Fatalf("re-upload: %v %v", lib.puts, err)
 	}
 }
@@ -250,7 +253,7 @@ func TestSyncDryRunRefusesQuickTime(t *testing.T) {
 	}
 	f.Manifest.Media.Background = "assets/clip.mov"
 	caps, _ := Probe(context.Background(), c)
-	_, outcomes, err := Sync(context.Background(), c, f, caps, true)
+	_, outcomes, err := Sync(context.Background(), c, f, caps, SyncOptions{DryRun: true})
 	if err != nil {
 		t.Fatal(err)
 	}

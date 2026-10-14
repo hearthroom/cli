@@ -82,7 +82,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `auth login` · `auth logout` · `auth status` | Sign in with a one-time code you approve on any device (`--no-wait` / `--resume` for agents; browser redirect on a loopback port when the provider has no codes), sign out, who am I |
 | `card init <dir>` | Create a card folder |
 | `card import <files…>` | SillyTavern PNG / JSON / CHARX or an MMD set → folder, with a report |
-| `card push [dir]` | Sync to a trial card (default) or an owned card; `--dry-run`, `--validate`, `--evict` |
+| `card push [dir]` | Sync to a trial card (default) or an owned card; `--dry-run`, `--validate`, `--evict`, `--concurrency` (parallel uploads, resumable) |
 | `card validate [dir]` | The provider's pre-publish report; `--push` first, `--strict` fails on warnings |
 | `card check [dir]` | Local checks against the sandbox contract: rules, markers, sdk use; `--replay file` measures the status protocol on real replies |
 | `card render [dir]` | An opening after the display rules, each rule's outcome and a static scan; `--opening N`, `--html file`, `--push` |

@@ -334,7 +334,12 @@ func (f *Folder) SaveState() error {
 	if err := os.MkdirAll(filepath.Join(f.Dir, StateDir), 0o755); err != nil {
 		return err
 	}
-	return writeJSONFile(filepath.Join(f.Dir, StateDir, StateFile), f.State)
+	// Atomic: a push saves state while it uploads and may be interrupted.
+	raw, err := encodeJSON(f.State)
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(filepath.Join(f.Dir, StateDir, StateFile), raw)
 }
 
 // MarshalJSON writes known fields plus Extra, keeping formatVersion first.
@@ -464,14 +469,50 @@ func writeText(path, text string) error {
 }
 
 func writeJSONFile(path string, v any) error {
+	raw, err := encodeJSON(v)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, raw, 0o644)
+}
+
+func encodeJSON(v any) ([]byte, error) {
 	var buf strings.Builder
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return []byte(buf.String()), nil
+}
+
+// writeFileAtomic replaces path in one step: a reader, or a process killed
+// mid-write, sees the old file or the new one, never half of either.
+func writeFileAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(buf.String()), 0o644)
+	name := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(name)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(name)
+		return err
+	}
+	if err := os.Chmod(name, 0o644); err != nil {
+		os.Remove(name)
+		return err
+	}
+	if err := os.Rename(name, path); err != nil {
+		os.Remove(name)
+		return err
+	}
+	return nil
 }
 
 func readOpenings(dir string) ([]Opening, error) {

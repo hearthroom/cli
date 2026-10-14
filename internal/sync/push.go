@@ -31,6 +31,10 @@ type PushOptions struct {
 	Force bool
 	// SkipMedia leaves assets alone and keeps previously recorded URLs.
 	SkipMedia bool
+	// Concurrency is the number of parallel media uploads (0: the default).
+	Concurrency int
+	// Progress, when set, is told about every finished media upload.
+	Progress func(media.Progress)
 }
 
 // PushResult reports what happened.
@@ -100,7 +104,12 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			if err != nil {
 				return nil, err
 			}
-			synced, outcomes, err := media.Sync(ctx, c, f, caps, opts.DryRun)
+			synced, outcomes, err := media.Sync(ctx, c, f, caps, media.SyncOptions{
+				DryRun:      opts.DryRun,
+				Concurrency: opts.Concurrency,
+				Save:        f.SaveState,
+				Progress:    opts.Progress,
+			})
 			if err != nil {
 				return nil, err
 			}

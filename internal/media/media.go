@@ -6,12 +6,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
@@ -76,8 +80,59 @@ type uploadResponse struct {
 }
 
 // Upload sends one file. relativePath is used when the provider supports it;
-// roleID may be empty. A .mov file is refused before anything is sent.
+// roleID may be empty. A .mov file is refused before anything is sent. A
+// rate limit, a gateway error or a dropped connection is retried a few times
+// with growing pauses; a named upload replaces the same library path, so
+// sending it again after a lost reply does no harm.
 func Upload(ctx context.Context, c *api.Client, localPath, relativePath, roleID string) (UploadResult, error) {
+	for attempt := 1; ; attempt++ {
+		res, err := uploadOnce(ctx, c, localPath, relativePath, roleID)
+		if err == nil || attempt >= uploadAttempts || !retryable(ctx, err) {
+			return res, err
+		}
+		select {
+		case <-ctx.Done():
+			return UploadResult{}, ctx.Err()
+		case <-time.After(retryDelay(attempt, err)):
+		}
+	}
+}
+
+// uploadAttempts and retryBase bound the retries of one upload: pauses of
+// about 1, 2 and 4 seconds, or what the provider asks for in retry_after.
+var (
+	uploadAttempts = 4
+	retryBase      = time.Second
+)
+
+func retryable(ctx context.Context, err error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	var e *api.Error
+	if errors.As(err, &e) {
+		switch e.Status {
+		case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return true
+		}
+		return false
+	}
+	// Transport failures (reset, timeout, EOF) come back as *url.Error.
+	var ue *url.Error
+	return errors.As(err, &ue)
+}
+
+func retryDelay(attempt int, err error) time.Duration {
+	var e *api.Error
+	if errors.As(err, &e) && e.RetryAfter > 0 {
+		return min(time.Duration(e.RetryAfter)*time.Second, time.Minute)
+	}
+	d := retryBase << (attempt - 1)
+	// ±50% so parallel workers that failed together do not retry together.
+	return d/2 + time.Duration(rand.Int64N(int64(d)+1))
+}
+
+func uploadOnce(ctx context.Context, c *api.Client, localPath, relativePath, roleID string) (UploadResult, error) {
 	name := filepath.Base(localPath)
 	if isQuickTimeName(name) {
 		return UploadResult{}, errors.New(quickTimeMessage(name))
@@ -268,11 +323,6 @@ func escapePath(p string) string {
 	return strings.Join(parts, "/")
 }
 
-// Sync uploads every referenced asset of the folder that is new, changed or
-// served from another library folder, records it in the folder state and
-// returns the path→URL map, including referenced directories. assets/<path>
-// goes to <folder>/<path> (see Folder). Failures are reported per file; the
-// map still contains every asset that has a URL.
 // AddDirURLs sets the URL of each referenced asset directory from the files
 // already in urls: a directory is served at the URL its files share. Push and
 // the commands that compare against the last push both need it, or a card that
@@ -288,7 +338,46 @@ func AddDirURLs(f *card.Folder, urls map[string]string) {
 	}
 }
 
-func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities, dryRun bool) (map[string]string, []Outcome, error) {
+// DefaultConcurrency is how many files Sync uploads at once unless told
+// otherwise; MaxConcurrency caps any setting.
+const (
+	DefaultConcurrency = 6
+	MaxConcurrency     = api.MaxIdleConnsPerHost
+)
+
+// SyncOptions control Sync.
+type SyncOptions struct {
+	// DryRun reports what would be uploaded without sending anything.
+	DryRun bool
+	// Concurrency is the number of parallel uploads; 0 means DefaultConcurrency.
+	Concurrency int
+	// Save writes the folder state. Sync calls it every few seconds while
+	// uploading and once when it stops, so an interrupted push resumes with
+	// the files that are left.
+	Save func() error
+	// Progress is called after every finished upload, from one goroutine.
+	Progress func(Progress)
+}
+
+// Progress counts the uploads of one Sync.
+type Progress struct {
+	Done   int // finished, failed ones included
+	Failed int
+	Total  int // files that need an upload
+}
+
+// saveEvery spaces the state checkpoints during an upload.
+var saveEvery = 2 * time.Second
+
+// Sync uploads every referenced asset of the folder that is new, changed or
+// served from another library folder, records it in the folder state and
+// returns the path→URL map, including referenced directories. assets/<path>
+// goes to <folder>/<path> (see Folder). Failures are reported per file; the
+// map still contains every asset that has a URL. Outcomes keep the order of
+// the folder's references however the uploads finish. When ctx is cancelled
+// Sync stops starting uploads, saves what finished and returns ctx's error.
+func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities, opts SyncOptions) (map[string]string, []Outcome, error) {
+	dryRun := opts.DryRun
 	present, missing := f.AssetRefs()
 	urls := map[string]string{}
 	var outcomes []Outcome
@@ -313,6 +402,8 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 	if f.State.Assets == nil {
 		f.State.Assets = map[string]card.Asset{}
 	}
+	// Decide every file first; only the uploads run in parallel.
+	var jobs []uploadJob
 	for _, rel := range present {
 		local := filepath.Join(f.Dir, filepath.FromSlash(rel))
 		digest, err := card.FileDigest(local)
@@ -356,22 +447,18 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 			outcomes = append(outcomes, Outcome{Path: rel, Uploaded: true, Previous: previous})
 			continue
 		}
-		res, err := Upload(ctx, c, local, remotePath, "")
-		if err != nil {
-			outcomes = append(outcomes, Outcome{Path: rel, Err: err.Error()})
-			continue
+		// The outcome slot is filled when the upload finishes.
+		jobs = append(jobs, uploadJob{slot: len(outcomes), rel: rel, local: local, remotePath: remotePath, digest: digest, previous: previous})
+		outcomes = append(outcomes, Outcome{Path: rel})
+	}
+	if !dryRun && caps.RelativePaths {
+		// Recorded before the uploads so every checkpoint names the folder.
+		f.State.AssetFolder = folder
+	}
+	if len(jobs) > 0 {
+		if err := runUploads(ctx, c, f, jobs, urls, outcomes, opts); err != nil {
+			return nil, nil, err
 		}
-		// For named uploads the provider returns the stable library URL
-		// (<libraryPrefix>/<relativePath>) as imageUrl; for unnamed ones it
-		// returns the object URL. Either is what the card should reference.
-		served := res.ImageURL
-		id := ""
-		if res.ImageID != nil {
-			id = fmt.Sprint(res.ImageID)
-		}
-		f.State.Assets[rel] = card.Asset{SHA256: digest, URL: served, FileName: res.FileName, ID: id}
-		urls[rel] = served
-		outcomes = append(outcomes, Outcome{Path: rel, URL: served, Uploaded: true, Replaced: res.Replaced, Previous: previous})
 	}
 	// A referenced directory is served at the URL its files share, so card
 	// code can append a file name at runtime.
@@ -382,8 +469,118 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 			outcomes = append(outcomes, Outcome{Path: dir, Err: "this provider cannot serve files by folder path; reference each file literally"})
 		}
 	}
-	if !dryRun && caps.RelativePaths {
-		f.State.AssetFolder = folder
-	}
 	return urls, outcomes, nil
+}
+
+type uploadJob struct {
+	slot                                     int
+	rel, local, remotePath, digest, previous string
+}
+
+type uploadDone struct {
+	job uploadJob
+	res UploadResult
+	err error
+}
+
+// giveUpAfter is how many uploads in a row may fail on a transient error
+// (after their own retries) before the push stops: by then the provider or
+// the network is down, and retrying every remaining file would take hours.
+var giveUpAfter = 10
+
+// runUploads sends the jobs with a bounded number of workers. Only this
+// goroutine touches the folder state, urls and outcomes.
+func runUploads(parent context.Context, c *api.Client, f *card.Folder, jobs []uploadJob, urls map[string]string, outcomes []Outcome, opts SyncOptions) error {
+	ctx, stop := context.WithCancel(parent)
+	defer stop()
+	workers := opts.Concurrency
+	if workers <= 0 {
+		workers = DefaultConcurrency
+	}
+	workers = min(workers, MaxConcurrency, len(jobs))
+	queue := make(chan uploadJob)
+	results := make(chan uploadDone, len(jobs))
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := range queue {
+				res, err := Upload(ctx, c, j.local, j.remotePath, "")
+				results <- uploadDone{job: j, res: res, err: err}
+			}
+		}()
+	}
+	go func() {
+		defer close(queue)
+		for _, j := range jobs {
+			select {
+			case queue <- j:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	save := func() {
+		if opts.Save != nil {
+			_ = opts.Save()
+		}
+	}
+	p := Progress{Total: len(jobs)}
+	lastSave := time.Now()
+	if opts.Progress != nil {
+		opts.Progress(p)
+	}
+	var streak int
+	var gaveUp error
+	for d := range results {
+		if d.err != nil && ctx.Err() != nil {
+			continue // stopped by the cancellation, not a failure of this file
+		}
+		p.Done++
+		if d.err != nil {
+			p.Failed++
+			outcomes[d.job.slot] = Outcome{Path: d.job.rel, Err: d.err.Error()}
+			if retryable(context.Background(), d.err) {
+				streak++
+			}
+			if streak >= giveUpAfter && gaveUp == nil {
+				gaveUp = fmt.Errorf("the provider is not answering: %d uploads in a row failed (last: %w)", streak, d.err)
+				stop()
+			}
+		} else {
+			streak = 0
+			// For named uploads the provider returns the stable library URL
+			// (<libraryPrefix>/<relativePath>) as imageUrl; for unnamed ones it
+			// returns the object URL. Either is what the card should reference.
+			served := d.res.ImageURL
+			id := ""
+			if d.res.ImageID != nil {
+				id = fmt.Sprint(d.res.ImageID)
+			}
+			f.State.Assets[d.job.rel] = card.Asset{SHA256: d.job.digest, URL: served, FileName: d.res.FileName, ID: id}
+			urls[d.job.rel] = served
+			outcomes[d.job.slot] = Outcome{Path: d.job.rel, URL: served, Uploaded: true, Replaced: d.res.Replaced, Previous: d.job.previous}
+		}
+		if opts.Progress != nil {
+			opts.Progress(p)
+		}
+		if time.Since(lastSave) >= saveEvery {
+			save()
+			lastSave = time.Now()
+		}
+	}
+	if err := parent.Err(); err != nil {
+		gaveUp = err
+	}
+	if gaveUp != nil {
+		save()
+		return fmt.Errorf("upload stopped after %d of %d files; the finished ones are saved, push again to send the rest: %w", p.Done-p.Failed, p.Total, gaveUp)
+	}
+	return nil
 }

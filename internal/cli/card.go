@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/hearthroom/cli/internal/card"
+	"github.com/hearthroom/cli/internal/media"
 	"github.com/hearthroom/cli/internal/output"
 	"github.com/hearthroom/cli/internal/sync"
 )
@@ -87,6 +88,7 @@ func (a *App) cardInit() *cobra.Command {
 func (a *App) cardPush() *cobra.Command {
 	var opts sync.PushOptions
 	var validate bool
+	var concurrency int
 	c := &cobra.Command{
 		Use:   "push [dir]",
 		Short: "Sync the folder to the provider (a private trial card by default)",
@@ -110,7 +112,11 @@ card unless media.folder in card.json names it: assets/art/a.webp is served at
 "assets/art/$1.webp" in a display rule) uploads every file in it and becomes
 that folder's URL, so card code can add file names at runtime. Changing
 media.folder uploads the files again under the new name; the old copies stay
-in the library until you remove them.`,
+in the library until you remove them.
+
+Files are uploaded several at a time (--concurrency, default 6, or
+HEARTHROOM_UPLOAD_CONCURRENCY), and the folder state is saved while they go,
+so a push that is interrupted picks up with the files that are left.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {
@@ -128,7 +134,19 @@ in the library until you remove them.`,
 				}
 				return output.Exitf(2, "the folder is not ready to push (use --force to push anyway)")
 			}
+			opts.Concurrency, err = uploadConcurrency(concurrency, cmd.Flags().Changed("concurrency"))
+			if err != nil {
+				return err
+			}
+			var progress *uploadProgress
+			if !a.Out.JSON {
+				progress = newUploadProgress(a.Out.Err, isTerminal(os.Stderr) && a.Out.Err == os.Stderr)
+				opts.Progress = progress.update
+			}
 			res, err := sync.Push(cmd.Context(), a.Client(), f, opts)
+			if progress != nil {
+				progress.done()
+			}
 			if err != nil {
 				return err
 			}
@@ -172,6 +190,7 @@ in the library until you remove them.`,
 	c.Flags().BoolVar(&opts.Force, "force", false, "send every section even if unchanged; also skips the readiness check")
 	c.Flags().BoolVar(&opts.SkipMedia, "skip-media", false, "do not upload assets; keep previously uploaded URLs")
 	c.Flags().BoolVar(&validate, "validate", false, "run the server validation after pushing")
+	c.Flags().IntVar(&concurrency, "concurrency", media.DefaultConcurrency, fmt.Sprintf("files uploaded at once, 1 to %d; %s changes the default", media.MaxConcurrency, envUploadConcurrency))
 	return c
 }
 

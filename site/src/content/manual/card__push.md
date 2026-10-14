@@ -29,6 +29,10 @@ that folder's URL, so card code can add file names at runtime. Changing
 media.folder uploads the files again under the new name; the old copies stay
 in the library until you remove them.
 
+Files are uploaded several at a time (--concurrency, default 6, or
+HEARTHROOM_UPLOAD_CONCURRENCY), and the folder state is saved while they go,
+so a push that is interrupted picks up with the files that are left.
+
 ## Usage
 
 ```
@@ -38,13 +42,14 @@ hearthroom card push [dir] [flags]
 ## Options
 
 ```
-      --create       create a new private card and write to it
-      --dry-run      show what would be sent without sending
-      --evict        free the least recently used trial slot when all are in use
-      --force        send every section even if unchanged; also skips the readiness check
-      --skip-media   do not upload assets; keep previously uploaded URLs
-      --to string    write to an owned private card by id instead of a trial card
-      --validate     run the server validation after pushing
+      --concurrency int   files uploaded at once, 1 to 16; HEARTHROOM_UPLOAD_CONCURRENCY changes the default (default 6)
+      --create            create a new private card and write to it
+      --dry-run           show what would be sent without sending
+      --evict             free the least recently used trial slot when all are in use
+      --force             send every section even if unchanged; also skips the readiness check
+      --skip-media        do not upload assets; keep previously uploaded URLs
+      --to string         write to an owned private card by id instead of a trial card
+      --validate          run the server validation after pushing
 ```
 
 ## Global options

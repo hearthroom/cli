@@ -45,8 +45,8 @@ func (r *ResponseDefaults) UnmarshalJSON(raw []byte) error {
 }
 
 var responseOptions = map[string][]string{
-	"agency":      {"protect", "assist", "lines", "coauthor"},
-	"style":       {"default", "guided", "card", "custom"},
+	"agency":      {"protect", "coauthor"},
+	"style":       {"default", "vivid", "guided", "card", "custom"},
 	"perspective": {"card", "first_character", "second_user", "third_limited", "third_omniscient"},
 	"length":      {"auto", "recommended", "target"},
 	"pace":        {"natural", "linger", "advance"},

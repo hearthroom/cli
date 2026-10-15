@@ -97,8 +97,8 @@ status blocks need long replies:
 
 | Key | Values |
 |---|---|
-| `agency` | `protect` (never writes the player's part, the platform default), `assist` (fills in the details of actions the player stated), `lines` (may write the player character's lines but not their decisions), `coauthor` (may write the player character's words, actions and decisions) |
-| `style` | `default` (platform writing guide, the platform default), `guided` (lighter guide that defers to your material), `card` (no platform guide; your definition and examples set the voice), `custom` (needs `customStyle`) |
+| `agency` | `protect` (never writes the player's part, the platform default), `coauthor` (may write the player character's words, actions and decisions). Older folders may still carry `assist` or `lines`; the server reads them as `protect` and `coauthor`, but a push now asks you to update the value |
+| `style` | `default` (the platform writing guide: dialogue carries the scene, narration only does its own job; the platform default), `vivid` (the former default: full sensory description with dialogue and narration side by side), `guided` (lighter guide that defers to your material), `card` (no platform guide; your definition and examples set the voice), `custom` (needs `customStyle`) |
 | `customStyle` | style description, at most 1000 characters; only with `style: custom` |
 | `perspective` | `card` (follow the material, the platform default), `first_character`, `second_user`, `third_limited`, `third_omniscient` |
 | `length` | `auto` (the platform default), `recommended` (2 to 5 paragraphs, about 2500 characters), `target` (needs `lengthTarget`) |

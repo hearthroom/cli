@@ -18,6 +18,7 @@ my-card/
   assets/            media referenced by relative path
   AGENTS.md          written by init and import for coding agents; never sent to the provider
   README.md          optional notes; never sent to the provider
+  rating.json        content-rating answers for review (written by `card rate`); never sent to the provider
   .hearthroom/
     state.json       sync state written by the CLI
 ```
@@ -96,8 +97,8 @@ status blocks need long replies:
 
 | Key | Values |
 |---|---|
-| `agency` | `protect` (never writes the player's part, the platform default), `assist` (fills in the details of actions the player stated), `lines` (may write the player character's lines but not their decisions), `coauthor` (may write the player character's words, actions and decisions) |
-| `style` | `default` (platform writing guide, the platform default), `guided` (lighter guide that defers to your material), `card` (no platform guide; your definition and examples set the voice), `custom` (needs `customStyle`) |
+| `agency` | `protect` (never writes the player's part, the platform default), `coauthor` (may write the player character's words, actions and decisions). Older folders may still carry `assist` or `lines`; the server reads them as `protect` and `coauthor`, but a push now asks you to update the value |
+| `style` | `default` (the platform writing guide: dialogue carries the scene, narration only does its own job; the platform default), `vivid` (the former default: full sensory description with dialogue and narration side by side), `guided` (lighter guide that defers to your material), `card` (no platform guide; your definition and examples set the voice), `custom` (needs `customStyle`) |
 | `customStyle` | style description, at most 1000 characters; only with `style: custom` |
 | `perspective` | `card` (follow the material, the platform default), `first_character`, `second_user`, `third_limited`, `third_omniscient` |
 | `length` | `auto` (the platform default), `recommended` (2 to 5 paragraphs, about 2500 characters), `target` (needs `lengthTarget`) |
@@ -204,6 +205,35 @@ entries are not sent to trial cards.
 `mountLayer` is `under`, `over` or `cover`; `pageMode` is `classic`,
 `immersive` or `sandbox`. `id` defaults to `rule-NN`.
 
+## rating.json
+
+Submitting a card for review on the community site needs a content rating.
+The questionnaire follows Taiwan's game software rating (GSRR); the site
+computes the rating from the answers. `hearthroom card rate` asks the questions
+(or takes `--answers` from an agent) and writes this file;
+`hearthroom card submit` sends the answers with the card.
+
+```json
+{
+  "answers": {
+    "version": 1,
+    "topics": {"violence": "violence.bloody", "romance": "romance.dating"},
+    "other": "other.none"
+  },
+  "rating": "PG15",
+  "descriptors": ["violence", "romance"]
+}
+```
+
+`answers` is the source: `version` is the questionnaire version, `topics` holds
+one option id for each content type the card has (`{}` when none applies), and
+`other` is required. `rating` (G, P, PG12, PG15 or R, low to high) and
+`descriptors` are what the site computed when the file was written, kept for
+reading. When the site changes the questionnaire it refuses older answers on
+submit; run `card rate` again. `card check` reports a missing or malformed
+file without failing. The file is not part of the card: `push` never sends it,
+and the rating is attached to each review submission instead.
+
 ## Sections and sync
 
 The provider stores a trial card in four sections. The CLI hashes the payload
@@ -219,10 +249,21 @@ the last push, so only changed sections are sent.
 
 ## .hearthroom/state.json
 
-Written by the CLI; safe to delete (the next push re-uploads everything and
-creates a new trial card; set `media.folder` to the old folder name so the
-uploads go back there). Contains the target (`trial` or `owned`), the
-provider role id, the trial key, the API base, section hashes, uploaded asset
-digests and URLs, the media folder, the Lorebook id and the author-asset
-version. Commit it if
-you want teammates to push to the same card; ignore it if not.
+Written by the CLI. Keep this file when resuming an interrupted push: it links the
+folder to its card and Lorebook and records completed batches, pending operations
+and learned entry IDs. Removing it loses that link and may create another card or
+Lorebook on the next push. It also contains section hashes, uploaded asset digests
+and URLs, the media folder and the author-asset version. Share it only with
+teammates who should update the same card; pending operations can contain card text.
+
+Lorebook writes read the provider's limits from `/open/v1/worldbook/limits`.
+The current provider allows 200 operations per request and 1000 entries per trial
+card. Entry content limits are 4000 characters for Chinese, 6000 for Japanese and
+Korean, and 12000 for English; a bound book's detail response provides its actual
+`entryContentMax`. Providers without limit discovery use the published v1 limits.
+
+A long entry without `matchOptions.groupId` or `groupOrder` is split for upload at
+paragraph or sentence boundaries, with shared `groupId` and increasing `groupOrder`.
+Joining the parts exactly restores the original text; the local file stays unsplit.
+Existing group settings are preserved, so an oversized author-grouped entry must
+be shortened by its author. Grouped parts count separately toward the trial limit.

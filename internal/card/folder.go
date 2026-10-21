@@ -145,7 +145,22 @@ type Opening struct {
 }
 
 // State is .hearthroom/state.json: what the folder is synced to.
+type LorebookUpload struct {
+	Digest           string           `json:"digest"`
+	Ops              []map[string]any `json:"operations"`
+	Keys             []string         `json:"keys"`
+	Next             int              `json:"nextOperation"`
+	CompletedBatches int              `json:"completedBatches"`
+	BatchSize        int              `json:"batchSize"`
+	InFlight         bool             `json:"inFlight,omitempty"`
+	BeforeIDs        []string         `json:"beforeIds,omitempty"`
+}
+
 type State struct {
+	PrivatePending     bool              `json:"privatePending,omitempty"`
+	OwnedPushPending   bool              `json:"ownedPushPending,omitempty"`
+	LorebookEntryMap   map[string]string `json:"lorebookEntryMap,omitempty"`
+	LorebookUpload     *LorebookUpload   `json:"lorebookUpload,omitempty"`
 	Target             string            `json:"target,omitempty"` // "trial" or "owned"
 	RoleID             string            `json:"roleId,omitempty"`
 	TrialKey           string            `json:"trialKey,omitempty"`

@@ -116,7 +116,17 @@ in the library until you remove them.
 
 Files are uploaded several at a time (--concurrency, default 6, or
 HEARTHROOM_UPLOAD_CONCURRENCY), and the folder state is saved while they go,
-so a push that is interrupted picks up with the files that are left.`,
+so a push that is interrupted picks up with the files that are left.
+
+Lorebook writes use the provider's batch limits. Progress is saved in
+.hearthroom/state.json after the card, Lorebook and each batch are saved;
+rerun the same command after an interruption to continue. Keep that state file.
+Long entries without group settings are split at paragraph or sentence boundaries,
+with shared groupId and increasing groupOrder; the original text stays in your
+files. Existing group settings are sent as written. Trial cards hold at most the
+provider's entry limit; use --create for a larger private draft. Private cards
+are accessible to the author and explicitly authorized clients; unlisted cards
+can also be opened by anyone with their link.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {
@@ -142,6 +152,9 @@ so a push that is interrupted picks up with the files that are left.`,
 			if !a.Out.JSON {
 				progress = newUploadProgress(a.Out.Err, isTerminal(os.Stderr) && a.Out.Err == os.Stderr)
 				opts.Progress = progress.update
+			}
+			opts.GroupProgress = func(g sync.GroupedEntry) {
+				a.Out.Note("Lorebook entry %d (%s): %d grouped parts", g.Index+1, g.Name, g.Parts)
 			}
 			res, err := sync.Push(cmd.Context(), a.Client(), f, opts)
 			if progress != nil {

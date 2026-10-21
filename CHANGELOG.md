@@ -1,0 +1,9 @@
+# Changelog
+
+## 0.10.1 (unreleased)
+
+- Large Lorebooks follow the provider's operation limit and save progress after each batch; rerunning an interrupted push reuses its card and Lorebook.
+- Long entries without author group settings are split without losing whitespace or punctuation; the CLI reports each grouped entry before writing.
+- `card push --create` requests a private card. Private and unlisted access are explained separately in the manual.
+- Trial pushes check the provider's entry limit before uploading; larger cards can use `--create`.
+- Unknown batch outcomes are reconciled with the provider before new entries are sent again.

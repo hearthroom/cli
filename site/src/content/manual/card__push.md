@@ -33,6 +33,16 @@ Files are uploaded several at a time (--concurrency, default 6, or
 HEARTHROOM_UPLOAD_CONCURRENCY), and the folder state is saved while they go,
 so a push that is interrupted picks up with the files that are left.
 
+Lorebook writes use the provider's batch limits. Progress is saved in
+.hearthroom/state.json after the card, Lorebook and each batch are saved;
+rerun the same command after an interruption to continue. Keep that state file.
+Long entries without group settings are split at paragraph or sentence boundaries,
+with shared groupId and increasing groupOrder; the original text stays in your
+files. Existing group settings are sent as written. Trial cards hold at most the
+provider's entry limit; use --create for a larger private draft. Private cards
+are accessible to the author and explicitly authorized clients; unlisted cards
+can also be opened by anyone with their link.
+
 ## Usage
 
 ```

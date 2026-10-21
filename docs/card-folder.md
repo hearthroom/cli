@@ -249,10 +249,21 @@ the last push, so only changed sections are sent.
 
 ## .hearthroom/state.json
 
-Written by the CLI; safe to delete (the next push re-uploads everything and
-creates a new trial card; set `media.folder` to the old folder name so the
-uploads go back there). Contains the target (`trial` or `owned`), the
-provider role id, the trial key, the API base, section hashes, uploaded asset
-digests and URLs, the media folder, the Lorebook id and the author-asset
-version. Commit it if
-you want teammates to push to the same card; ignore it if not.
+Written by the CLI. Keep this file when resuming an interrupted push: it links the
+folder to its card and Lorebook and records completed batches, pending operations
+and learned entry IDs. Removing it loses that link and may create another card or
+Lorebook on the next push. It also contains section hashes, uploaded asset digests
+and URLs, the media folder and the author-asset version. Share it only with
+teammates who should update the same card; pending operations can contain card text.
+
+Lorebook writes read the provider's limits from `/open/v1/worldbook/limits`.
+The current provider allows 200 operations per request and 1000 entries per trial
+card. Entry content limits are 4000 characters for Chinese, 6000 for Japanese and
+Korean, and 12000 for English; a bound book's detail response provides its actual
+`entryContentMax`. Providers without limit discovery use the published v1 limits.
+
+A long entry without `matchOptions.groupId` or `groupOrder` is split for upload at
+paragraph or sentence boundaries, with shared `groupId` and increasing `groupOrder`.
+Joining the parts exactly restores the original text; the local file stays unsplit.
+Existing group settings are preserved, so an oversized author-grouped entry must
+be shortened by its author. Grouped parts count separately toward the trial limit.

@@ -11,7 +11,7 @@ import (
 
 // Set by GoReleaser through -ldflags; defaults describe a source build.
 var (
-	version = "dev"
+	version = "0.10.1-dev"
 	commit  = "none"
 	date    = "unknown"
 )

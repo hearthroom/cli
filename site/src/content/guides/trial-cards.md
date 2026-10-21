@@ -46,3 +46,24 @@ hearthroom card push my-card --create
 3. With `--validate`, fetches the provider's pre-publish report and shows its character limits next to your counts.
 
 The CLI never deletes remote content on its own. Removing a Lorebook entry locally removes it remotely only if the CLI created or pulled that entry.
+
+## Large Lorebooks and interrupted pushes
+
+The CLI reads the provider's limits and splits Lorebook writes into batches (the
+current provider allows 200 operations per request). Trial cards hold at most
+1000 entries; the CLI checks the expanded entry count before any upload and suggests
+`--create` when the card is too large for a trial slot.
+
+After an interrupted push, rerun the same command with the same files. The saved
+`.hearthroom/state.json` reuses the card and Lorebook and continues from its progress.
+Keep that file. If the last reply was lost, the CLI reads the entries back before
+repeating creates; an ambiguous result stops with a message to check the remote book.
+
+Long entries without group settings are split for upload and listed before any
+writes. All parts share `groupId` and have increasing `groupOrder`; joining their
+contents exactly restores the original. Your files stay unsplit. Existing author
+groups are sent unchanged and remain subject to the provider's content limit.
+
+`--create` requests **private** access: the author and explicitly authorized clients
+can access the card. **Unlisted** access also lets anyone with the link open it.
+Creating a card does not publish it or submit it for review.

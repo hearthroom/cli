@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.1 (unreleased)
+## 0.10.1 (2026-10-21)
 
 - Large Lorebooks follow the provider's operation limit and save progress after each batch; rerunning an interrupted push reuses its card and Lorebook.
 - Long entries without author group settings are split without losing whitespace or punctuation; the CLI reports each grouped entry before writing.

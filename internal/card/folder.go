@@ -157,22 +157,23 @@ type LorebookUpload struct {
 }
 
 type State struct {
-	PrivatePending     bool              `json:"privatePending,omitempty"`
-	OwnedPushPending   bool              `json:"ownedPushPending,omitempty"`
-	LorebookEntryMap   map[string]string `json:"lorebookEntryMap,omitempty"`
-	LorebookUpload     *LorebookUpload   `json:"lorebookUpload,omitempty"`
-	Target             string            `json:"target,omitempty"` // "trial" or "owned"
-	RoleID             string            `json:"roleId,omitempty"`
-	TrialKey           string            `json:"trialKey,omitempty"`
-	API                string            `json:"api,omitempty"`
-	Sections           map[string]string `json:"sections,omitempty"` // server hashes by section
-	LocalHashes        map[string]string `json:"localHashes,omitempty"`
-	Assets             map[string]Asset  `json:"assets,omitempty"` // by relative path
-	AuthorAssetVersion int64             `json:"authorAssetVersion,omitempty"`
-	LorebookID         string            `json:"lorebookId,omitempty"`
-	LorebookEntryIDs   []string          `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
-	ConversationID     string            `json:"conversationId,omitempty"`
-	AssetFolder        string            `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
+	IgnoreLocalLorebook bool              `json:"ignoreLocalLorebook,omitempty"`
+	PrivatePending      bool              `json:"privatePending,omitempty"`
+	OwnedPushPending    bool              `json:"ownedPushPending,omitempty"`
+	LorebookEntryMap    map[string]string `json:"lorebookEntryMap,omitempty"`
+	LorebookUpload      *LorebookUpload   `json:"lorebookUpload,omitempty"`
+	Target              string            `json:"target,omitempty"` // "trial" or "owned"
+	RoleID              string            `json:"roleId,omitempty"`
+	TrialKey            string            `json:"trialKey,omitempty"`
+	API                 string            `json:"api,omitempty"`
+	Sections            map[string]string `json:"sections,omitempty"` // server hashes by section
+	LocalHashes         map[string]string `json:"localHashes,omitempty"`
+	Assets              map[string]Asset  `json:"assets,omitempty"` // by relative path
+	AuthorAssetVersion  int64             `json:"authorAssetVersion,omitempty"`
+	LorebookID          string            `json:"lorebookId,omitempty"`
+	LorebookEntryIDs    []string          `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
+	ConversationID      string            `json:"conversationId,omitempty"`
+	AssetFolder         string            `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
 	// Submission is a review submission that has not been confirmed yet. Its
 	// operation id is sent again on retry, so a lost reply cannot submit twice.
 	Submission *Submission `json:"submission,omitempty"`

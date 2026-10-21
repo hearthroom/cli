@@ -382,6 +382,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.OwnedPushPending = true
 		f.State.PrivatePending = out.Visibility == "unlisted"
 		f.State.LorebookID = ""
+		f.State.IgnoreLocalLorebook = true
 		f.State.LorebookEntryIDs = nil
 		f.State.LorebookEntryMap = nil
 		f.State.LorebookUpload = nil
@@ -403,6 +404,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		// every section look unchanged and leave the card empty.
 		f.State.LocalHashes = map[string]string{}
 		f.State.LorebookID = ""
+		f.State.IgnoreLocalLorebook = true
 		f.State.LorebookEntryIDs = nil
 		f.State.LorebookEntryMap = nil
 		f.State.LorebookUpload = nil
@@ -528,6 +530,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		res.Unchanged = []string{}
 	}
 	f.State.OwnedPushPending = false
+	f.State.IgnoreLocalLorebook = false
 	return res, f.SaveState()
 }
 

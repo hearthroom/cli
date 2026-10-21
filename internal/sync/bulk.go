@@ -143,7 +143,7 @@ func prepareEntries(f *card.Folder, wb map[string]any, limit int) (map[string]an
 
 func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID string, wb map[string]any, opts PushOptions) error {
 	bookID := f.State.LorebookID
-	if bookID == "" && f.Lorebook != nil {
+	if bookID == "" && f.Lorebook != nil && !f.State.IgnoreLocalLorebook {
 		bookID = f.Lorebook.ID
 	}
 	if bookID == "" {
@@ -409,7 +409,7 @@ func reconcileBatch(f *card.Folder, remote []card.RemoteEntry) error {
 	if allApplied {
 		return completeBatch(f, created)
 	}
-	if len(created) > 0 {
+	if len(created) > 0 || len(added) > 0 {
 		return errors.New("Lorebook batch readback is incomplete; check the remote entries before continuing")
 	}
 	// No creates became visible. A failed transaction can safely be retried;
@@ -443,6 +443,11 @@ func matchesFields(wanted, actual map[string]any) bool {
 		a := actual[k]
 		if m, ok := v.(map[string]any); ok {
 			other, ok := a.(map[string]any)
+			if k == "matchOptions" {
+				m = canonicalMatchOptions(m)
+				other = canonicalMatchOptions(other)
+				ok = true
+			}
 			if !ok || !matchesFields(m, other) {
 				return false
 			}
@@ -459,4 +464,29 @@ func matchesFields(wanted, actual map[string]any) bool {
 		}
 	}
 	return true
+}
+
+// MatchOptions is canonicalized by the Provider's typed JSON structure. Omitted
+// zero values and unknown input keys cannot be used to infer a failed write.
+func canonicalMatchOptions(in map[string]any) map[string]any {
+	out := map[string]any{"caseSensitive": false, "matchWholeWords": false, "selectiveLogic": float64(0)}
+	for _, k := range []string{"selective", "scanDepth", "groupId", "groupOrder", "order", "extensions", "caseSensitive", "matchWholeWords", "selectiveLogic"} {
+		v, ok := in[k]
+		if !ok || v == nil {
+			continue
+		}
+		if (k == "scanDepth" || k == "groupOrder") && v == float64(0) {
+			continue
+		}
+		if k == "groupId" && v == "" {
+			continue
+		}
+		if k == "extensions" {
+			if m, ok := v.(map[string]any); ok && len(m) == 0 {
+				continue
+			}
+		}
+		out[k] = v
+	}
+	return out
 }

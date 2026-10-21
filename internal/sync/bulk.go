@@ -444,17 +444,16 @@ func matchesFields(wanted, actual map[string]any) bool {
 		if m, ok := v.(map[string]any); ok {
 			other, ok := a.(map[string]any)
 			if k == "matchOptions" {
-				m = canonicalMatchOptions(m)
-				other = canonicalMatchOptions(other)
-				ok = true
+				wantedJSON, _ := json.Marshal(canonicalMatchOptions(m))
+				actualJSON, _ := json.Marshal(canonicalMatchOptions(other))
+				if string(wantedJSON) != string(actualJSON) {
+					return false
+				}
+				continue
 			}
 			if !ok || !matchesFields(m, other) {
 				return false
 			}
-			continue
-		}
-		// The server omits groupOrder=0 in its canonical match options.
-		if k == "groupOrder" && a == nil && v == float64(0) {
 			continue
 		}
 		x, _ := json.Marshal(a)

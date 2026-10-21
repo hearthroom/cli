@@ -139,3 +139,22 @@ func TestCreateResumeKeepsOldBookUntouched(t *testing.T) {
 		t.Fatalf("resuming --create wrote original book %d times; want 0", oldWrites)
 	}
 }
+
+func TestReconcileRepeatedGroupedFragments(t *testing.T) {
+	f, _ := card.Init(t.TempDir(), "Repeated", "en")
+	f.State.LorebookEntryMap = map[string]string{}
+	f.State.LorebookUpload = &card.LorebookUpload{BatchSize: 2, InFlight: true, Keys: []string{"0:0", "0:1"}, Ops: []map[string]any{
+		{"op": "create", "name": "same", "content": "same repeated paragraph", "matchOptions": map[string]any{"groupId": "same-group", "groupOrder": 0}},
+		{"op": "create", "name": "same", "content": "same repeated paragraph", "matchOptions": map[string]any{"groupId": "same-group", "groupOrder": 1}},
+	}}
+	remote := []card.RemoteEntry{
+		{EntryID: "first", Name: "same", Content: "same repeated paragraph", MatchOptions: json.RawMessage(`{"groupId":"same-group","caseSensitive":false,"matchWholeWords":false,"selectiveLogic":0}`)},
+		{EntryID: "second", Name: "same", Content: "same repeated paragraph", MatchOptions: json.RawMessage(`{"groupId":"same-group","groupOrder":1,"caseSensitive":false,"matchWholeWords":false,"selectiveLogic":0}`)},
+	}
+	if err := reconcileBatch(f, remote); err != nil {
+		t.Fatal(err)
+	}
+	if f.State.LorebookEntryMap["0:0"] != "first" || f.State.LorebookEntryMap["0:1"] != "second" {
+		t.Fatalf("incorrect fragment identities: %v", f.State.LorebookEntryMap)
+	}
+}

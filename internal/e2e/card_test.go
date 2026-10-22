@@ -203,7 +203,10 @@ func TestOwnedPushCreatesAndUpdates(t *testing.T) {
 	if err := f.Save(); err != nil {
 		t.Fatal(err)
 	}
-	second, err := sync.Push(ctx, e.client, e.reload(t, f), sync.PushOptions{})
+	if _, err := sync.Push(ctx, e.client, e.reload(t, f), sync.PushOptions{}); err == nil || !strings.Contains(err.Error(), "--prune") {
+		t.Fatalf("deletion must require explicit pruning: %v", err)
+	}
+	second, err := sync.Push(ctx, e.client, e.reload(t, f), sync.PushOptions{Prune: true})
 	if err != nil {
 		t.Fatalf("second push: %v", err)
 	}

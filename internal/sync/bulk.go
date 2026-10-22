@@ -229,6 +229,22 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 				} else if prefix, ok := prefixByID[id]; ok {
 					target = f.State.LorebookEntryMap[prefix+":"+parts[1]]
 				}
+				// A reconciled create reply may predate saving IDs to the
+				// local file. Reuse its checkpoint ID only after checking the
+				// content/options, so shifted positions cannot claim other rows.
+				if id == "" {
+					candidate := f.State.LorebookEntryMap[key]
+					if existing, ok := byID[candidate]; ok {
+						wanted := map[string]any{}
+						for k, v := range body {
+							wanted[k] = v
+						}
+						wanted["isEnabled"] = existing.IsEnabled
+						if matchesEntry(wanted, existing) {
+							target = candidate
+						}
+					}
+				}
 			}
 			if _, ok := byID[target]; !ok {
 				target = ""

@@ -148,37 +148,74 @@ func TestOwnedPushPreservesDisabledAndRequiresExplicitDeletion(t *testing.T) {
 }
 
 func TestUpgradeReconcilesLegacyInFlightBeforeNewPlan(t *testing.T) {
-	f, _ := card.Init(t.TempDir(), "Synthetic upgrade", "en")
-	f.State.Target, f.State.RoleID, f.State.LorebookID = "owned", "r", "b"
-	f.Lorebook = &card.Lorebook{ID: "b", Entries: []card.LorebookEntry{{Name: "one", Content: "text", Disabled: true}}}
-	f.State.LorebookUpload = &card.LorebookUpload{Digest: "old-cli-digest", InFlight: true, BatchSize: 1, Keys: []string{"0:0"}, Ops: []map[string]any{{"op": "create", "name": "one", "content": "text", "keywords": []string{}, "isEnabled": true}}}
-	remote := map[string]any{"entryId": "e", "name": "one", "content": "text", "keywords": []string{}, "isEnabled": true}
-	writes := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reply := func(v any) { json.NewEncoder(w).Encode(v) }
-		switch r.URL.Path {
-		case "/open/v1/worldbook/entry/list":
-			reply(map[string]any{"entries": []any{remote}})
-		case "/open/v1/worldbook/b/document":
-			writes++
-			var body struct{ Entries []map[string]any }
-			json.NewDecoder(r.Body).Decode(&body)
-			if len(body.Entries) != 1 || body.Entries[0]["op"] != "update" || body.Entries[0]["entryId"] != "e" {
-				t.Errorf("legacy reconciliation duplicated/lost identity: %v", body.Entries)
+	for _, grouped := range []bool{false, true} {
+		t.Run(fmt.Sprintf("grouped=%t", grouped), func(t *testing.T) {
+			f, _ := card.Init(t.TempDir(), "Synthetic upgrade", "en")
+			f.State.Target, f.State.RoleID, f.State.LorebookID = "owned", "r", "b"
+			f.Lorebook = &card.Lorebook{ID: "b", Entries: []card.LorebookEntry{{Name: "same", Content: "text", Disabled: true}, {Name: "same", Content: "other"}}}
+			if grouped {
+				f.Lorebook.Entries = f.Lorebook.Entries[:1]
+				f.Lorebook.Entries[0].Content = strings.Repeat("text ", 3000)
 			}
-			remote["isEnabled"] = body.Entries[0]["isEnabled"]
-			reply(map[string]any{"createdEntryIds": []string{}})
-		default:
-			reply(map[string]any{})
-		}
-	}))
-	defer srv.Close()
-	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "test", nil })
-	if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true}); err != nil {
-		t.Fatal(err)
-	}
-	if writes != 1 || remote["isEnabled"] != false {
-		t.Fatalf("writes=%d enabled=%v", writes, remote["isEnabled"])
+			// Legacy creates committed without a reply: IDs exist only in the checkpoint.
+			payload, err := f.Build(nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			prepared, keys, _ := prepareEntries(f, payload.Worldbook, 12000)
+			bodies := prepared["entries"].([]map[string]any)
+			remote := []map[string]any{}
+			ops := []map[string]any{}
+			for i, body := range bodies {
+				op := map[string]any{}
+				row := map[string]any{}
+				for k, v := range body {
+					op[k] = v
+					row[k] = v
+				}
+				op["op"], op["isEnabled"] = "create", true
+				row["entryId"], row["isEnabled"] = fmt.Sprintf("e%d", i), true
+				ops = append(ops, op)
+				remote = append(remote, row)
+			}
+			f.State.LorebookUpload = &card.LorebookUpload{Digest: "old-cli-digest", InFlight: true, BatchSize: len(ops), Keys: keys, Ops: ops}
+			writes := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reply := func(v any) { json.NewEncoder(w).Encode(v) }
+				switch r.URL.Path {
+				case "/open/v1/worldbook/entry/list":
+					reply(map[string]any{"entries": remote})
+				case "/open/v1/worldbook/b/document":
+					writes++
+					var body struct{ Entries []map[string]any }
+					json.NewDecoder(r.Body).Decode(&body)
+					if len(body.Entries) != len(remote) {
+						t.Errorf("wrong operation count: %v", body.Entries)
+					}
+					for i, op := range body.Entries {
+						if i >= len(remote) || op["op"] != "update" || op["entryId"] != fmt.Sprintf("e%d", i) {
+							t.Errorf("legacy reconciliation duplicated/lost identity: %v", op)
+							continue
+						}
+						remote[i]["isEnabled"] = op["isEnabled"]
+					}
+					reply(map[string]any{"createdEntryIds": []string{}})
+				default:
+					reply(map[string]any{})
+				}
+			}))
+			defer srv.Close()
+			c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "test", nil })
+			if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true}); err != nil {
+				t.Fatal(err)
+			}
+			if writes != 1 || remote[0]["isEnabled"] != false {
+				t.Fatalf("writes=%d enabled=%v", writes, remote[0]["isEnabled"])
+			}
+			if grouped && remote[1]["isEnabled"] != false {
+				t.Fatal("disabled fragment became enabled")
+			}
+		})
 	}
 }
 

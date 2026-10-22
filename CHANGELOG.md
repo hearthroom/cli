@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.2 (unreleased)
+## 0.10.2 (2026-10-22)
 
 - Disabled Lorebook entries are preserved on push, including their enabled state, matching options and groups.
 - Deleting locally removed Lorebook entries from an owned card requires --prune; push lists planned deletions when the flag is absent.

@@ -248,6 +248,13 @@ func (a *App) printPush(res *sync.PushResult) {
 	if len(res.Unchanged) > 0 {
 		a.Out.Line("  sections unchanged: %s", strings.Join(res.Unchanged, ", "))
 	}
+	if len(res.PruneEntries) > 0 {
+		names := make([]string, len(res.PruneEntries))
+		for i, name := range res.PruneEntries {
+			names[i] = fmt.Sprintf("%q", name)
+		}
+		a.Out.Line("  Lorebook entries would be deleted: %s", strings.Join(names, ", "))
+	}
 	for _, s := range res.Skipped {
 		a.Out.Line("  skipped: %s", s)
 	}

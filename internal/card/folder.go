@@ -146,6 +146,7 @@ type Opening struct {
 
 // State is .hearthroom/state.json: what the folder is synced to.
 type LorebookUpload struct {
+	FragmentDeletes  []string         `json:"fragmentDeletes,omitempty"`
 	Digest           string           `json:"digest"`
 	Ops              []map[string]any `json:"operations"`
 	Keys             []string         `json:"keys"`

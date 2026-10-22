@@ -141,6 +141,195 @@ func prepareEntries(f *card.Folder, wb map[string]any, limit int) (map[string]an
 	return out, keys, groups
 }
 
+func planLorebook(f *card.Folder, wb map[string]any, existing []card.RemoteEntry, opts PushOptions) *card.LorebookUpload {
+	upload := &card.LorebookUpload{Digest: card.Digest(wb), BatchSize: opts.limits.MaxOpsPerCall}
+	if upload.BatchSize <= 0 {
+		upload.BatchSize = 200
+	}
+	byID := map[string]card.RemoteEntry{}
+	byName := map[string][]card.RemoteEntry{}
+	for _, e := range existing {
+		byID[e.EntryID] = e
+		byName[e.Name] = append(byName[e.Name], e)
+	}
+	entries, _ := wb["entries"].([]map[string]any)
+	nameCount := map[string]int{}
+	for _, e := range entries {
+		n, _ := e["name"].(string)
+		nameCount[n]++
+	}
+	seen := map[string]bool{}
+	retainedSources := map[string]bool{}
+	for _, entry := range f.Lorebook.Entries {
+		if entry.ID != "" {
+			retainedSources[entry.ID] = true
+		}
+	}
+	// Fragment keys use local positions, which change on removal/reorder.
+	// Anchor the previous fragment family to the persisted first-entry ID.
+	prefixByID := map[string]string{}
+	for key, id := range f.State.LorebookEntryMap {
+		if strings.HasSuffix(key, ":0") {
+			prefixByID[id] = strings.TrimSuffix(key, ":0")
+		}
+	}
+	for i, body := range entries {
+		key := opts.entryKeys[i]
+		parts := strings.Split(key, ":")
+		source, _ := strconv.Atoi(parts[0])
+		target := ""
+		if source < len(f.Lorebook.Entries) {
+			id := f.Lorebook.Entries[source].ID
+			if parts[1] == "0" {
+				target = id
+			} else if prefix, ok := prefixByID[id]; ok {
+				target = f.State.LorebookEntryMap[prefix+":"+parts[1]]
+			}
+			// A reconciled create reply may predate saving IDs to the
+			// local file. Reuse its checkpoint ID only after checking the
+			// content/options, so shifted positions cannot claim other rows.
+			if id == "" {
+				candidate := f.State.LorebookEntryMap[key]
+				if existing, ok := byID[candidate]; ok {
+					wanted := map[string]any{}
+					for k, v := range body {
+						wanted[k] = v
+					}
+					wanted["isEnabled"] = existing.IsEnabled
+					if matchesEntry(wanted, existing) {
+						target = candidate
+					}
+				}
+			}
+		}
+		if _, ok := byID[target]; !ok {
+			target = ""
+		}
+		n, _ := body["name"].(string)
+		if target == "" && n != "" && nameCount[n] == 1 && len(byName[n]) == 1 && !seen[byName[n][0].EntryID] {
+			target = byName[n][0].EntryID
+		}
+		op := map[string]any{}
+		for k, v := range body {
+			op[k] = v
+		}
+		if target != "" && !seen[target] {
+			op["op"], op["entryId"] = "update", target
+			seen[target] = true
+			if strings.HasSuffix(key, ":0") {
+				retainedSources[target] = true
+			}
+		} else {
+			op["op"] = "create"
+		}
+		upload.Ops = append(upload.Ops, op)
+		upload.Keys = append(upload.Keys, key)
+	}
+	known := map[string]bool{}
+	for _, id := range f.State.LorebookEntryIDs {
+		known[id] = true
+	}
+	for _, e := range f.Lorebook.Entries {
+		if e.ID != "" {
+			known[e.ID] = true
+		}
+	}
+	fragments := fragmentIDs(f.State.LorebookEntryMap, retainedSources)
+	for _, e := range existing {
+		if known[e.EntryID] && !seen[e.EntryID] {
+			upload.Ops = append(upload.Ops, map[string]any{"op": "delete", "entryId": e.EntryID})
+			upload.Keys = append(upload.Keys, "")
+			if fragments[e.EntryID] {
+				upload.FragmentDeletes = append(upload.FragmentDeletes, e.EntryID)
+			}
+		}
+	}
+	return upload
+}
+
+// Only secondary fragments of a still-present source are mechanical cleanup.
+// Missing/ambiguous source identity stays protected as whole-entry deletion.
+func fragmentIDs(entryMap map[string]string, sources map[string]bool) map[string]bool {
+	fragments := map[string]bool{}
+	for key, id := range entryMap {
+		prefix, suffix, ok := strings.Cut(key, ":")
+		part, err := strconv.Atoi(suffix)
+		if ok && err == nil && part > 0 && sources[entryMap[prefix+":0"]] {
+			fragments[id] = true
+		}
+	}
+	return fragments
+}
+
+func pruneEntryNames(f *card.Folder, upload *card.LorebookUpload, existing []card.RemoteEntry) []string {
+	sources := map[string]bool{}
+	for _, entry := range f.Lorebook.Entries {
+		if entry.ID != "" {
+			sources[entry.ID] = true
+		}
+	}
+	fragments := fragmentIDs(f.State.LorebookEntryMap, sources)
+	// Persisted classification survives earlier batches rewriting positional keys.
+	for _, id := range upload.FragmentDeletes {
+		fragments[id] = true
+	}
+	byID := map[string]string{}
+	for _, entry := range existing {
+		byID[entry.EntryID] = entry.Name
+	}
+	names := []string{}
+	for _, op := range upload.Ops[upload.Next:] {
+		if op["op"] == "delete" {
+			id, _ := op["entryId"].(string)
+			if !fragments[id] {
+				names = append(names, byID[id])
+			}
+		}
+	}
+	return names
+}
+
+func previewLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID string, wb map[string]any, opts PushOptions) ([]string, error) {
+	// A fresh --create has no prior entries; never preview pruning the old card.
+	if roleID == "" || (opts.Create && !f.State.OwnedPushPending) {
+		return nil, nil
+	}
+	local := *f
+	bookID := ""
+	if roleID == f.State.RoleID && f.State.Target == "owned" {
+		bookID = f.State.LorebookID
+		if bookID == "" && !f.State.IgnoreLocalLorebook {
+			bookID = f.Lorebook.ID
+		}
+	} else {
+		// Re-linking must use the new target's identities, as real push does.
+		local.State = card.State{}
+		book := *f.Lorebook
+		book.ID = ""
+		book.Entries = append([]card.LorebookEntry(nil), book.Entries...)
+		for i := range book.Entries {
+			book.Entries[i].ID = ""
+		}
+		local.Lorebook = &book
+	}
+	if bookID == "" {
+		var bindings bindingsOutput
+		if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {roleID}}, &bindings); err != nil {
+			return nil, fmt.Errorf("read Lorebook bindings: %w", err)
+		}
+		if len(bindings.Bindings) == 0 {
+			return nil, nil
+		}
+		bookID = bindings.Bindings[0].WorldbookID
+	}
+	var existing entryListOutput
+	if err := c.OpenGet(ctx, "/worldbook/entry/list", url.Values{"worldbookId": {bookID}}, &existing); err != nil {
+		return nil, fmt.Errorf("list Lorebook entries: %w", err)
+	}
+	plan := planLorebook(&local, wb, existing.Entries, opts)
+	return pruneEntryNames(&local, plan, existing.Entries), nil
+}
+
 func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID string, wb map[string]any, opts PushOptions) error {
 	bookID := f.State.LorebookID
 	if bookID == "" && f.Lorebook != nil && !f.State.IgnoreLocalLorebook {
@@ -192,95 +381,7 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		f.State.LorebookUpload = nil
 	}
 	if f.State.LorebookUpload == nil {
-		upload := &card.LorebookUpload{Digest: digest, BatchSize: opts.limits.MaxOpsPerCall}
-		if upload.BatchSize <= 0 {
-			upload.BatchSize = 200
-		}
-		byID := map[string]card.RemoteEntry{}
-		byName := map[string][]card.RemoteEntry{}
-		for _, e := range existing.Entries {
-			byID[e.EntryID] = e
-			byName[e.Name] = append(byName[e.Name], e)
-		}
-		entries, _ := wb["entries"].([]map[string]any)
-		nameCount := map[string]int{}
-		for _, e := range entries {
-			n, _ := e["name"].(string)
-			nameCount[n]++
-		}
-		seen := map[string]bool{}
-		// Fragment keys use local positions, which change on removal/reorder.
-		// Anchor the previous fragment family to the persisted first-entry ID.
-		prefixByID := map[string]string{}
-		for key, id := range f.State.LorebookEntryMap {
-			if strings.HasSuffix(key, ":0") {
-				prefixByID[id] = strings.TrimSuffix(key, ":0")
-			}
-		}
-		for i, body := range entries {
-			key := opts.entryKeys[i]
-			parts := strings.Split(key, ":")
-			source, _ := strconv.Atoi(parts[0])
-			target := ""
-			if source < len(f.Lorebook.Entries) {
-				id := f.Lorebook.Entries[source].ID
-				if parts[1] == "0" {
-					target = id
-				} else if prefix, ok := prefixByID[id]; ok {
-					target = f.State.LorebookEntryMap[prefix+":"+parts[1]]
-				}
-				// A reconciled create reply may predate saving IDs to the
-				// local file. Reuse its checkpoint ID only after checking the
-				// content/options, so shifted positions cannot claim other rows.
-				if id == "" {
-					candidate := f.State.LorebookEntryMap[key]
-					if existing, ok := byID[candidate]; ok {
-						wanted := map[string]any{}
-						for k, v := range body {
-							wanted[k] = v
-						}
-						wanted["isEnabled"] = existing.IsEnabled
-						if matchesEntry(wanted, existing) {
-							target = candidate
-						}
-					}
-				}
-			}
-			if _, ok := byID[target]; !ok {
-				target = ""
-			}
-			n, _ := body["name"].(string)
-			if target == "" && n != "" && nameCount[n] == 1 && len(byName[n]) == 1 && !seen[byName[n][0].EntryID] {
-				target = byName[n][0].EntryID
-			}
-			op := map[string]any{}
-			for k, v := range body {
-				op[k] = v
-			}
-			if target != "" && !seen[target] {
-				op["op"], op["entryId"] = "update", target
-				seen[target] = true
-			} else {
-				op["op"] = "create"
-			}
-			upload.Ops = append(upload.Ops, op)
-			upload.Keys = append(upload.Keys, key)
-		}
-		known := map[string]bool{}
-		for _, id := range f.State.LorebookEntryIDs {
-			known[id] = true
-		}
-		for _, e := range f.Lorebook.Entries {
-			if e.ID != "" {
-				known[e.ID] = true
-			}
-		}
-		for _, e := range existing.Entries {
-			if known[e.EntryID] && !seen[e.EntryID] {
-				upload.Ops = append(upload.Ops, map[string]any{"op": "delete", "entryId": e.EntryID})
-				upload.Keys = append(upload.Keys, "")
-			}
-		}
+		upload := planLorebook(f, wb, existing.Entries, opts)
 		f.State.LorebookUpload = upload
 		if err := f.SaveState(); err != nil {
 			return err
@@ -294,16 +395,9 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 	}
 	// Check saved plans too: an older CLI may have checkpointed deletes.
 	if !opts.Prune {
-		names := []string{}
-		byID := map[string]string{}
-		for _, e := range existing.Entries {
-			byID[e.EntryID] = e.Name
-		}
-		for _, op := range upload.Ops[upload.Next:] {
-			if op["op"] == "delete" {
-				id, _ := op["entryId"].(string)
-				names = append(names, fmt.Sprintf("%q", byID[id]))
-			}
+		names := pruneEntryNames(f, upload, existing.Entries)
+		for i, name := range names {
+			names[i] = fmt.Sprintf("%q", name)
 		}
 		if len(names) > 0 {
 			return fmt.Errorf("Lorebook entries would be deleted: %s; rerun with --prune to delete them", strings.Join(names, ", "))

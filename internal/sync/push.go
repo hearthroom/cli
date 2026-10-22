@@ -45,21 +45,22 @@ type PushOptions struct {
 
 // PushResult reports what happened.
 type PushResult struct {
-	Grouped    []GroupedEntry    `json:"grouped,omitempty"`
-	Target     string            `json:"target"`
-	RoleID     string            `json:"roleId"`
-	TrialKey   string            `json:"trialKey,omitempty"`
-	Created    bool              `json:"created"`
-	ExpiresAt  string            `json:"expiresAt,omitempty"`
-	Changed    []string          `json:"changed"`
-	Unchanged  []string          `json:"unchanged"`
-	Skipped    []string          `json:"skipped,omitempty"`
-	Assets     []media.Outcome   `json:"assets,omitempty"`
-	MediaDir   string            `json:"mediaFolder,omitempty"`
-	Slots      map[string]any    `json:"slots,omitempty"`
-	Sections   map[string]string `json:"sections,omitempty"`
-	DryRun     bool              `json:"dryRun,omitempty"`
-	AssetError bool              `json:"assetErrors,omitempty"`
+	PruneEntries []string          `json:"pruneEntries,omitempty"`
+	Grouped      []GroupedEntry    `json:"grouped,omitempty"`
+	Target       string            `json:"target"`
+	RoleID       string            `json:"roleId"`
+	TrialKey     string            `json:"trialKey,omitempty"`
+	Created      bool              `json:"created"`
+	ExpiresAt    string            `json:"expiresAt,omitempty"`
+	Changed      []string          `json:"changed"`
+	Unchanged    []string          `json:"unchanged"`
+	Skipped      []string          `json:"skipped,omitempty"`
+	Assets       []media.Outcome   `json:"assets,omitempty"`
+	MediaDir     string            `json:"mediaFolder,omitempty"`
+	Slots        map[string]any    `json:"slots,omitempty"`
+	Sections     map[string]string `json:"sections,omitempty"`
+	DryRun       bool              `json:"dryRun,omitempty"`
+	AssetError   bool              `json:"assetErrors,omitempty"`
 }
 
 var trialKeyRe = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
@@ -359,6 +360,14 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			}
 		}
 		res.RoleID = roleID
+		newTarget := roleID != f.State.RoleID || f.State.Target != "owned" || (opts.Create && !f.State.OwnedPushPending)
+		if p.Worldbook != nil && (newTarget || opts.Force || f.State.LocalHashes[card.SectionWorldbook] != digests[card.SectionWorldbook]) {
+			var err error
+			res.PruneEntries, err = previewLorebook(ctx, c, f, roleID, p.Worldbook, opts)
+			if err != nil {
+				return nil, err
+			}
+		}
 		return res, nil
 	}
 	if (opts.Create && !f.State.OwnedPushPending) || roleID == "" {

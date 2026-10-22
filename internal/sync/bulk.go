@@ -100,7 +100,7 @@ func prepareEntries(f *card.Folder, wb map[string]any, limit int) (map[string]an
 	groups := []GroupedEntry{}
 	pos := 0
 	for i, local := range f.Lorebook.Entries {
-		if local.Disabled || strings.TrimSpace(local.Content) == "" {
+		if strings.TrimSpace(local.Content) == "" {
 			continue
 		}
 		if pos >= len(entries) {
@@ -180,14 +180,16 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		return fmt.Errorf("list Lorebook entries: %w", err)
 	}
 	digest := card.Digest(wb)
-	if f.State.LorebookUpload != nil && f.State.LorebookUpload.Digest != digest {
-		if f.State.LorebookUpload.InFlight {
-			return errors.New("the previous Lorebook batch has an unknown result; restore the previous files and push again to reconcile it")
-		}
-		f.State.LorebookUpload = nil
-	}
 	if f.State.LorebookEntryMap == nil {
 		f.State.LorebookEntryMap = map[string]string{}
+	}
+	if f.State.LorebookUpload != nil && f.State.LorebookUpload.Digest != digest {
+		if f.State.LorebookUpload.InFlight {
+			if err := reconcileBatch(f, existing.Entries); err != nil {
+				return err
+			}
+		}
+		f.State.LorebookUpload = nil
 	}
 	if f.State.LorebookUpload == nil {
 		upload := &card.LorebookUpload{Digest: digest, BatchSize: opts.limits.MaxOpsPerCall}
@@ -207,12 +209,26 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 			nameCount[n]++
 		}
 		seen := map[string]bool{}
+		// Fragment keys use local positions, which change on removal/reorder.
+		// Anchor the previous fragment family to the persisted first-entry ID.
+		prefixByID := map[string]string{}
+		for key, id := range f.State.LorebookEntryMap {
+			if strings.HasSuffix(key, ":0") {
+				prefixByID[id] = strings.TrimSuffix(key, ":0")
+			}
+		}
 		for i, body := range entries {
 			key := opts.entryKeys[i]
-			target := f.State.LorebookEntryMap[key]
-			source, _ := strconv.Atoi(strings.Split(key, ":")[0])
-			if target == "" && strings.HasSuffix(key, ":0") && source < len(f.Lorebook.Entries) {
-				target = f.Lorebook.Entries[source].ID
+			parts := strings.Split(key, ":")
+			source, _ := strconv.Atoi(parts[0])
+			target := ""
+			if source < len(f.Lorebook.Entries) {
+				id := f.Lorebook.Entries[source].ID
+				if parts[1] == "0" {
+					target = id
+				} else if prefix, ok := prefixByID[id]; ok {
+					target = f.State.LorebookEntryMap[prefix+":"+parts[1]]
+				}
 			}
 			if _, ok := byID[target]; !ok {
 				target = ""
@@ -225,7 +241,6 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 			for k, v := range body {
 				op[k] = v
 			}
-			op["isEnabled"] = true
 			if target != "" && !seen[target] {
 				op["op"], op["entryId"] = "update", target
 				seen[target] = true
@@ -261,6 +276,23 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 			return err
 		}
 	}
+	// Check saved plans too: an older CLI may have checkpointed deletes.
+	if !opts.Prune {
+		names := []string{}
+		byID := map[string]string{}
+		for _, e := range existing.Entries {
+			byID[e.EntryID] = e.Name
+		}
+		for _, op := range upload.Ops[upload.Next:] {
+			if op["op"] == "delete" {
+				id, _ := op["entryId"].(string)
+				names = append(names, fmt.Sprintf("%q", byID[id]))
+			}
+		}
+		if len(names) > 0 {
+			return fmt.Errorf("Lorebook entries would be deleted: %s; rerun with --prune to delete them", strings.Join(names, ", "))
+		}
+	}
 	for upload.Next < len(upload.Ops) || (len(upload.Ops) == 0 && upload.CompletedBatches == 0) {
 		end := min(upload.Next+upload.BatchSize, len(upload.Ops))
 		batch := upload.Ops[upload.Next:end]
@@ -290,6 +322,11 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		}
 	}
 	f.State.LorebookUpload = nil
+	currentMap := map[string]string{}
+	for _, key := range opts.entryKeys {
+		currentMap[key] = f.State.LorebookEntryMap[key]
+	}
+	f.State.LorebookEntryMap = currentMap
 	// Keep the original unsplit content on disk. IDs for fragments live in state.
 	f.Lorebook.ID = bookID
 	for i := range f.Lorebook.Entries {

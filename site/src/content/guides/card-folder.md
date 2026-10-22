@@ -186,8 +186,7 @@ is refused; export the video as MP4 (H.264) first.
 ```
 
 `id` fields appear after `pull` or a push to an owned card; they hold the
-provider's ids and let later pushes update instead of duplicate. `disabled`
-entries are not sent to trial cards.
+provider's ids and let later pushes update instead of duplicate. `disabled: true` keeps an entry in the uploaded Lorebook with its enabled state turned off. To delete a CLI-managed entry from an owned card, remove it locally and push with `--prune`. Without that flag, push lists the entries it would delete and stops before writing the Lorebook. Entries created by other tools are kept. Empty entry content is rejected rather than silently omitted.
 
 ## rules.json
 

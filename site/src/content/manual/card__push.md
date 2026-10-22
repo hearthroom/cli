@@ -43,6 +43,10 @@ provider's entry limit; use --create for a larger private draft. Private cards
 are accessible to the author and explicitly authorized clients; unlisted cards
 can also be opened by anyone with their link.
 
+Disabled Lorebook entries are uploaded and remain disabled. Entries removed
+locally are deleted from an owned card only with --prune; otherwise push lists
+them and stops before writing the Lorebook. Entries created by other tools are kept.
+
 ## Usage
 
 ```
@@ -57,6 +61,7 @@ hearthroom card push [dir] [flags]
       --dry-run           show what would be sent without sending
       --evict             free the least recently used trial slot when all are in use
       --force             send every section even if unchanged; also skips the readiness check
+      --prune             delete CLI-managed Lorebook entries removed from the local file
       --skip-media        do not upload assets; keep previously uploaded URLs
       --to string         write to an owned private card by id instead of a trial card
       --validate          run the server validation after pushing

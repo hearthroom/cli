@@ -157,14 +157,15 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 
 	if f.Lorebook != nil {
 		entries := make([]map[string]any, 0, len(f.Lorebook.Entries))
-		for _, e := range f.Lorebook.Entries {
-			if strings.TrimSpace(e.Content) == "" || e.Disabled {
-				continue
+		for i, e := range f.Lorebook.Entries {
+			if strings.TrimSpace(e.Content) == "" {
+				return Payload{}, fmt.Errorf("lorebook.json: entry %d (%q) has empty content; restore its content or remove the entry explicitly", i+1, e.Name)
 			}
 			entry := map[string]any{
-				"name":     e.Name,
-				"content":  Rewrite(e.Content, urls),
-				"keywords": nonNil(e.Keywords),
+				"name":      e.Name,
+				"content":   Rewrite(e.Content, urls),
+				"keywords":  nonNil(e.Keywords),
+				"isEnabled": !e.Disabled,
 			}
 			if len(e.SecondaryKeywords) > 0 {
 				entry["secondaryKeywords"] = e.SecondaryKeywords

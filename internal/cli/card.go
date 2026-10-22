@@ -126,7 +126,11 @@ with shared groupId and increasing groupOrder; the original text stays in your
 files. Existing group settings are sent as written. Trial cards hold at most the
 provider's entry limit; use --create for a larger private draft. Private cards
 are accessible to the author and explicitly authorized clients; unlisted cards
-can also be opened by anyone with their link.`,
+can also be opened by anyone with their link.
+
+Disabled Lorebook entries are uploaded and remain disabled. Entries removed
+locally are deleted from an owned card only with --prune; otherwise push lists
+them and stops before writing the Lorebook. Entries created by other tools are kept.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {
@@ -200,6 +204,7 @@ can also be opened by anyone with their link.`,
 	c.Flags().BoolVar(&opts.Create, "create", false, "create a new private card and write to it")
 	c.Flags().BoolVar(&opts.Evict, "evict", false, "free the least recently used trial slot when all are in use")
 	c.Flags().BoolVar(&opts.DryRun, "dry-run", false, "show what would be sent without sending")
+	c.Flags().BoolVar(&opts.Prune, "prune", false, "delete CLI-managed Lorebook entries removed from the local file")
 	c.Flags().BoolVar(&opts.Force, "force", false, "send every section even if unchanged; also skips the readiness check")
 	c.Flags().BoolVar(&opts.SkipMedia, "skip-media", false, "do not upload assets; keep previously uploaded URLs")
 	c.Flags().BoolVar(&validate, "validate", false, "run the server validation after pushing")

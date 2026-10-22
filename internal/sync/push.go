@@ -29,6 +29,8 @@ type PushOptions struct {
 	DryRun bool
 	// Force sends every section even if the hash is unchanged.
 	Force bool
+	// Prune permits deleting CLI-managed entries removed from the local file.
+	Prune bool
 	// SkipMedia leaves assets alone and keeps previously recorded URLs.
 	SkipMedia bool
 	// Concurrency is the number of parallel media uploads (0: the default).

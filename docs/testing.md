@@ -55,3 +55,13 @@ exercises the full path (ticket, handshake, frames, settlement) without an
 upstream model.
 
 The WebSocket route accepts `protocolVersion=2`; the CLI sends that.
+
+## Lorebook data preservation
+
+Push regressions cover enabled and disabled entries through owned and trial
+payloads, repeated pushes, removal before grouped entries, explicit `--prune`,
+external entries, blank content, and interrupted batches from an older CLI.
+Assertions check counts, stable entry identities, enabled state, matching options
+and author group settings. Provider acceptance additionally reads the persisted
+PostgreSQL rows; an HTTP fixture alone does not prove the receiving service saves
+all entries.

@@ -50,6 +50,12 @@ HEARTHROOM_CHROME. --from-history streams real replies from a "hearthroom play
 Nothing under preview/ is ever pushed: card push sends the card files and the assets the
 card references, so the shots stay on this machine.
 
+Sharing and clipboard actions need a real player click, browser support and permission.
+A headless or opaque-origin preview does not prove a device's share sheet or clipboard
+access; verify image File plus text sharing and PNG/caption writes on the deployed card.
+The host delegates web-share and clipboard-write, not clipboard-read. Handle cancellation
+and denied/unsupported actions with image download and selectable caption text.
+
 The shell is fetched once from the card's sandbox origin on the configured site
 (c<roleId>.<site host>/sandbox/) and cached by content hash; --shell <dir> uses a
 local build of the shell instead. Nothing is sent anywhere else.`,

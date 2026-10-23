@@ -204,6 +204,12 @@ provider's ids and let later pushes update instead of duplicate. `disabled: true
 `mountLayer` is `under`, `over` or `cover`; `pageMode` is `classic`,
 `immersive` or `sandbox`. `id` defaults to `rule-NN`.
 
+### Sharing images and text
+
+Card scripts can offer image and text sharing from a player’s button click. In HTTPS card frames, the host delegates `web-share` and `clipboard-write`: `navigator.share` can receive a prepared image `File` plus text; `navigator.clipboard.write` with `ClipboardItem` can write a PNG, and `navigator.clipboard.writeText` can write a caption. These are browser APIs, not new `sdk` methods or HTTP endpoints.
+
+Prepare the file before the click, then call the action directly in the click handler to retain user activation. Check `navigator.share`, `navigator.canShare({ files: [file] })`, `navigator.clipboard.write` and `ClipboardItem` before offering the corresponding action. Browser, operating system, permissions and receiving app determine support; image and text may not both survive sharing. Catch rejection and cancellation; offer image download and selectable caption text when unavailable or denied, and do not automatically reopen a cancelled share sheet. The host does not delegate `clipboard-read`. Opaque-origin local previews can still reject these APIs; verify the real cross-origin card on the target device.
+
 ## rating.json
 
 Submitting a card for review on the community site needs a content rating.

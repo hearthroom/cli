@@ -26,11 +26,18 @@ type visibilityResult struct {
 func (a *App) cardVisibility() *cobra.Command {
 	c := &cobra.Command{Use: "visibility", Short: "Read or change who can access the linked card"}
 	get := &cobra.Command{Use: "get [dir]", Short: "Read visibility or check an unresolved operation", Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error { return a.runVisibility(cmd, args, "") }}
-	set := &cobra.Command{Use: "set <private|unlisted|public> [dir]", Short: "Change visibility without submitting for review", Long: `Changes access for the linked owned card. private keeps existing conversations
-readable but stops other players continuing. unlisted shares the latest saved
-content with anyone who has the link, without listing it. public restores an
-unchanged approved version; review_required means the author must explicitly
-request card submit. This command never submits for review.
+	set := &cobra.Command{Use: "set <private|unlisted|public> [dir]", Short: "Change visibility without submitting for review", Long: `Changes access for the linked owned card. private lets the author and previous
+players continue conversations or start new ones, with normal charges. People
+who have never played the card cannot open it; it stays out of public listings.
+Previous players retain play access to versions they have played and approved
+versions of the same work. A source version played while unlisted also remains
+playable.
+Other unplayed drafts or versions awaiting review remain private. Play access
+does not grant access to private instructions or permission to export the
+configuration. unlisted shares the latest saved content with anyone who has
+the link, without listing it. public restores an unchanged approved version;
+review_required means the author must explicitly request card submit.
+This command never submits for review.
 
 An unresolved operation is kept in .hearthroom/state.json. Use visibility get
 to check it, or repeat the same set to resume with the original operation id.`, Args: cobra.RangeArgs(1, 2), RunE: func(cmd *cobra.Command, args []string) error {

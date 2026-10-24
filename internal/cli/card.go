@@ -29,7 +29,7 @@ https://cli.hearthroom.club/guides/card-folder/). init and import write an
 AGENTS.md into the folder so a coding agent knows the loop and where the
 card-writing skills are: ` + card.SkillsRepo + `.`,
 	}
-	cmd.AddCommand(a.cardInit(), a.cardImport(), a.cardCheck(), a.cardPush(), a.cardValidate(), a.cardRender(), a.cardPreview(), a.cardPull(), a.cardList(), a.cardStatus(), a.cardView(), a.cardRate(), a.cardSubmit())
+	cmd.AddCommand(a.cardInit(), a.cardImport(), a.cardCheck(), a.cardPush(), a.cardValidate(), a.cardRender(), a.cardPreview(), a.cardPull(), a.cardList(), a.cardStatus(), a.cardView(), a.cardRate(), a.cardSubmit(), a.cardVisibility())
 	return cmd
 }
 

@@ -91,6 +91,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `card status [dir]` | Linked card and changed sections |
 | `card rate [dir]` | Answer the content-rating questionnaire into `rating.json`; `--questions --json` and `--answers file` for agents |
 | `card submit [dir]` | Submit the linked owned card for review with its rating; `--fandom` |
+| `card visibility get [dir]` · `card visibility set <private\|unlisted\|public> [dir]` | Read or change community access; check unresolved operations without submitting for review |
 | `lorebook build [dir]` · `lorebook check [dir]` | `worldbook/*.md` → `lorebook.json`; drift and keyword collisions |
 | `card list` · `card view <id>` | Your cards on the provider; a community card |
 | `search [text]` · `tags` · `author <handle>` | Browse the board: `--zone`, `--sort`, `--tag`, `--author` |
@@ -98,6 +99,23 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `play [dir] -m "…" --allow-spend` | Send a turn and stream the reply; `--history`, `--stop`, `--model`, `--json` |
 | `models` · `wallet` · `whoami` | Provider catalog, balance, identity |
 | `upgrade` | Update to the latest release (`--check` only reports) |
+
+`card visibility` works on a folder linked to an owned card. `private` keeps it
+for the author; other players can read their existing conversations but cannot
+continue. `unlisted` lets anyone with the link play the latest saved content,
+without appearing in Discover, rankings or search. `public` restores an unchanged
+approved version. If the server returns `review_required`, review needs the
+author's explicit request through `card rate` and `card submit`; visibility never
+submits or uses review quota automatically. Ordinary pushes preserve access.
+
+An unfinished visibility operation stays in `.hearthroom/state.json`. After a
+202, timeout or server error, `card visibility get` reads back that operation;
+repeat the same `set` only to resume the saved intent with the original key.
+Do not delete the checkpoint or choose another target to work around an unknown
+result. `--json` returns `visibility_unconfirmed` with a hint and a nonzero exit
+code until completion is confirmed. These controls belong to the community;
+they do not add a sharing menu to HarperHarbor Console. The Provider currently
+has no MCP transport for this workflow.
 
 Global flags: `--json`, `--api <url>` (provider), `--site <url>` (community site), `--config-dir`.
 Environment: `HEARTHROOM_TOKEN` (bearer for scripts and CI, skips the browser), `HEARTHROOM_API`, `HEARTHROOM_SITE`, `HEARTHROOM_CONFIG_DIR`, `HEARTHROOM_NO_UPDATE_NOTIFIER`.

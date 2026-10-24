@@ -27,6 +27,7 @@ card-writing skills are: https://github.com/hearthroom/skills.
 - [`hearthroom card submit`](/manual/card/submit/) — Submit the linked card for review on the community site, with its content rating
 - [`hearthroom card validate`](/manual/card/validate/) — Show the provider's pre-publish validation for the pushed card
 - [`hearthroom card view`](/manual/card/view/) — Show a community card
+- [`hearthroom card visibility`](/manual/card/visibility/) — Read or change who can access the linked card
 
 ## Global options
 

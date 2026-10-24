@@ -52,7 +52,8 @@
       "card/status",
       "card/submit",
       "card/validate",
-      "card/view"
+      "card/view",
+      "card/visibility"
     ]
   },
   {
@@ -132,6 +133,28 @@
     "command": "hearthroom card view",
     "short": "Show a community card",
     "parent": "card"
+  },
+  {
+    "slug": "card/visibility",
+    "command": "hearthroom card visibility",
+    "short": "Read or change who can access the linked card",
+    "parent": "card",
+    "children": [
+      "card/visibility/get",
+      "card/visibility/set"
+    ]
+  },
+  {
+    "slug": "card/visibility/get",
+    "command": "hearthroom card visibility get",
+    "short": "Read visibility or check an unresolved operation",
+    "parent": "card/visibility"
+  },
+  {
+    "slug": "card/visibility/set",
+    "command": "hearthroom card visibility set",
+    "short": "Change visibility without submitting for review",
+    "parent": "card/visibility"
   },
   {
     "slug": "completion",

@@ -177,7 +177,21 @@ type State struct {
 	AssetFolder         string            `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
 	// Submission is a review submission that has not been confirmed yet. Its
 	// operation id is sent again on retry, so a lost reply cannot submit twice.
-	Submission *Submission `json:"submission,omitempty"`
+	Submission          *Submission          `json:"submission,omitempty"`
+	VisibilityOperation *VisibilityOperation `json:"visibilityOperation,omitempty"`
+}
+
+// VisibilityOperation is saved before sending and retained until a definitive
+// receipt/rejection. Identity prevents replay against a different account/site.
+type VisibilityOperation struct {
+	API                      string `json:"api"`
+	Site                     string `json:"site"`
+	Actor                    string `json:"actor"`
+	RoleID                   string `json:"roleId"`
+	OperationID              string `json:"operationId"`
+	TargetAccess             string `json:"targetAccess"`
+	ExpectedPolicyRevision   string `json:"expectedPolicyRevision"`
+	ExpectedApprovalRevision string `json:"expectedApprovalRevision"`
 }
 
 // Submission is a pending `card submit`: the operation id is reused while the

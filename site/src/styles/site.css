@@ -180,8 +180,8 @@ details.menu > ul a[aria-current] { color: var(--text); font-weight: 600; }
 
 /* docs -------------------------------------------------------------------- */
 .doc { display: grid; gap: 32px; grid-template-columns: 1fr; width: min(1080px, 100% - 32px); margin: 0 auto; padding: 32px 0 64px; }
-@media (min-width: 900px) { .doc { grid-template-columns: 240px minmax(0, 1fr); } }
-.toc { font-size: 14px; position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 90px); overflow: auto; }
+@media (min-width: 900px) { .doc { grid-template-columns: 240px minmax(0, 1fr); } .toc { position: sticky; top: 76px; } }
+.toc { font-size: 14px; align-self: start; max-height: calc(100vh - 90px); overflow: auto; }
 .toc h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
 .toc ul { list-style: none; margin: 0 0 16px; padding: 0; }
 .toc li { margin: 2px 0; }

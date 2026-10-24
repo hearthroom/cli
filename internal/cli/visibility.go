@@ -109,6 +109,37 @@ func (a *App) runVisibility(cmd *cobra.Command, args []string, target string) er
 		}
 		return a.printVisibility(r)
 	}
+	transmit := func() error {
+		body := map[string]any{"operationId": pending.OperationID, "targetAccess": pending.TargetAccess, "expectedPolicyRevision": pending.ExpectedPolicyRevision, "expectedApprovalRevision": pending.ExpectedApprovalRevision}
+		var result visibilityResult
+		if err = c.SiteDo(cmd.Context(), http.MethodPost, path, body, &result); err != nil {
+			var remote *api.Error
+			if errors.As(err, &remote) && remote.Status >= 400 && remote.Status < 500 {
+				// A conflict receipt can describe a persisted operation. Only an explicit
+				// rejection with no operation is safe to clear without operation readback.
+				var envelope struct {
+					Operation json.RawMessage `json:"operation"`
+				}
+				_ = json.Unmarshal(remote.Envelope, &envelope)
+				if len(envelope.Operation) == 0 {
+					latest, e := read()
+					if e != nil {
+						return e
+					}
+					if visibilityString(latest.WorkVisibility, "syncState") != "complete" {
+						return a.visibilityUnknown(latest, "visibility result is unknown; use visibility get")
+					}
+					if e = clear(); e != nil {
+						return e
+					}
+					return err
+				}
+			}
+			return a.visibilityUnknown(result, "visibility result is unknown; use visibility get before retrying")
+		}
+		return finish(result)
+	}
+
 	if pending != nil {
 		if pending.API != c.API || pending.Site != c.Site || pending.RoleID != f.State.RoleID || pending.Actor != actor {
 			return output.Exitf(2, "unresolved visibility operation belongs to a different provider, site, account, or card")
@@ -119,12 +150,15 @@ func (a *App) runVisibility(cmd *cobra.Command, args []string, target string) er
 		var result visibilityResult
 		err = c.SiteDo(cmd.Context(), http.MethodGet, path+"/operations/"+url.PathEscape(pending.OperationID), nil, &result)
 		if err == nil {
+			if target != "" && result.Operation != nil && result.Operation.OperationID == pending.OperationID && result.Operation.State == "pending" {
+				return transmit()
+			}
 			return finish(result)
 		}
 		var remote *api.Error
 		if errors.As(err, &remote) && remote.Status == 409 {
 			var conflict visibilityResult
-			_ = json.Unmarshal([]byte(remote.Body), &conflict)
+			_ = json.Unmarshal(remote.Envelope, &conflict)
 			if conflict.Operation == nil || conflict.Operation.OperationID != pending.OperationID || conflict.Operation.State != "conflict" {
 				return a.visibilityUnknown(result, "visibility result is unknown; use visibility get")
 			}
@@ -185,34 +219,7 @@ func (a *App) runVisibility(cmd *cobra.Command, args []string, target string) er
 			return e
 		}
 	}
-	body := map[string]any{"operationId": pending.OperationID, "targetAccess": pending.TargetAccess, "expectedPolicyRevision": pending.ExpectedPolicyRevision, "expectedApprovalRevision": pending.ExpectedApprovalRevision}
-	var result visibilityResult
-	if err = c.SiteDo(cmd.Context(), http.MethodPost, path, body, &result); err != nil {
-		var remote *api.Error
-		if errors.As(err, &remote) && remote.Status >= 400 && remote.Status < 500 {
-			// A conflict receipt can describe a persisted operation. Only an explicit
-			// rejection with no operation is safe to clear without operation readback.
-			var envelope struct {
-				Operation json.RawMessage `json:"operation"`
-			}
-			_ = json.Unmarshal([]byte(remote.Body), &envelope)
-			if len(envelope.Operation) == 0 {
-				latest, e := read()
-				if e != nil {
-					return e
-				}
-				if visibilityString(latest.WorkVisibility, "syncState") != "complete" {
-					return a.visibilityUnknown(latest, "visibility result is unknown; use visibility get")
-				}
-				if e = clear(); e != nil {
-					return e
-				}
-				return err
-			}
-		}
-		return a.visibilityUnknown(result, "visibility result is unknown; use visibility get before retrying")
-	}
-	return finish(result)
+	return transmit()
 }
 
 func (a *App) printVisibility(r visibilityResult) error {

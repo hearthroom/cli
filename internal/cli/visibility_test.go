@@ -193,3 +193,69 @@ func TestVisibilityWrongReceiptDoesNotClearCheckpoint(t *testing.T) {
 		}
 	}
 }
+
+func TestVisibilityConflictEnvelopeRetainedThenTerminalReadbackClears(t *testing.T) {
+	var id string
+	srv, dir, cfg := visibilityFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		id = body["operationId"].(string)
+		w.WriteHeader(409)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "visibility_operation_conflict", "operation": map[string]any{"operationId": id, "state": "conflict"}})
+	}, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(409)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "visibility_operation_conflict", "operation": map[string]any{"operationId": id, "state": "conflict"}})
+	})
+	_, err := visibilityRun(t, srv, dir, cfg, "set", "unlisted")
+	if err == nil {
+		t.Fatal("conflict claimed success")
+	}
+	f, e := card.Load(dir)
+	if e != nil || f.State.VisibilityOperation == nil {
+		t.Fatalf("persisted conflict discarded before readback: %v", e)
+	}
+	_, err = visibilityRun(t, srv, dir, cfg, "get")
+	if err == nil || !strings.Contains(err.Error(), "visibility_operation_conflict") {
+		t.Fatalf("missing terminal conflict: %v", err)
+	}
+	f, e = card.Load(dir)
+	if e != nil || f.State.VisibilityOperation != nil {
+		t.Fatalf("terminal conflict checkpoint was not cleared: %v", e)
+	}
+}
+
+func TestVisibilityPendingSetResumesRecordedIntentAfterReadback(t *testing.T) {
+	var id string
+	posts, reads := 0, 0
+	srv, dir, cfg := visibilityFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		posts++
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if posts == 1 {
+			id = body["operationId"].(string)
+			w.WriteHeader(202)
+			_ = json.NewEncoder(w).Encode(map[string]any{"operation": map[string]any{"operationId": id, "state": "pending"}})
+			return
+		}
+		if reads != 2 || body["operationId"] != id || body["targetAccess"] != "unlisted" || body["expectedPolicyRevision"] != "p1" {
+			t.Errorf("resume before readback or changed intent: reads=%d body=%v", reads, body)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"workVisibility": map[string]any{"access": "unlisted", "syncState": "complete"}, "operation": map[string]any{"operationId": id, "state": "complete"}})
+	}, func(w http.ResponseWriter, r *http.Request) {
+		reads++
+		w.WriteHeader(202)
+		_ = json.NewEncoder(w).Encode(map[string]any{"operation": map[string]any{"operationId": id, "state": "pending"}})
+	})
+	_, err := visibilityRun(t, srv, dir, cfg, "set", "unlisted")
+	if err == nil {
+		t.Fatal("pending claimed success")
+	}
+	_, err = visibilityRun(t, srv, dir, cfg, "get")
+	if err == nil || posts != 1 {
+		t.Fatal("get mutated pending operation")
+	}
+	_, err = visibilityRun(t, srv, dir, cfg, "set", "unlisted")
+	if err != nil || posts != 2 {
+		t.Fatalf("same intent not resumed: posts=%d err=%v", posts, err)
+	}
+}

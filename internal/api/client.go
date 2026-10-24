@@ -72,6 +72,9 @@ type Error struct {
 	Code   string
 	Detail any
 	Body   string
+	// Envelope preserves receipts carried beside a structured error. ErrorDetail
+	// and the human error string continue to expose only the existing safe fields.
+	Envelope json.RawMessage
 	// RetryAfter is the body's retry_after in seconds (rate limits), or 0.
 	RetryAfter int
 }
@@ -387,7 +390,7 @@ func (c *Client) send(req *http.Request, out any) error {
 }
 
 func parseError(req *http.Request, status int, raw []byte) error {
-	e := &Error{Status: status, Method: req.Method, URL: req.URL.String()}
+	e := &Error{Status: status, Method: req.Method, URL: req.URL.String(), Envelope: append(json.RawMessage(nil), raw...)}
 	var env struct {
 		Error  any    `json:"error"`
 		Detail any    `json:"detail"`

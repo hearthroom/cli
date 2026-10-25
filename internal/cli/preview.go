@@ -55,6 +55,9 @@ A headless or opaque-origin preview does not prove a device's share sheet or cli
 access; verify image File plus text sharing and PNG/caption writes on the deployed card.
 The host delegates web-share and clipboard-write, not clipboard-read. Handle cancellation
 and denied/unsupported actions with image download and selectable caption text.
+The preview has no share link: sdk.share.link and sdk.share.qr reject with HOST_DENIED
+and sdk.share.context is null. Test a share context on the deployed draft with
+/play/<id>?mode=source&share=<code>.
 
 The shell is fetched once from the card's sandbox origin on the configured site
 (c<roleId>.<site host>/sandbox/) and cached by content hash; --shell <dir> uses a

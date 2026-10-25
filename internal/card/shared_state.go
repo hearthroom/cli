@@ -71,10 +71,10 @@ func CheckSharedState(raw json.RawMessage) []string {
 			add("counter %q maxStep must be 1-1000", key)
 		}
 		if c.PerMember < 1 || c.PerMember > 1_000_000_000 {
-			add("counter %q perMember must be at least 1", key)
+			add("counter %q perMember must be 1-1000000000", key)
 		}
 		if c.Goal < 0 || c.Goal > 1_000_000_000_000 {
-			add("counter %q goal must be 0 or more", key)
+			add("counter %q goal must be 0-1000000000000", key)
 		}
 		switch c.Period {
 		case "", "none", "day", "week":

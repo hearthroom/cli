@@ -142,3 +142,15 @@ End-to-end tests against a local provider are described in [docs/testing.md](doc
 ## License
 
 [AGPL-3.0](LICENSE)
+
+Cards with a Creator Season reward may have a public-retention period. The
+owner's `workVisibility.rewardRetention` contains the saved `publicUntil`,
+`days` and actual `recoveryCredits`. During that period, visibility cannot be
+changed to private or unlisted. The CLI returns `card_reward_public_locked`
+and the deadline; `--json` keeps the complete visibility projection. Wait until
+the returned deadline before changing access. The configured period and the
+individual payout amount are authoritative.
+
+Deleting a retained card through the website or API requires explicit confirmation
+of its actual reward recovery. If eligible available credits cannot repay the
+full reward, deletion is refused. Platform moderation remains independent.

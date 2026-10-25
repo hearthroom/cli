@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
@@ -211,6 +212,17 @@ func (a *App) runVisibility(cmd *cobra.Command, args []string, target string) er
 		// public must reach the authoritative endpoint so review_required remains a
 		// structured server rejection rather than a client-invented approval rule.
 		if target != "public" && !visibilityAction(current.WorkVisibility, target) {
+			if retentionHint(current.WorkVisibility) != "" {
+				current.Error = "card_reward_public_locked"
+				current.Hint = retentionHint(current.WorkVisibility)
+				if a.Out.JSON {
+					if e := a.Out.JSONValue(current); e != nil {
+						return e
+					}
+					return output.ExitQuiet(1, "%s", current.Hint)
+				}
+				return output.Exitf(1, "%s", current.Hint)
+			}
 			return output.Exitf(2, "this visibility action is not currently available")
 		}
 		id, e := newUUID()
@@ -234,6 +246,9 @@ func (a *App) printVisibility(r visibilityResult) error {
 		return a.Out.JSONValue(r)
 	}
 	a.Out.Line("Visibility: %s", visibilityString(r.WorkVisibility, "access"))
+	if hint := retentionHint(r.WorkVisibility); hint != "" {
+		a.Out.Line("%s", hint)
+	}
 	return nil
 }
 func (a *App) visibilityUnknown(r visibilityResult, hint string) error {
@@ -246,4 +261,16 @@ func (a *App) visibilityUnknown(r visibilityResult, hint string) error {
 		return output.ExitQuiet(1, "%s", hint)
 	}
 	return output.Exitf(1, "%s", hint)
+}
+
+func retentionHint(v map[string]any) string {
+	r, _ := v["rewardRetention"].(map[string]any)
+	until, _ := r["publicUntil"].(string)
+	if until == "" {
+		return ""
+	}
+	if parsed, e := time.Parse(time.RFC3339Nano, until); e == nil {
+		until = parsed.In(time.Local).Format("2006-01-02 15:04:05 MST")
+	}
+	return fmt.Sprintf("This card received a Creator Season reward. You cannot change it to “Only me” or “Anyone with the link” before %s.", until)
 }

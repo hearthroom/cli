@@ -11,7 +11,7 @@ import (
 	"github.com/hearthroom/cli/internal/card"
 )
 
-func visibilityFixture(t *testing.T, post func(http.ResponseWriter, *http.Request), operation func(http.ResponseWriter, *http.Request)) (*httptest.Server, string, string) {
+func visibilityFixture(t *testing.T, post func(http.ResponseWriter, *http.Request), operation func(http.ResponseWriter, *http.Request), projection ...string) (*httptest.Server, string, string) {
 	t.Helper()
 	cfg := authTestEnv(t)
 	t.Setenv(auth.EnvToken, "tok")
@@ -26,6 +26,10 @@ func visibilityFixture(t *testing.T, post func(http.ResponseWriter, *http.Reques
 	mux.HandleFunc("GET /v1/me/cards/role-1/visibility", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer tok" {
 			t.Error("missing bearer")
+		}
+		if len(projection) > 0 {
+			_, _ = w.Write([]byte(projection[0]))
+			return
 		}
 		_, _ = w.Write([]byte(`{"workVisibility":{"access":"private","syncState":"complete","policyRevision":"p1","approvalRevision":"a1","actions":["set_private","set_unlisted","restore_public"]}}`))
 	})
@@ -257,5 +261,21 @@ func TestVisibilityPendingSetResumesRecordedIntentAfterReadback(t *testing.T) {
 	_, err = visibilityRun(t, srv, dir, cfg, "set", "unlisted")
 	if err != nil || posts != 2 {
 		t.Fatalf("same intent not resumed: posts=%d err=%v", posts, err)
+	}
+}
+
+func TestRetainedRewardRejectsVisibilityWithoutLosingDeadline(t *testing.T) {
+	fail := func(http.ResponseWriter, *http.Request) { t.Error("locked card mutated") }
+	srv, dir, cfg := visibilityFixture(t, fail, fail, `{"workVisibility":{"access":"public","syncState":"complete","policyRevision":"p1","approvalRevision":"a1","actions":["submit_update"],"rewardRetention":{"publicUntil":"2030-01-02T12:00:00Z","days":30,"recoveryCredits":13700}}}`)
+	out, err := visibilityRun(t, srv, dir, cfg, "set", "private")
+	if err == nil || !strings.Contains(out, `"error": "card_reward_public_locked"`) || !strings.Contains(out, "2030-01-02T12:00:00Z") {
+		t.Fatalf("%s %v", out, err)
+	}
+	folder, e := card.Load(dir)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if folder.State.VisibilityOperation != nil {
+		t.Fatal("rejected lock persisted a new operation")
 	}
 }

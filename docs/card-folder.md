@@ -280,3 +280,21 @@ paragraph or sentence boundaries, with shared `groupId` and increasing `groupOrd
 Joining the parts exactly restores the original text; the local file stays unsplit.
 Existing group settings are preserved, so an oversized author-grouped entry must
 be shortened by its author. Grouped parts count separately toward the trial limit.
+
+
+## Author history and offline preview
+
+Cards can probe `sdk.history?.capabilities().available` (sandbox) or
+`stage.history?.capabilities().available` (classic) before reading the complete
+owned conversation through `history.list`. Continue every page at the same
+revision, and treat stale, reset or unavailable results as unknown state rather
+than empty history. `history.onChange` is independent of viewport mount/unmount
+and returns an unsubscribe function. Only successful complete AI messages are
+safe state checkpoints; optional content excludes thinking, streaming bodies
+and moderation-withheld text.
+
+The local preview injects synthetic messages and has no authenticated Provider
+history. It does not prove complete live membership or cross-device change
+handling; cards must keep a readable fallback when this capability is missing.
+Verify actual delete, truncate and rewrite recovery through an isolated signed-in
+browser against the candidate Provider and stage before publishing.

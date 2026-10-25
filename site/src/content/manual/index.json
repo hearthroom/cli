@@ -49,6 +49,7 @@
       "card/push",
       "card/rate",
       "card/render",
+      "card/state",
       "card/status",
       "card/submit",
       "card/validate",
@@ -109,6 +110,49 @@
     "command": "hearthroom card render",
     "short": "Show an opening after the card's display rules, as the player's renderer receives it",
     "parent": "card"
+  },
+  {
+    "slug": "card/state",
+    "command": "hearthroom card state",
+    "short": "Show or manage the shared state players write on the linked card",
+    "parent": "card",
+    "children": [
+      "card/state/clear-draft",
+      "card/state/off",
+      "card/state/on",
+      "card/state/reset",
+      "card/state/show"
+    ]
+  },
+  {
+    "slug": "card/state/clear-draft",
+    "command": "hearthroom card state clear-draft",
+    "short": "Drop the data written while you playtested the draft",
+    "parent": "card/state"
+  },
+  {
+    "slug": "card/state/off",
+    "command": "hearthroom card state off",
+    "short": "Stop player reads and writes (data is kept)",
+    "parent": "card/state"
+  },
+  {
+    "slug": "card/state/on",
+    "command": "hearthroom card state on",
+    "short": "Resume player reads and writes",
+    "parent": "card/state"
+  },
+  {
+    "slug": "card/state/reset",
+    "command": "hearthroom card state reset",
+    "short": "Set one key back to zero",
+    "parent": "card/state"
+  },
+  {
+    "slug": "card/state/show",
+    "command": "hearthroom card state show",
+    "short": "Show live and draft totals and the switches",
+    "parent": "card/state"
   },
   {
     "slug": "card/status",

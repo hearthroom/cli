@@ -23,6 +23,7 @@ card-writing skills are: https://github.com/hearthroom/skills.
 - [`hearthroom card push`](/manual/card/push/) — Sync the folder to the provider (a private trial card by default)
 - [`hearthroom card rate`](/manual/card/rate/) — Answer the content-rating questionnaire and write rating.json
 - [`hearthroom card render`](/manual/card/render/) — Show an opening after the card's display rules, as the player's renderer receives it
+- [`hearthroom card state`](/manual/card/state/) — Show or manage the shared state players write on the linked card
 - [`hearthroom card status`](/manual/card/status/) — Show what a folder is linked to and which sections changed
 - [`hearthroom card submit`](/manual/card/submit/) — Submit the linked card for review on the community site, with its content rating
 - [`hearthroom card validate`](/manual/card/validate/) — Show the provider's pre-publish validation for the pushed card

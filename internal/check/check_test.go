@@ -292,3 +292,35 @@ func TestRatingNotice(t *testing.T) {
 		t.Fatalf("a current rating.json still reported: %v", msgs(r))
 	}
 }
+
+// External report (CLI 0.12.0): card check flagged sdk.shared and sdk.share.tallyLink as missing, and let a
+// one-option poll and maxStep 1001 through; the provider rejects both on push.
+func TestSharedStateScriptsAndDeclaration(t *testing.T) {
+	script := `<script>sdk.shared.read(['boss']).then(()=>sdk.shared.add('boss',1));sdk.shared.vote('p1','a');sdk.shared.leaderboard('boss');` +
+		`sdk.share.tallyLink('gate-1','p1').then(u=>sdk.share.qr(u));sdk.share.respond('a');sdk.share.results();if(sdk.share.poll){}</script>`
+	files := map[string]string{
+		"card.json":     `{"formatVersion":1,"name":"Mira","language":"en"}`,
+		"README.md":     "uiRole: assist\n",
+		"definition.md": "# Role\nStay in character.",
+		"welcome.md":    "Hello.",
+	}
+	ok := `{"polls":{"p1":{"options":["a","b"],"share":true}},"counters":{"boss":{"goal":1000,"maxStep":10,"perMember":100,"period":"week"}}}`
+	files["rules.json"] = `{"pageMode":"sandbox","sharedState":` + ok + `,"rules":[{"id":"s","name":"s","find":"/^$x/","replace":"` + strings.ReplaceAll(script, `"`, `\"`) + `","enabled":true}]}`
+	r, err := Card(write(t, t.TempDir(), files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if has(msgs(r), "error:", "shared") || has(msgs(r), "error:", "tallyLink") || has(msgs(r), "error:", "sharedState") {
+		t.Fatalf("shared-state API flagged as missing: %v", msgs(r))
+	}
+
+	bad := `{"polls":{"p1":{"options":["a"]}},"counters":{"boss":{"maxStep":1001,"perMember":5}}}`
+	files["rules.json"] = `{"pageMode":"sandbox","sharedState":` + bad + `,"rules":[]}`
+	r, err = Card(write(t, t.TempDir(), files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !has(msgs(r), "error:", `poll "p1" needs 2-12 options`) || !has(msgs(r), "error:", `counter "boss" maxStep must be 1-1000`) {
+		t.Fatalf("bad declaration not reported: %v", msgs(r))
+	}
+}

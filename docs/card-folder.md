@@ -204,6 +204,17 @@ provider's ids and let later pushes update instead of duplicate. `disabled: true
 `mountLayer` is `under`, `over` or `cover`; `pageMode` is `classic`,
 `immersive` or `sandbox`. `id` defaults to `rule-NN`.
 
+`sharedState` declares the polls and counters players can write on this card:
+
+```json
+"sharedState": {
+  "polls": { "p1-4": { "options": ["a", "b", "c"], "share": true } },
+  "counters": { "boss": { "goal": 100000, "maxStep": 50, "perMember": 500, "period": "week" } }
+}
+```
+
+Keys and option IDs are 1–64 letters, digits, `.`, `_` or `-`, starting with a letter or digit. At most 16 polls and 16 counters; a poll has 2–12 unique options, and `share: true` also allows it on share links. A counter needs `maxStep` (1–1000 per write) and `perMember` (each player's cap per period); `goal` is optional and `period` is `none`, `day` or `week` (UTC+8). `card check` reports a bad declaration. Pushing a file without `sharedState` leaves the server's declaration alone; write `"sharedState": {}` to clear it. Public cards carry it through review with the rest of the card.
+
 ### Sharing images and text
 
 Card scripts can offer image and text sharing from a player’s button click. In HTTPS card frames, the host delegates `web-share` and `clipboard-write`: `navigator.share` can receive a prepared image `File` plus text; `navigator.clipboard.write` with `ClipboardItem` can write a PNG, and `navigator.clipboard.writeText` can write a caption. These are browser APIs, not new `sdk` methods or HTTP endpoints.

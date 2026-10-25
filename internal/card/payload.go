@@ -220,6 +220,11 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 		if f.Rules.CardFormat != "" {
 			aa["cardFormat"] = f.Rules.CardFormat
 		}
+		// Sent only when the file has one, so cards without a declaration keep their digests; the
+		// server keeps an omitted declaration, so clearing it means writing "sharedState": {}.
+		if len(f.Rules.SharedState) > 0 {
+			aa["sharedState"] = f.Rules.SharedState
+		}
 		p.AuthorAsset = aa
 	}
 	return p, nil
@@ -294,13 +299,14 @@ type RemoteEntry struct {
 
 // RemoteAsset is GET /open/v1/role/author-asset.
 type RemoteAsset struct {
-	Rules        []DisplayRule `json:"rules"`
-	MountTrigger string        `json:"mountTrigger"`
-	MountLayer   string        `json:"mountLayer"`
-	PageMode     string        `json:"pageMode"`
-	CardFormat   string        `json:"cardFormat"`
-	Status       string        `json:"status"`
-	Version      int64         `json:"version"`
+	Rules        []DisplayRule   `json:"rules"`
+	MountTrigger string          `json:"mountTrigger"`
+	MountLayer   string          `json:"mountLayer"`
+	PageMode     string          `json:"pageMode"`
+	CardFormat   string          `json:"cardFormat"`
+	SharedState  json.RawMessage `json:"sharedState"`
+	Status       string          `json:"status"`
+	Version      int64           `json:"version"`
 }
 
 // FromRemote builds a folder from provider responses. lorebook may be nil.
@@ -355,8 +361,9 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 			f.State.LorebookEntryIDs = append(f.State.LorebookEntryIDs, e.EntryID)
 		}
 	}
-	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic") {
-		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat}
+	shared := declaredSharedState(asset)
+	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil) {
+		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat, SharedState: shared}
 		f.State.AuthorAssetVersion = asset.Version
 	}
 	f.State.RoleID = d.RoleID
@@ -374,4 +381,17 @@ func nullToNil(raw json.RawMessage) json.RawMessage {
 		return nil
 	}
 	return raw
+}
+
+// declaredSharedState is the server's declaration, or nil when nothing is declared ({} or absent),
+// so pulled rules.json files only carry the field when it means something.
+func declaredSharedState(asset *RemoteAsset) json.RawMessage {
+	if asset == nil {
+		return nil
+	}
+	s := strings.TrimSpace(string(asset.SharedState))
+	if s == "" || s == "{}" || s == "null" {
+		return nil
+	}
+	return asset.SharedState
 }

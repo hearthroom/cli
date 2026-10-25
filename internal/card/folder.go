@@ -112,6 +112,9 @@ type Rules struct {
 	MountLayer   string        `json:"mountLayer,omitempty"` // under | over | cover (default over)
 	PageMode     string        `json:"pageMode,omitempty"`   // classic | immersive | sandbox
 	CardFormat   string        `json:"cardFormat,omitempty"` // "" (MMD-style) | tavern: how <style> in rules is scoped
+	// SharedState declares the polls and counters players may write (sdk.shared). A push without it
+	// leaves the server's declaration alone; "sharedState": {} clears it.
+	SharedState json.RawMessage `json:"sharedState,omitempty"`
 }
 
 // DisplayRule is one find/replace rule.

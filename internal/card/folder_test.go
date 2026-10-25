@@ -1,6 +1,7 @@
 package card
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -349,5 +350,40 @@ func TestAssetRefsFindCodeAndDataFiles(t *testing.T) {
 	out := Rewrite(f.Rules.Rules[0].Replace, map[string]string{"assets/lib/game.mjs": "https://cdn/g.mjs", "assets/engine.wasm": "https://cdn/e.wasm"})
 	if !strings.Contains(out, `from "https://cdn/g.mjs"`) || !strings.Contains(out, `fetch('https://cdn/e.wasm')`) {
 		t.Fatalf("rewrite: %s", out)
+	}
+}
+
+// rules.json 的 sharedState（卡片共用狀態的宣告）：pull 寫進檔、push 原樣送出；檔裡沒有就不送
+// （伺服器保留原值，沒宣告的卡摘要不變），要清掉就寫 {}。
+func TestSharedStateRoundTripsThroughRulesFile(t *testing.T) {
+	decl := json.RawMessage(`{"polls":{"p1-4":{"options":["a","b"]}}}`)
+	asset := &RemoteAsset{Rules: []DisplayRule{}, PageMode: "sandbox", SharedState: decl, Version: 2}
+	f := FromRemote(t.TempDir(), RemoteDetail{RoleID: "r1", RoleName: "Mira"}, "", "", nil, asset)
+	if err := f.Save(); err != nil {
+		t.Fatal(err)
+	}
+	compact := func(b []byte) string { var out bytes.Buffer; _ = json.Compact(&out, b); return out.String() }
+	back, err := Load(f.Dir)
+	if err != nil || back.Rules == nil || compact(back.Rules.SharedState) != string(decl) {
+		t.Fatalf("pulled rules = %+v (%v)", back.Rules, err)
+	}
+	p, err := back.Build(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := json.Marshal(p.AuthorAsset["sharedState"]); compact(got) != string(decl) {
+		t.Fatalf("pushed sharedState = %s", got)
+	}
+	back.Rules.SharedState = nil
+	if p, _ = back.Build(nil); p.AuthorAsset["sharedState"] != nil {
+		t.Fatalf("a rules.json without sharedState must not send one (keeps digests of cards without it): %v", p.AuthorAsset["sharedState"])
+	}
+	back.Rules.SharedState = json.RawMessage(`{}`)
+	if p, _ = back.Build(nil); p.AuthorAsset["sharedState"] == nil {
+		t.Fatal("an explicit {} must be sent so the server clears the declaration")
+	}
+	empty := FromRemote(t.TempDir(), RemoteDetail{RoleID: "r2", RoleName: "Mira"}, "", "", nil, &RemoteAsset{Rules: []DisplayRule{}, PageMode: "sandbox", SharedState: json.RawMessage(`{}`)})
+	if empty.Rules == nil || empty.Rules.SharedState != nil {
+		t.Fatalf("an empty declaration should not be written into rules.json: %+v", empty.Rules)
 	}
 }

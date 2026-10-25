@@ -296,3 +296,36 @@ func TestStoredURLsIncludeReferencedDirectories(t *testing.T) {
 		t.Fatal("the rules built for comparison differ from the rules push sent")
 	}
 }
+
+// rules.json 的 sharedState 宣告在推送前先在本機檢查，規則跟伺服器一樣。
+func TestLocalCheckValidatesSharedState(t *testing.T) {
+	f, err := card.Init(t.TempDir(), "Shared", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Rules = &card.Rules{Rules: []card.DisplayRule{}, PageMode: "sandbox",
+		SharedState: json.RawMessage(`{"polls":{"p1":{"options":["a","b"]}},"counters":{"boss":{"maxStep":10,"perMember":100,"period":"week"}}}`)}
+	for _, p := range LocalCheck(f) {
+		if strings.Contains(p, "sharedState") {
+			t.Fatalf("a valid declaration was reported: %v", p)
+		}
+	}
+	for _, bad := range []string{
+		`{"polls":{"p1":{"options":["a"]}}}`,
+		`{"polls":{"~p":{"options":["a","b"]}}}`,
+		`{"counters":{"c":{"maxStep":2000,"perMember":1}}}`,
+		`{"counters":{"c":{"maxStep":1,"perMember":1,"period":"month"}}}`,
+		`{"votes":{}}`,
+	} {
+		f.Rules.SharedState = json.RawMessage(bad)
+		found := false
+		for _, p := range LocalCheck(f) {
+			if strings.Contains(p, "sharedState") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("LocalCheck missed %s", bad)
+		}
+	}
+}

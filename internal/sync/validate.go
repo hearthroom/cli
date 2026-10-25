@@ -93,6 +93,7 @@ func LocalCheck(f *card.Folder) []string {
 		default:
 			problems = append(problems, card.RulesFile+": pageMode must be classic, immersive or sandbox")
 		}
+		problems = append(problems, card.CheckSharedState(f.Rules.SharedState)...)
 	}
 	return problems
 }

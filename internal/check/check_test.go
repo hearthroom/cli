@@ -324,3 +324,33 @@ func TestSharedStateScriptsAndDeclaration(t *testing.T) {
 		t.Fatalf("bad declaration not reported: %v", msgs(r))
 	}
 }
+
+// Reading sdk.share's properties (enabled, context, audience, poll) is not calling a capability; a
+// misspelled property is still reported. The released 0.12.1 binary flagged sdk.share.poll.
+func TestShareProperties(t *testing.T) {
+	files := map[string]string{
+		"card.json":     `{"formatVersion":1,"name":"Mira","language":"en"}`,
+		"README.md":     "uiRole: assist\n",
+		"definition.md": "# Role\nStay in character.",
+		"welcome.md":    "Hello.",
+	}
+	rule := func(script string) string {
+		return `{"pageMode":"sandbox","rules":[{"id":"s","name":"s","find":"/^$x/","replace":"<script>` + strings.ReplaceAll(script, `"`, `\"`) + `</script>","enabled":true}]}`
+	}
+	files["rules.json"] = rule(`if(sdk.share.enabled&&sdk.share.context&&sdk.share.audience&&sdk.share.poll){}`)
+	r, err := Card(write(t, t.TempDir(), files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Errors() != 0 {
+		t.Fatalf("share properties flagged: %v", msgs(r))
+	}
+	files["rules.json"] = rule(`if(sdk.share.contxt){}`)
+	r, err = Card(write(t, t.TempDir(), files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !has(msgs(r), "error:", "sdk.share.contxt does not exist") {
+		t.Fatalf("misspelled property not reported: %v", msgs(r))
+	}
+}

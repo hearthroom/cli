@@ -425,7 +425,7 @@ func scanScript(code, where string, module bool, r *report) {
 			r.errorf(where, "sdk.%s does not exist on the sandbox page (keys: %s)", key, strings.Join(contract.SDK.Keys, ", "))
 			continue
 		}
-		if method != "" && !contains(caps, key+"."+method) {
+		if method != "" && !contains(caps, key+"."+method) && !(key == "share" && contains(contract.SDK.Share.Properties, method)) {
 			r.errorf(where, "sdk.%s.%s does not exist; a misspelled capability never runs and never errors", key, method)
 		}
 	}

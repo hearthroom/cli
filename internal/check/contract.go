@@ -23,6 +23,10 @@ type Contract struct {
 		Keys         []string `json:"keys"`
 		Capabilities []string `json:"capabilities"`
 		NotProvided  []string `json:"notProvided"`
+		// Share lists the values read off sdk.share (not capabilities you call).
+		Share struct {
+			Properties []string `json:"properties"`
+		} `json:"share"`
 	} `json:"sdk"`
 	Save struct {
 		KeyPattern string `json:"keyPattern"`

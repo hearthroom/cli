@@ -264,7 +264,12 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 		}
 		checkFind(rule, rw, r, &markers)
 		replace := activeHTML(rule.Replace)
-		if strings.Contains(replace, "[data-chat") || strings.Contains(replace, "[data-slot") || strings.Contains(replace, "--chat-") {
+		sdkUsage := scriptTag.ReplaceAllStringFunc(replace, func(script string) string {
+			match := scriptTag.FindStringSubmatch(script)
+			_, executable := scriptViews(match[2])
+			return executable
+		})
+		if strings.Contains(sdkUsage, "sdk.") || strings.Contains(sdkUsage, "[data-chat") || strings.Contains(sdkUsage, "[data-slot") || strings.Contains(sdkUsage, "--chat-") {
 			usesSDK = true
 		}
 		for _, m := range scriptTag.FindAllStringSubmatch(replace, -1) {
@@ -272,10 +277,6 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 				continue
 			}
 			// The sandbox shell keeps type="module" on rule scripts; the classic page does not.
-			_, executable := scriptViews(m[2])
-			if sdkCap.MatchString(executable) {
-				usesSDK = true
-			}
 			scanScript(m[2], rw, sandbox && typeModule.MatchString(m[1]), r)
 		}
 		scanHTML(rule.Replace, rw, r, true)

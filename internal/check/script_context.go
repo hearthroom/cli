@@ -31,9 +31,10 @@ func scriptViews(source string) (text, code string) {
 	lineEnd := func(i int) bool {
 		return i >= len(source) || source[i] == '\r' || source[i] == '\n' || strings.HasPrefix(source[i:], "\u2028") || strings.HasPrefix(source[i:], "\u2029")
 	}
+	// Contextual words (await/yield/of) can also be ordinary identifiers.
 	keyword := func(word string) bool {
 		switch word {
-		case "return", "throw", "case", "delete", "void", "typeof", "new", "in", "of", "yield", "await", "else", "do", "instanceof":
+		case "return", "throw", "case", "delete", "void", "typeof", "new", "in", "else", "do", "instanceof":
 			return true
 		}
 		return false
@@ -41,6 +42,7 @@ func scriptViews(source string) (text, code string) {
 	var walk func(int, bool) int
 	walk = func(i int, interpolation bool) int {
 		depth, regexAllowed, word := 0, true, ""
+		property := false
 		var parens []bool
 		for i < len(source) {
 			start, c := i, source[i]
@@ -149,7 +151,8 @@ func scriptViews(source string) (text, code string) {
 					i++
 				}
 				word = source[start:i]
-				regexAllowed = keyword(word)
+				regexAllowed = !property && keyword(word)
+				property = false
 				continue
 			}
 			i++
@@ -179,6 +182,7 @@ func scriptViews(source string) (text, code string) {
 			} else {
 				regexAllowed = c != ']' && c != '}' && c != '.'
 			}
+			property = c == '.' || c == '#' && property
 			word = ""
 		}
 		return i

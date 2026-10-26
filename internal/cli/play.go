@@ -81,6 +81,12 @@ With --json, every server event is printed as one JSON object per line.`,
 			if greeting < 0 {
 				return output.Exitf(2, "--greeting must be 0 (main) or an alternate's number")
 			}
+			// The explicit --role takes precedence over a positional folder. Hints
+			// must retain that same target instead of reviving an ignored argument.
+			hintArgs := args
+			if f == nil {
+				hintArgs = nil
+			}
 			ctx := cmd.Context()
 			pageSize := 0
 			if history {
@@ -140,7 +146,7 @@ With --json, every server event is printed as one JSON object per line.`,
 					a.Out.Line("%s", m.Text)
 				}
 				if page.OperationStatusAvailable && len(page.Operations) > 0 {
-					a.printPlayStatus(page.Operations[len(page.Operations)-1], args, roleID)
+					a.printPlayStatus(page.Operations[len(page.Operations)-1], hintArgs, roleID)
 				}
 				return nil
 			}
@@ -155,7 +161,7 @@ With --json, every server event is printed as one JSON object per line.`,
 					return output.Exit(2, e)
 				}
 				if !a.Out.JSON {
-					a.printPlayStatus(continuation.Operation, args, roleID)
+					a.printPlayStatus(continuation.Operation, hintArgs, roleID)
 				}
 				if !allowSpend {
 					return output.Exitf(3, "[COPY] Continuing charges new work; earlier charges remain. Re-run with --allow-spend; continuation can still fail.")
@@ -239,7 +245,7 @@ With --json, every server event is printed as one JSON object per line.`,
 			} else {
 				var status play.OperationStatus
 				if json.Unmarshal(res.Status, &status) == nil && status.State != "" {
-					a.printPlayStatus(status, args, roleID)
+					a.printPlayStatus(status, hintArgs, roleID)
 				}
 				if res.FinishReason != "" {
 					a.Out.Note("[finished: %s]", res.FinishReason)

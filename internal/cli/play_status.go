@@ -20,7 +20,9 @@ func (a *App) printPlayStatus(status play.OperationStatus, args []string, roleID
 		if len(args) > 0 {
 			target = playShellQuote(args[0])
 		}
-		a.Out.Note("[COPY] Continue saved preparation: hearthroom play %s --continue --allow-spend. Add --model <model> to switch models.", target)
+		a.Out.Note("[COPY] Continue saved preparation:")
+		a.Out.Note("hearthroom play %s --continue --allow-spend", target)
+		a.Out.Note("[COPY] Add --model <model> to switch models.")
 	}
 }
 func playShellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }

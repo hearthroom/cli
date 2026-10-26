@@ -154,3 +154,31 @@ func TestPlayHistoryShowsContinuationAndCharge(t *testing.T) {
 		t.Fatalf("bad machine status: %s notes=%s", out, notes)
 	}
 }
+
+func TestPlayContinuationHintUsesResolvedRole(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/open/v1/conversation/start":
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if body["roleId"] != "selected-role" {
+				t.Errorf("wrong role: %v", body)
+			}
+			fmt.Fprint(w, `{"conversationId":"conv1","historyConversation":true}`)
+		case "/open/v1/conversation/messages":
+			fmt.Fprint(w, `{"operationStatusAvailable":true,"operations":[{"operationId":"parent","conversationId":"conv1","sourceChatId":"u1","state":"failed_retryable","agentTurn":true,"allowedActions":["continue"],"settled":true}],"chats":[]}`)
+		default:
+			t.Errorf("unexpected request: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+	_, notes, err := runCLI(t, "play", "ignored-folder", "--role", "selected-role", "--history", "--api", srv.URL, "--config-dir", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(notes, "--role 'selected-role' --continue --allow-spend") || strings.Contains(notes, "ignored-folder") {
+		t.Fatalf("hint changes the actual target: %s", notes)
+	}
+}

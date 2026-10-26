@@ -41,7 +41,7 @@ func TestBulkPushResumesAfterFailure(t *testing.T) {
 			roles++
 			var b map[string]any
 			json.NewDecoder(r.Body).Decode(&b)
-			if b["visibility"] != "private" {
+			if b["visibility"] != "unlisted" {
 				t.Errorf("create visibility=%v", b["visibility"])
 			}
 			reply(map[string]any{"roleId": "r"})

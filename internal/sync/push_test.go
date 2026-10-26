@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -327,5 +328,61 @@ func TestLocalCheckValidatesSharedState(t *testing.T) {
 		if !found {
 			t.Errorf("LocalCheck missed %s", bad)
 		}
+	}
+}
+
+func TestOwnedCreateDefaultsToUnlistedAndResumePreservesVisibility(t *testing.T) {
+	for _, pending := range []bool{false, true} {
+		t.Run(fmt.Sprint(pending), func(t *testing.T) {
+			f, err := card.Init(t.TempDir(), "Visibility fixture", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if pending {
+				f.State.Target = "owned"
+				f.State.RoleID = "owned1"
+				f.State.OwnedPushPending = true
+				f.State.PrivatePending = true
+			}
+			creates, visibilityWrites := 0, 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/open/v1/role" {
+					creates++
+					var body map[string]any
+					json.NewDecoder(r.Body).Decode(&body)
+					if body["visibility"] != "unlisted" {
+						t.Errorf("create visibility=%v", body["visibility"])
+					}
+					json.NewEncoder(w).Encode(map[string]any{"roleId": "owned1", "roleVisibility": "unlisted"})
+					return
+				}
+				if strings.HasSuffix(r.URL.Path, "/visibility") {
+					visibilityWrites++
+				}
+				w.Write([]byte("{}"))
+			}))
+			defer srv.Close()
+			c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+			res, err := Push(context.Background(), c, f, PushOptions{Create: true, SkipMedia: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded, _ := json.Marshal(res)
+			var result map[string]any
+			json.Unmarshal(encoded, &result)
+			if !pending && result["roleVisibility"] != "unlisted" {
+				t.Errorf("confirmed roleVisibility=%v", result["roleVisibility"])
+			}
+			wantCreates := 1
+			if pending {
+				wantCreates = 0
+			}
+			if creates != wantCreates || visibilityWrites != 0 {
+				t.Fatalf("creates=%d visibilityWrites=%d", creates, visibilityWrites)
+			}
+			if f.State.PrivatePending {
+				t.Fatal("obsolete compatibility flag retained")
+			}
+		})
 	}
 }

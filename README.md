@@ -70,7 +70,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 
 - **Cards are folders.** Long text in Markdown (`definition.md`, `welcome.md`, `openings/*.md`, and an optional `intro.md` for the card page), short fields in `card.json`, the Lorebook in `lorebook.json`, display rules in `rules.json`, media under `assets/`. The format is versioned and documented in [docs/card-folder.md](docs/card-folder.md), so you can keep cards in git and let agents edit them.
 - **Push is one command.** Assets referenced from the folder are uploaded once and rewritten to their served URLs; the card is written in sections and only changed sections travel.
-- **Trial cards are a sandbox.** By default `push` writes to a private *trial card*: it expires three days after the last push, the provider keeps at most five per account (`--evict` frees the oldest), and the website's card inventory does not list it, though the play link works. When the card is ready to keep, `push --create` makes a real private card that shows up on the site and can be submitted for review (`card rate`, then `card submit`), and later pushes update it; `push --to <id>` writes into a card you already own, for example one you pulled.
+- **Trial cards are a sandbox.** By default `push` writes to a private *trial card*: it expires three days after the last push, the provider keeps at most five per account (`--evict` frees the oldest), and the website's card inventory does not list it. Its play link works for the author. When you want to keep the card, `push --create` makes a real card under your account, unlisted by default: anyone with the link can play its latest saved content, including changes that have not passed review. It stays out of public listings. Later pushes update that card and preserve its visibility; `push --to <id>` writes into a card you already own. You can change an owned card's visibility with `card visibility set private <dir>`, `set unlisted <dir>` or `set public <dir>`. Creation does not submit the card for review; `card rate` and `card submit` are separate steps.
 - **Validate is the provider's word.** Character limits and quality checks come from the server per card language; the CLI shows them next to your counts and exits non-zero on blockers.
 - **Play is opt-in.** Starting a conversation and reading history are free. Sending a message spends credits, so it runs only with `--allow-spend`, streams the reply, and reports what was settled.
 - **Everything speaks JSON.** Add `--json` to any command for stable machine output; `play --json` emits one event per line.
@@ -100,9 +100,11 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `models` · `wallet` · `whoami` | Provider catalog, balance, identity |
 | `upgrade` | Update to the latest release (`--check` only reports) |
 
-`card visibility` works on a folder linked to an owned card. `private` keeps it
-for the author; other players can read their existing conversations but cannot
-continue. `unlisted` lets anyone with the link play the latest saved content,
+`card visibility` works on a folder linked to an owned card. `private` lets the author and previous players continue conversations or
+start new ones, with normal charges; people who have never played the card
+cannot open it. Previous players retain access to versions they have played
+and approved versions of the same work. Other drafts and unplayed versions
+awaiting review remain private. `unlisted` lets anyone with the link play the latest saved content,
 without appearing in Discover, rankings or search. `public` restores an unchanged
 approved version. If the server returns `review_required`, review needs the
 author's explicit request through `card rate` and `card submit`; visibility never

@@ -19,9 +19,9 @@ import (
 
 // PushOptions control a push.
 type PushOptions struct {
-	// To targets an owned private card instead of a trial card.
+	// To targets an owned card instead of a trial card.
 	To string
-	// Create makes a new private card and targets it (implies owned).
+	// Create makes a new unlisted card and targets it (implies owned).
 	Create bool
 	// Evict frees a trial slot when all are used.
 	Evict bool
@@ -45,22 +45,23 @@ type PushOptions struct {
 
 // PushResult reports what happened.
 type PushResult struct {
-	PruneEntries []string          `json:"pruneEntries,omitempty"`
-	Grouped      []GroupedEntry    `json:"grouped,omitempty"`
-	Target       string            `json:"target"`
-	RoleID       string            `json:"roleId"`
-	TrialKey     string            `json:"trialKey,omitempty"`
-	Created      bool              `json:"created"`
-	ExpiresAt    string            `json:"expiresAt,omitempty"`
-	Changed      []string          `json:"changed"`
-	Unchanged    []string          `json:"unchanged"`
-	Skipped      []string          `json:"skipped,omitempty"`
-	Assets       []media.Outcome   `json:"assets,omitempty"`
-	MediaDir     string            `json:"mediaFolder,omitempty"`
-	Slots        map[string]any    `json:"slots,omitempty"`
-	Sections     map[string]string `json:"sections,omitempty"`
-	DryRun       bool              `json:"dryRun,omitempty"`
-	AssetError   bool              `json:"assetErrors,omitempty"`
+	PruneEntries   []string          `json:"pruneEntries,omitempty"`
+	Grouped        []GroupedEntry    `json:"grouped,omitempty"`
+	Target         string            `json:"target"`
+	RoleID         string            `json:"roleId"`
+	RoleVisibility string            `json:"roleVisibility,omitempty"`
+	TrialKey       string            `json:"trialKey,omitempty"`
+	Created        bool              `json:"created"`
+	ExpiresAt      string            `json:"expiresAt,omitempty"`
+	Changed        []string          `json:"changed"`
+	Unchanged      []string          `json:"unchanged"`
+	Skipped        []string          `json:"skipped,omitempty"`
+	Assets         []media.Outcome   `json:"assets,omitempty"`
+	MediaDir       string            `json:"mediaFolder,omitempty"`
+	Slots          map[string]any    `json:"slots,omitempty"`
+	Sections       map[string]string `json:"sections,omitempty"`
+	DryRun         bool              `json:"dryRun,omitempty"`
+	AssetError     bool              `json:"assetErrors,omitempty"`
 }
 
 var trialKeyRe = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
@@ -160,7 +161,7 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 		if pre.Worldbook != nil {
 			_, keys, groups := prepareEntries(f, pre.Worldbook, limit)
 			if !owned && len(keys) > limits.TrialMaxEntries {
-				return nil, fmt.Errorf("trial cards allow %d Lorebook entries; this card needs %d after grouping; use --create to save a private draft card", limits.TrialMaxEntries, len(keys))
+				return nil, fmt.Errorf("trial cards allow %d Lorebook entries; this card needs %d after grouping; use --create for a larger owned card (unlisted by default; anyone with the link can play its latest saved content)", limits.TrialMaxEntries, len(keys))
 			}
 			res.Grouped = groups
 			for _, g := range groups {
@@ -371,7 +372,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		return res, nil
 	}
 	if (opts.Create && !f.State.OwnedPushPending) || roleID == "" {
-		body := map[string]any{"roleName": p.Name, "origin": "hearthroom", "visibility": "private"}
+		body := map[string]any{"roleName": p.Name, "origin": "hearthroom", "visibility": "unlisted"}
 		if f.Manifest.Language != "" {
 			body["language"] = f.Manifest.Language
 		}
@@ -387,11 +388,12 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			return nil, errors.New("create card: no id in response")
 		}
 		res.Created = true
+		res.RoleVisibility = out.Visibility
 		// Persist identity before follow-up work, including compatibility visibility.
 		f.State.RoleID, f.State.Target, f.State.API = roleID, "owned", c.API
 		f.State.LocalHashes = map[string]string{}
 		f.State.OwnedPushPending = true
-		f.State.PrivatePending = out.Visibility == "unlisted"
+		f.State.PrivatePending = false
 		f.State.LorebookID = ""
 		f.State.IgnoreLocalLorebook = true
 		f.State.LorebookEntryIDs = nil
@@ -428,15 +430,11 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			}
 		}
 	}
-	if f.State.PrivatePending {
-		if err := c.OpenPost(ctx, "/role/"+roleID+"/visibility", map[string]any{"visibility": "private"}, nil); err != nil {
-			return nil, fmt.Errorf("make created card private: %w", err)
-		}
-		f.State.PrivatePending = false
-		if err := f.SaveState(); err != nil {
-			return nil, err
-		}
-	}
+	// Older clients recorded a compatibility request to make the created card
+	// private. Resuming content must preserve the author's current visibility;
+	// never replay that stale implicit request over a later explicit choice.
+	f.State.PrivatePending = false
+
 	f.State.Target = "owned"
 	f.State.RoleID = roleID
 	f.State.API = c.API

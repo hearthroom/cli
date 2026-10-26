@@ -8,9 +8,10 @@ parent: "card"
 # hearthroom card submit
 
 Sends the card the folder is linked to, as last pushed, for review on the
-community site, together with the answers in rating.json (see card rate). Only
-a card you own can be submitted: a trial card cannot, so run
-"hearthroom card push --create" first to make a private card from the folder.
+community site, together with the answers in rating.json (see card rate).
+Only a card you own can be submitted. A trial card cannot; to keep it first,
+run "hearthroom card push --create". The new card defaults to unlisted:
+anyone with its link can play the latest saved content before review.
 Local edits that were not pushed are not part of the submission.
 
 Each submission carries an operation id kept in .hearthroom/state.json until

@@ -96,10 +96,16 @@ func (a *App) cardPush() *cobra.Command {
 
 Without --to or --create the target is a trial card: a private card the
 provider keeps for three days after the last push (five per account; --evict
-frees the oldest). It is the fastest way to play what you just edited, but the
-website's card inventory does not list trial cards. To keep the card, push with
---create once; the folder then remembers the new private card and later pushes
-update it. --to <roleId> writes into a card you already own.
+frees the oldest). The website's card inventory does not list trial cards.
+To keep the card, push with --create once. The new card appears in your
+inventory and defaults to unlisted: anyone with its link can play the latest
+saved content, including changes that have not passed review.
+The folder remembers the new card and later pushes update it.
+--to <roleId> writes into a card you already own.
+
+To change an owned card's visibility, use card visibility set private <dir>,
+set unlisted <dir> or set public <dir>. Creating a card does not submit it for
+review or add it to public listings.
 
 The Play link it prints opens your saved draft (?mode=source). The website's
 "Play draft" button opens the same draft.
@@ -127,9 +133,8 @@ rerun the same command after an interruption to continue. Keep that state file.
 Long entries without group settings are split at paragraph or sentence boundaries,
 with shared groupId and increasing groupOrder; the original text stays in your
 files. Existing group settings are sent as written. Trial cards hold at most the
-provider's entry limit; use --create for a larger private draft. Private cards
-are accessible to the author and explicitly authorized clients; unlisted cards
-can also be opened by anyone with their link.
+provider's entry limit; use --create for a larger owned card. New owned cards
+default to unlisted; anyone with the link can play the latest saved content.
 
 Disabled Lorebook entries are uploaded and remain disabled. Entries removed
 locally are deleted from an owned card only with --prune; otherwise push lists
@@ -203,8 +208,8 @@ them and stops before writing the Lorebook. Entries created by other tools are k
 			return nil
 		},
 	}
-	c.Flags().StringVar(&opts.To, "to", "", "write to an owned private card by id instead of a trial card")
-	c.Flags().BoolVar(&opts.Create, "create", false, "create a new private card and write to it")
+	c.Flags().StringVar(&opts.To, "to", "", "write to a card you own by id instead of a trial card")
+	c.Flags().BoolVar(&opts.Create, "create", false, "create a new owned card (unlisted by default) and write to it")
 	c.Flags().BoolVar(&opts.Evict, "evict", false, "free the least recently used trial slot when all are in use")
 	c.Flags().BoolVar(&opts.DryRun, "dry-run", false, "show what would be sent without sending")
 	c.Flags().BoolVar(&opts.Prune, "prune", false, "delete CLI-managed Lorebook entries removed from the local file")
@@ -228,6 +233,11 @@ func (a *App) printPush(res *sync.PushResult) {
 		target = "new " + target
 	}
 	a.Out.Line("%s to %s %s", verb, target, res.RoleID)
+	if res.RoleVisibility == "unlisted" {
+		a.Out.Line("Visibility: unlisted (anyone with the link can play the latest saved content)")
+	} else if res.RoleVisibility == "private" || res.RoleVisibility == "public" {
+		a.Out.Line("Visibility: %s", res.RoleVisibility)
+	}
 	for _, o := range res.Assets {
 		switch {
 		case o.Err != "":

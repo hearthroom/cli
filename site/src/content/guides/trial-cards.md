@@ -26,7 +26,7 @@ The folder remembers its trial card in `.hearthroom/state.json`, so later pushes
 hearthroom card push my-card --create
 ```
 
-- Creates a private card that stays. It appears in the website's card inventory and can be submitted for community review there.
+- Creates a card that stays and appears in your inventory, unlisted by default. Anyone with its link can play the latest saved content, including changes that have not passed review; it stays out of public listings.
 - After `--create` the folder is linked to that card; plain `hearthroom card push my-card` keeps updating it.
 - `--to <roleId>` links the folder to a card you already own instead, for example one you pulled with `hearthroom card pull`.
 
@@ -64,6 +64,4 @@ writes. All parts share `groupId` and have increasing `groupOrder`; joining thei
 contents exactly restores the original. Your files stay unsplit. Existing author
 groups are sent unchanged and remain subject to the provider's content limit.
 
-`--create` requests **private** access: the author and explicitly authorized clients
-can access the card. **Unlisted** access also lets anyone with the link open it.
-Creating a card does not publish it or submit it for review.
+`--create` defaults to **unlisted**: anyone with the link can play the latest saved content, including changes that have not passed review. Creating a card does not submit it for review or add it to public listings. To change an owned card's visibility, use `hearthroom card visibility set private my-card`, `set unlisted my-card` or `set public my-card`. Later pushes preserve its visibility. Trial cards stay private.

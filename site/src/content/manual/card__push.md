@@ -11,10 +11,16 @@ Uploads referenced assets, then writes the card in sections.
 
 Without --to or --create the target is a trial card: a private card the
 provider keeps for three days after the last push (five per account; --evict
-frees the oldest). It is the fastest way to play what you just edited, but the
-website's card inventory does not list trial cards. To keep the card, push with
---create once; the folder then remembers the new private card and later pushes
-update it. --to <roleId> writes into a card you already own.
+frees the oldest). The website's card inventory does not list trial cards.
+To keep the card, push with --create once. The new card appears in your
+inventory and defaults to unlisted: anyone with its link can play the latest
+saved content, including changes that have not passed review.
+The folder remembers the new card and later pushes update it.
+--to <roleId> writes into a card you already own.
+
+To change an owned card's visibility, use card visibility set private <dir>,
+set unlisted <dir> or set public <dir>. Creating a card does not submit it for
+review or add it to public listings.
 
 The Play link it prints opens your saved draft (?mode=source). The website's
 "Play draft" button opens the same draft.
@@ -42,9 +48,8 @@ rerun the same command after an interruption to continue. Keep that state file.
 Long entries without group settings are split at paragraph or sentence boundaries,
 with shared groupId and increasing groupOrder; the original text stays in your
 files. Existing group settings are sent as written. Trial cards hold at most the
-provider's entry limit; use --create for a larger private draft. Private cards
-are accessible to the author and explicitly authorized clients; unlisted cards
-can also be opened by anyone with their link.
+provider's entry limit; use --create for a larger owned card. New owned cards
+default to unlisted; anyone with the link can play the latest saved content.
 
 Disabled Lorebook entries are uploaded and remain disabled. Entries removed
 locally are deleted from an owned card only with --prune; otherwise push lists
@@ -60,13 +65,13 @@ hearthroom card push [dir] [flags]
 
 ```
       --concurrency int   files uploaded at once, 1 to 16; HEARTHROOM_UPLOAD_CONCURRENCY changes the default (default 6)
-      --create            create a new private card and write to it
+      --create            create a new owned card (unlisted by default) and write to it
       --dry-run           show what would be sent without sending
       --evict             free the least recently used trial slot when all are in use
       --force             send every section even if unchanged; also skips the readiness check
       --prune             delete CLI-managed Lorebook entries removed from the local file
       --skip-media        do not upload assets; keep previously uploaded URLs
-      --to string         write to an owned private card by id instead of a trial card
+      --to string         write to a card you own by id instead of a trial card
       --validate          run the server validation after pushing
 ```
 

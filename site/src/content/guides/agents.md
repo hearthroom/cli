@@ -58,13 +58,19 @@ Starting a conversation, reading history, pushing, validating, rendering, import
 
 ## A typical loop
 
+Work on trial cards or cards the author has authorized you to edit. Run
+--create only when the author asks to keep a new card. It defaults to
+unlisted: anyone with the link can play its latest saved content, including
+changes that have not passed review. Follow the author's existing editing
+authorization; do not submit for review or change visibility automatically.
+
 ```sh
 hearthroom card import mira.png --language en   # SillyTavern PNG → folder, with a report of unmapped fields
 $EDITOR Mira/definition.md Mira/welcome.md
 hearthroom card push Mira --validate --json     # private trial card + the provider's report
 hearthroom card render Mira --json              # the opening after the display rules, each rule's outcome, a static scan
 hearthroom play Mira -m "Who are you?" --allow-spend --json
-hearthroom card push Mira --create              # keep it: a real private card that shows on the site
+hearthroom card push Mira --create              # only when asked: keep it, unlisted by default
 ```
 
 ## The card folder

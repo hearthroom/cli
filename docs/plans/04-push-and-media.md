@@ -13,6 +13,9 @@ rewriting references, so the author can play the result immediately.
   ≤ 64 chars). The server returns per-section content hashes; the CLI stores
   them and only re-sends sections whose local hash differs. `--evict` passes
   the server flag that frees a slot when all trial slots are used.
+
+Historical design: new owned cards now default to unlisted; trial cards remain private.
+
 - **Owned card.** `card push --to <roleId>` writes to a private card the caller
   owns: `POST /role/{roleId}/document` (fields), `PATCH /role/{roleId}/welcome`
   (opening, alternates, prologue), `PUT /role/{roleId}/author-asset` (rules,

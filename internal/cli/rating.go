@@ -424,9 +424,10 @@ func (a *App) cardSubmit() *cobra.Command {
 		Use:   "submit [dir]",
 		Short: "Submit the linked card for review on the community site, with its content rating",
 		Long: `Sends the card the folder is linked to, as last pushed, for review on the
-community site, together with the answers in rating.json (see card rate). Only
-a card you own can be submitted: a trial card cannot, so run
-"hearthroom card push --create" first to make a private card from the folder.
+community site, together with the answers in rating.json (see card rate).
+Only a card you own can be submitted. A trial card cannot; to keep it first,
+run "hearthroom card push --create". The new card defaults to unlisted:
+anyone with its link can play the latest saved content before review.
 Local edits that were not pushed are not part of the submission.
 
 Each submission carries an operation id kept in .hearthroom/state.json until
@@ -451,9 +452,9 @@ listing quota. Run it only when the author asks.`,
 			}
 			switch {
 			case f.State.RoleID == "":
-				return output.Exitf(2, "this folder is not linked to a card: `hearthroom card push --create %s` makes a private card you own, then submit it", dir)
+				return output.Exitf(2, "this folder is not linked to a card: `hearthroom card push --create %s` creates a card you own, unlisted by default; anyone with its link can play the latest saved content before review", dir)
 			case f.State.Target != "owned":
-				return output.Exitf(2, "this folder is linked to trial card %s, which cannot be submitted for review: `hearthroom card push --create %s` makes a private card you own, then submit it", f.State.RoleID, dir)
+				return output.Exitf(2, "this folder is linked to trial card %s, which cannot be submitted for review: `hearthroom card push --create %s` creates a card you own, unlisted by default; anyone with its link can play the latest saved content before review", f.State.RoleID, dir)
 			}
 			if err := a.RequireAuth(); err != nil {
 				return err

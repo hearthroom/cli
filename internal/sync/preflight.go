@@ -3,6 +3,7 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"unicode/utf8"
 
@@ -66,6 +67,16 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 		defaults["agency"] = alias
 	}
 	problems = append(problems, card.CheckResponseDefaults(defaults)...)
+	for _, slot := range []struct{ wire, local string }{{"roleAvatar", "portrait"}, {"roleBackground", "background"}, {"roleBackgroundLandscape", "backgroundLandscape"}, {"roleShareImage", "share"}} {
+		raw, _ := p.Card[slot.wire].(string)
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+			add("Invalid media URL in card.json: media.%s. Correct the URL before pushing.", slot.local)
+		}
+	}
 	var sizes []RuleSize
 	if p.AuthorAsset != nil {
 		allowed := func(key string, values ...string) {

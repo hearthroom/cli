@@ -404,3 +404,38 @@ func TestPreflightRejectsImpossibleScriptSwitchBeforeRules(t *testing.T) {
 		})
 	}
 }
+
+func TestMalformedMediaRejectedBeforeRules(t *testing.T) {
+	for _, raw := range []string{"https://[bad", "https://", "https://cdn.example:bad/image.svg"} {
+		t.Run(raw, func(t *testing.T) {
+			writes := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "GET" {
+					writes++
+				}
+				w.Write([]byte(`{"language":"en","version":1}`))
+			}))
+			defer srv.Close()
+			f, _ := card.Init(t.TempDir(), "Malformed", "en")
+			f.Manifest.Media.Background = raw
+			f.Rules = &card.Rules{Rules: []card.DisplayRule{{Find: "x", Replace: "new rule"}}}
+			c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+			_, err := Push(context.Background(), c, f, PushOptions{To: "owned", SkipMedia: true})
+			if err == nil || !strings.Contains(err.Error(), "media.background") || writes != 0 {
+				t.Fatalf("err=%v writes=%d", err, writes)
+			}
+		})
+	}
+}
+
+func TestPreflightDoesNotApplyExternalPolicyToHostedAliases(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(`{"language":"en","version":1}`)) }))
+	defer srv.Close()
+	f, _ := card.Init(t.TempDir(), "Alias", "en")
+	f.Manifest.Media.Background = "http://hosted.example/library/image.svg"
+	f.Rules = &card.Rules{Rules: []card.DisplayRule{{Find: "x", Replace: "rule"}}}
+	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+	if _, err := Push(context.Background(), c, f, PushOptions{To: "owned", SkipMedia: true}); err != nil {
+		t.Fatal(err)
+	}
+}

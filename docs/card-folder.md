@@ -290,6 +290,26 @@ the last push, so only changed sections are sent.
 | `worldbook` | `lorebook.json` |
 | `authorAsset` | `rules.json` |
 
+## Push preflight and partial updates
+
+`card push --dry-run` checks limits without uploading media, writing card
+content or changing local state. It reports each display rule's replacement
+size after URL rewriting in UTF-8 bytes, its limit and the bytes remaining.
+JSON includes `push.rules[]` and `push.rulesTotal`.
+
+Owned pushes write display rules before configuration text, openings and
+Lorebook entries. If the rules are not confirmed as saved, the push stops
+before writing those sections. A later section can still fail after the rules
+have been saved, so a push is not an atomic whole-card update. Keep
+`.hearthroom/state.json` to preserve resume progress. If a save result is
+unknown, check the saved rules before pushing again; otherwise, correct the
+reported problem and rerun the same command to resume.
+
+If the provider assigns new media URLs only after upload, dry-run cannot
+report exact rewritten sizes for content that uses those URLs. A real push
+uploads the media and checks sizes before writing card content. Uploaded
+media and its local resume progress may remain even if that check fails.
+
 ## .hearthroom/state.json
 
 Written by the CLI. Keep this file when resuming an interrupted push: it links the

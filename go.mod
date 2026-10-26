@@ -7,6 +7,7 @@ require (
 	github.com/chromedp/chromedp v0.20.1
 	github.com/coder/websocket v1.8.15
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/text v0.42.0
 )
 
 require (

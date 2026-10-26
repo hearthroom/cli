@@ -65,3 +65,18 @@ Assertions check counts, stable entry identities, enabled state, matching option
 and author group settings. Provider acceptance additionally reads the persisted
 PostgreSQL rows; an HTTP fixture alone does not prove the receiving service saves
 all entries.
+
+## Push preflight source contract
+
+The regular suite covers exact rewritten UTF-8 rule sizes, zero card writes on
+preflight or author-asset rejection, partial progress and dry-run state isolation.
+To also compare limits with the receiving Provider source, run:
+
+```sh
+HEARTHROOM_PROVIDER_SOURCE=/path/to/server/provider \
+  go test ./internal/sync -run TestProviderPreflightContract -v
+```
+
+This source check requires no server process or database. Without the variable,
+that additional cross-repository check is explicitly skipped; HTTP fixtures do
+not prove a deployed Provider's behavior.

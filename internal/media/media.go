@@ -4,8 +4,10 @@ package media
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/text/unicode/norm"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -16,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
@@ -316,7 +320,7 @@ func foreignFiles(ctx context.Context, c *api.Client, f *card.Folder, libraryPre
 
 // escapePath percent-escapes each segment the way the library serves it.
 func escapePath(p string) string {
-	parts := strings.Split(p, "/")
+	parts := strings.Split(norm.NFC.String(p), "/")
 	for i := range parts {
 		parts[i] = url.PathEscape(parts[i])
 	}
@@ -378,6 +382,19 @@ var saveEvery = 2 * time.Second
 // Sync stops starting uploads, saves what finished and returns ctx's error.
 func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities, opts SyncOptions) (map[string]string, []Outcome, error) {
 	dryRun := opts.DryRun
+	if dryRun {
+		// Planning follows moved files but never changes the caller's resumable state.
+		clone := *f
+		raw, err := json.Marshal(f.State)
+		if err != nil {
+			return nil, nil, err
+		}
+		clone.State = card.State{}
+		if err := json.Unmarshal(raw, &clone.State); err != nil {
+			return nil, nil, err
+		}
+		f = &clone
+	}
 	present, missing := f.AssetRefs()
 	urls := map[string]string{}
 	var outcomes []Outcome
@@ -413,7 +430,10 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 		}
 		remotePath := ""
 		if caps.RelativePaths {
-			remotePath = path.Join(folder, strings.TrimPrefix(rel, card.AssetsDir+"/"))
+			remotePath = norm.NFC.String(path.Join(folder, strings.TrimPrefix(rel, card.AssetsDir+"/")))
+			if err := checkLibraryPath(remotePath); err != nil {
+				return nil, nil, fmt.Errorf("media %s: %w", rel, err)
+			}
 		}
 		prev, had := f.State.Assets[rel]
 		// Compare served URLs, not names: a library rename changes the shown
@@ -444,7 +464,10 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 			continue
 		}
 		if dryRun {
-			outcomes = append(outcomes, Outcome{Path: rel, Uploaded: true, Previous: previous})
+			if want != "" {
+				urls[rel] = want
+			}
+			outcomes = append(outcomes, Outcome{Path: rel, URL: want, Uploaded: true, Previous: previous})
 			continue
 		}
 		// The outcome slot is filled when the upload finishes.
@@ -581,6 +604,24 @@ func runUploads(parent context.Context, c *api.Client, f *card.Folder, jobs []up
 	if gaveUp != nil {
 		save()
 		return fmt.Errorf("upload stopped after %d of %d files; the finished ones are saved, push again to send the rest: %w", p.Done-p.Failed, p.Total, gaveUp)
+	}
+	return nil
+}
+
+// Same named-path contract as provider service/media.NormalizeLibraryPath.
+func checkLibraryPath(p string) error {
+	if p == "" || len(p) > 1024 || strings.Contains(p, `\`) {
+		return errors.New(`Media library paths must be nonempty, use / instead of \, and contain at most 1024 bytes. Check media.folder and the asset path before pushing.`)
+	}
+	for _, part := range strings.Split(p, "/") {
+		if part == "" || part == "." || part == ".." || utf8.RuneCountInString(part) > 255 {
+			return errors.New(`Each media library path segment must contain 1-255 characters and cannot be "." or "..". Rename the affected file or folder before pushing.`)
+		}
+		for _, r := range part {
+			if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+				return errors.New("Media library paths cannot contain control or invisible formatting characters. Rename the affected file or folder before pushing.")
+			}
+		}
 	}
 	return nil
 }

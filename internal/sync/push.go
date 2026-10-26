@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -61,6 +62,8 @@ type PushResult struct {
 	Slots          map[string]any    `json:"slots,omitempty"`
 	Sections       map[string]string `json:"sections,omitempty"`
 	DryRun         bool              `json:"dryRun,omitempty"`
+	RulesTotal     *RuleTotalSize    `json:"rulesTotal,omitempty"`
+	Rules          []RuleSize        `json:"rules,omitempty"`
 	AssetError     bool              `json:"assetErrors,omitempty"`
 }
 
@@ -88,12 +91,26 @@ func trialKeyFor(dir string) (string, error) {
 // failure (so already-uploaded assets are not re-uploaded).
 func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) (*PushResult, error) {
 	res := &PushResult{DryRun: opts.DryRun}
+	if opts.DryRun {
+		clone := *f
+		raw, err := json.Marshal(f.State)
+		if err != nil {
+			return nil, err
+		}
+		clone.State = card.State{}
+		if err := json.Unmarshal(raw, &clone.State); err != nil {
+			return nil, err
+		}
+		f = &clone
+	}
+
 	if opts.Create && opts.To != "" {
 		return nil, errors.New("--create and --to cannot be combined")
 	}
 	if err := card.CheckLanguage(f.Manifest.Language); err != nil {
 		return nil, fmt.Errorf("%s: %w", card.ManifestFile, err)
 	}
+	opts.limits.TrialMaxEntries = 1000
 	owned := opts.Create || opts.To != "" || (f.State.Target == "owned" && f.State.RoleID != "")
 	if opts.To != "" && f.State.RoleID != "" && f.State.RoleID != opts.To && f.State.Target == "owned" && !opts.Force {
 		return nil, fmt.Errorf("this folder is linked to card %s; pass --to %s again with --force to relink", f.State.RoleID, opts.To)
@@ -101,6 +118,28 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 
 	if f.State.API != "" && f.State.API != c.API && f.State.RoleID != "" {
 		return nil, errors.New("this folder is linked to a different provider; use a separate folder for another provider")
+	}
+	language := f.Manifest.Language
+	target := opts.To
+	if target == "" && (!opts.Create || f.State.OwnedPushPending) {
+		target = f.State.RoleID
+	}
+	if target != "" {
+		var remote card.RemoteDetail
+		if err := c.OpenGet(ctx, "/role/detail", url.Values{"roleId": {target}}, &remote); err != nil && (owned || !api.IsStatus(err, 404)) {
+			return nil, err
+		}
+		if remote.Language != "" {
+			language = remote.Language
+		}
+	}
+	// Check all URL-independent constraints even when a provider assigns media URLs only on upload.
+	pre, err := f.Build(StoredURLs(f))
+	if err != nil {
+		return nil, err
+	}
+	if _, err := preflight(f, pre, language, false); err != nil {
+		return nil, err
 	}
 	// Preflight happens before media or remote mutations.
 	if f.Lorebook != nil {
@@ -123,11 +162,7 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 				bookID = f.State.LorebookID
 			}
 			if target != "" {
-				var remote card.RemoteDetail
-				if err := c.OpenGet(ctx, "/role/detail", url.Values{"roleId": {target}}, &remote); err != nil {
-					return nil, err
-				}
-				if n := limits.EntryContentMaxByLanguage[remote.Language]; n > 0 {
+				if n := limits.EntryContentMaxByLanguage[language]; n > 0 {
 					limit = n
 				}
 				if bookID == "" {
@@ -153,32 +188,11 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			}
 		}
 		opts.limits.entryMax = limit
-		// Build once with stored URLs to check the trial size before uploads.
-		pre, err := f.Build(StoredURLs(f))
-		if err != nil {
-			return nil, err
-		}
-		if pre.Worldbook != nil {
-			_, keys, groups := prepareEntries(f, pre.Worldbook, limit)
-			if !owned && len(keys) > limits.TrialMaxEntries {
-				return nil, fmt.Errorf("trial cards allow %d Lorebook entries; this card needs %d after grouping; use --create for a larger owned card (unlisted by default; anyone with the link can play its latest saved content)", limits.TrialMaxEntries, len(keys))
-			}
-			res.Grouped = groups
-			for _, g := range groups {
-				if opts.GroupProgress != nil {
-					opts.GroupProgress(g)
-				}
-			}
-		}
+
 	}
 
 	// Media first: the payload needs the served URLs.
-	urls := map[string]string{}
-	for p, a := range f.State.Assets {
-		if a.URL != "" {
-			urls[p] = a.URL
-		}
-	}
+	urls := StoredURLs(f)
 	if !opts.SkipMedia {
 		present, _ := f.AssetRefs()
 		if len(present) > 0 || len(f.State.Assets) > 0 {
@@ -186,6 +200,37 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			if err != nil {
 				return nil, err
 			}
+			planned, plannedOutcomes, err := media.Sync(ctx, c, f, caps, media.SyncOptions{DryRun: true})
+			if err != nil {
+				return nil, err
+			}
+			previewURLs := StoredURLs(f)
+			for k, v := range planned {
+				previewURLs[k] = v
+			}
+			exact := true
+			for _, o := range plannedOutcomes {
+				if o.Uploaded && o.URL == "" && textReferences(f, o.Path) {
+					exact = false
+					if opts.DryRun {
+						return nil, fmt.Errorf("Exact rewritten sizes are unavailable because the provider assigns a URL for %s only after upload. Run push without --dry-run to upload media and check sizes before writing card content.", o.Path)
+					}
+				}
+			}
+			preview, err := f.Build(previewURLs)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := preflight(f, preview, language, exact); err != nil {
+				return nil, err
+			}
+			if preview.Worldbook != nil {
+				preview.Worldbook, _, _ = prepareEntries(f, preview.Worldbook, opts.limits.entryMax)
+			}
+			if err := preflightPrepared(preview, owned, opts.limits.entryMax, opts.limits.TrialMaxEntries, opts.Evict); exact && err != nil {
+				return nil, err
+			}
+
 			synced, outcomes, err := media.Sync(ctx, c, f, caps, media.SyncOptions{
 				DryRun:      opts.DryRun,
 				Concurrency: opts.Concurrency,
@@ -203,6 +248,9 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			for _, o := range outcomes {
 				if o.Err != "" {
 					res.AssetError = true
+					if textReferences(f, o.Path) {
+						return nil, fmt.Errorf("Exact rewritten sizes could not be checked because no media URL is available for %s. Resolve the media upload before pushing again. No card content was written.", o.Path)
+					}
 				}
 			}
 			if !opts.DryRun {
@@ -215,11 +263,24 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 	if err != nil {
 		return nil, err
 	}
+	res.Rules, err = preflight(f, payload, language, true)
+	if err != nil {
+		return nil, err
+	}
+	res.RulesTotal = ruleTotal(payload)
 	digests := payload.Digests()
 	if payload.Worldbook != nil {
-		payload.Worldbook, opts.entryKeys, _ = prepareEntries(f, payload.Worldbook, opts.limits.entryMax)
+		payload.Worldbook, opts.entryKeys, res.Grouped = prepareEntries(f, payload.Worldbook, opts.limits.entryMax)
 	}
 
+	if err := preflightPrepared(payload, owned, opts.limits.entryMax, opts.limits.TrialMaxEntries, opts.Evict); err != nil {
+		return nil, err
+	}
+	for _, g := range res.Grouped {
+		if opts.GroupProgress != nil {
+			opts.GroupProgress(g)
+		}
+	}
 	if owned {
 		return pushOwned(ctx, c, f, payload, digests, opts, res)
 	}
@@ -348,7 +409,13 @@ type roleOutput struct {
 	RoleID     string `json:"roleId"`
 }
 
-func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payload, digests map[string]string, opts PushOptions, res *PushResult) (*PushResult, error) {
+func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payload, digests map[string]string, opts PushOptions, res *PushResult) (result *PushResult, pushErr error) {
+	rulesSaved := false
+	defer func() {
+		if rulesSaved && pushErr != nil {
+			pushErr = fmt.Errorf("Display rules were saved, but the push is incomplete: %w", pushErr)
+		}
+	}()
 	res.Target = "owned"
 	roleID := f.State.RoleID
 	if opts.To != "" {
@@ -450,6 +517,45 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		return opts.Force || f.State.LocalHashes[s] != digests[s]
 	}
 
+	// display rules
+	if p.AuthorAsset != nil {
+		if changed(card.SectionAuthorAsset) {
+			body := map[string]any{}
+			for k, v := range p.AuthorAsset {
+				body[k] = v
+			}
+			body["version"] = f.State.AuthorAssetVersion
+			var out struct {
+				Version int64 `json:"version"`
+			}
+			err := c.OpenPut(ctx, "/role/"+roleID+"/author-asset", body, &out)
+			if api.IsStatus(err, 409) {
+				// First save on a card that already has rules, or a stale version: read and retry once.
+				var cur card.RemoteAsset
+				if rerr := c.OpenGet(ctx, "/role/author-asset", url.Values{"roleId": {roleID}}, &cur); rerr == nil {
+					body["version"] = cur.Version
+					err = c.OpenPut(ctx, "/role/"+roleID+"/author-asset", body, &out)
+				}
+			}
+			if err != nil {
+				return nil, fmt.Errorf("Display rules were not confirmed as saved. This push stopped before writing configuration text, openings, or Lorebook entries. Check the saved rules before pushing again: %w", err)
+			}
+			if out.Version != 0 {
+				f.State.AuthorAssetVersion = out.Version
+			} else {
+				f.State.AuthorAssetVersion++
+			}
+			f.State.LocalHashes[card.SectionAuthorAsset] = digests[card.SectionAuthorAsset]
+			// Persist accepted rules before another section can fail. A retry must not resend them.
+			if err := f.SaveState(); err != nil {
+				return nil, err
+			}
+			rulesSaved = true
+			res.Changed = append(res.Changed, card.SectionAuthorAsset)
+		} else {
+			res.Unchanged = append(res.Unchanged, card.SectionAuthorAsset)
+		}
+	}
 	// card fields. A Chinese card can switch between zh-Hant and zh-Hans after
 	// creation, so its language rides with the card fields and counts toward
 	// their digest; other languages are fixed and never sent.
@@ -498,40 +604,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			res.Unchanged = append(res.Unchanged, card.SectionWorldbook)
 		}
 	}
-	// display rules
-	if p.AuthorAsset != nil {
-		if changed(card.SectionAuthorAsset) {
-			body := map[string]any{}
-			for k, v := range p.AuthorAsset {
-				body[k] = v
-			}
-			body["version"] = f.State.AuthorAssetVersion
-			var out struct {
-				Version int64 `json:"version"`
-			}
-			err := c.OpenPut(ctx, "/role/"+roleID+"/author-asset", body, &out)
-			if api.IsStatus(err, 409) {
-				// First save on a card that already has rules, or a stale version: read and retry once.
-				var cur card.RemoteAsset
-				if rerr := c.OpenGet(ctx, "/role/author-asset", url.Values{"roleId": {roleID}}, &cur); rerr == nil {
-					body["version"] = cur.Version
-					err = c.OpenPut(ctx, "/role/"+roleID+"/author-asset", body, &out)
-				}
-			}
-			if err != nil {
-				return nil, fmt.Errorf("write display rules: %w", err)
-			}
-			if out.Version != 0 {
-				f.State.AuthorAssetVersion = out.Version
-			} else {
-				f.State.AuthorAssetVersion++
-			}
-			f.State.LocalHashes[card.SectionAuthorAsset] = digests[card.SectionAuthorAsset]
-			res.Changed = append(res.Changed, card.SectionAuthorAsset)
-		} else {
-			res.Unchanged = append(res.Unchanged, card.SectionAuthorAsset)
-		}
-	}
+
 	if res.Changed == nil {
 		res.Changed = []string{}
 	}

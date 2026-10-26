@@ -211,7 +211,7 @@ them and stops before writing the Lorebook. Entries created by other tools are k
 	c.Flags().StringVar(&opts.To, "to", "", "write to a card you own by id instead of a trial card")
 	c.Flags().BoolVar(&opts.Create, "create", false, "create a new owned card (unlisted by default) and write to it")
 	c.Flags().BoolVar(&opts.Evict, "evict", false, "free the least recently used trial slot when all are in use")
-	c.Flags().BoolVar(&opts.DryRun, "dry-run", false, "show what would be sent without sending")
+	c.Flags().BoolVar(&opts.DryRun, "dry-run", false, "check limits and show planned changes without uploading media or writing card content or local state")
 	c.Flags().BoolVar(&opts.Prune, "prune", false, "delete CLI-managed Lorebook entries removed from the local file")
 	c.Flags().BoolVar(&opts.Force, "force", false, "send every section even if unchanged; also skips the readiness check")
 	c.Flags().BoolVar(&opts.SkipMedia, "skip-media", false, "do not upload assets; keep previously uploaded URLs")
@@ -255,8 +255,21 @@ func (a *App) printPush(res *sync.PushResult) {
 	if res.MediaDir != "" && len(res.Assets) > 0 {
 		a.Out.Line("  media folder:       %s", res.MediaDir)
 	}
+	if len(res.Rules) > 0 {
+		a.Out.Line("Display rule replacement sizes after URL rewriting (UTF-8 bytes):")
+		for _, r := range res.Rules {
+			a.Out.Line("  Rule %d (%q, %q): %d of %d bytes; %d bytes remaining", r.Index, r.ID, r.Name, r.RewrittenBytes, r.LimitBytes, r.RemainingBytes)
+		}
+	}
+	if r := res.RulesTotal; r != nil {
+		a.Out.Line("Rules total (find + replacement + name): %d of %d bytes; %d bytes remaining", r.Bytes, r.LimitBytes, r.RemainingBytes)
+	}
 	if len(res.Changed) > 0 {
-		a.Out.Line("  sections sent:      %s", strings.Join(res.Changed, ", "))
+		label := "sections sent:"
+		if res.DryRun {
+			label = "sections to send:"
+		}
+		a.Out.Line("  %-20s %s", label, strings.Join(res.Changed, ", "))
 	}
 	if len(res.Unchanged) > 0 {
 		a.Out.Line("  sections unchanged: %s", strings.Join(res.Unchanged, ", "))

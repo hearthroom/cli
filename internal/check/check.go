@@ -263,17 +263,19 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 			continue
 		}
 		checkFind(rule, rw, r, &markers)
-		if mountDyn.MatchString(rule.Replace) && (strings.Contains(rule.Replace, "sdk.") || strings.Contains(rule.Replace, "[data-chat") || strings.Contains(rule.Replace, "[data-slot") || strings.Contains(rule.Replace, "--chat-")) {
+		replace := activeHTML(rule.Replace)
+		if strings.Contains(replace, "[data-chat") || strings.Contains(replace, "[data-slot") || strings.Contains(replace, "--chat-") {
 			usesSDK = true
 		}
-		if strings.Contains(rule.Replace, "sdk.") || strings.Contains(rule.Replace, "[data-chat") || strings.Contains(rule.Replace, "[data-slot") || strings.Contains(rule.Replace, "--chat-") {
-			usesSDK = true
-		}
-		for _, m := range scriptTag.FindAllStringSubmatch(rule.Replace, -1) {
+		for _, m := range scriptTag.FindAllStringSubmatch(replace, -1) {
 			if strings.Contains(strings.ToLower(m[1]), "src=") {
 				continue
 			}
 			// The sandbox shell keeps type="module" on rule scripts; the classic page does not.
+			_, executable := scriptViews(m[2])
+			if sdkCap.MatchString(executable) {
+				usesSDK = true
+			}
 			scanScript(m[2], rw, sandbox && typeModule.MatchString(m[1]), r)
 		}
 		scanHTML(rule.Replace, rw, r, true)
@@ -415,6 +417,8 @@ func compileJS(source, flags string) (*regexp.Regexp, error) {
 }
 
 func scanScript(code, where string, module bool, r *report) {
+	text, executable := scriptViews(code)
+	code = executable
 	caps := contract.SDK.Capabilities
 	for _, m := range sdkCap.FindAllStringSubmatch(code, -1) {
 		key, method := m[1], m[2]
@@ -429,7 +433,7 @@ func scanScript(code, where string, module bool, r *report) {
 			r.errorf(where, "sdk.%s.%s does not exist; a misspelled capability never runs and never errors", key, method)
 		}
 	}
-	for _, m := range sdkOn.FindAllStringSubmatch(code, -1) {
+	for _, m := range literalMatches(sdkOn, text, code) {
 		if !contains(contract.Events.Names, m[1]) {
 			r.errorf(where, "sdk.on(%q) is not an event; it never fires (events: %s)", m[1], strings.Join(contract.Events.Names, ", "))
 		}
@@ -450,7 +454,7 @@ func scanScript(code, where string, module bool, r *report) {
 	}
 	keyRe, err := regexp.Compile(contract.Save.KeyPattern)
 	if err == nil {
-		for _, m := range saveSet.FindAllStringSubmatch(code, -1) {
+		for _, m := range literalMatches(saveSet, text, code) {
 			if !keyRe.MatchString(m[1]) {
 				r.errorf(where, "save key %q is not valid (%s)", m[1], contract.Save.KeyPattern)
 			}

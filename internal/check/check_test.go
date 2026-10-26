@@ -1,6 +1,7 @@
 package check
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -352,5 +353,44 @@ func TestShareProperties(t *testing.T) {
 	}
 	if !has(msgs(r), "error:", "sdk.share.contxt does not exist") {
 		t.Fatalf("misspelled property not reported: %v", msgs(r))
+	}
+}
+
+func TestSDKScriptContexts(t *testing.T) {
+	raw, err := os.ReadFile("testdata/script-contexts.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name     string
+		HTML     string
+		Error    bool
+		PageMode string
+		Want     string
+	}
+	if err := json.Unmarshal(raw, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			pageMode := tc.PageMode
+			if pageMode == "" {
+				pageMode = "sandbox"
+			}
+			rules, err := json.Marshal(map[string]any{"pageMode": pageMode, "rules": []any{map[string]any{"id": "probe", "find": "{{probe}}", "replace": tc.HTML, "enabled": true}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := Card(write(t, t.TempDir(), map[string]string{"rules.json": string(rules)}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.Error && !has(msgs(result), "error:", tc.Want) {
+				t.Errorf("missing %q in %v", tc.Want, msgs(result))
+			}
+			if (result.Errors() > 0) != tc.Error {
+				t.Fatalf("error = %v, want %v: %v", result.Errors() > 0, tc.Error, msgs(result))
+			}
+		})
 	}
 }

@@ -1,6 +1,7 @@
 package check
 
 import (
+	"html"
 	"regexp"
 	"strings"
 	"unicode"
@@ -151,7 +152,10 @@ func scriptViews(source string) (text, code string) {
 					i++
 				}
 				word = source[start:i]
-				regexAllowed = !property && keyword(word)
+				if property {
+					word = ""
+				}
+				regexAllowed = keyword(word)
 				property = false
 				continue
 			}
@@ -224,4 +228,21 @@ func literalMatches(pattern *regexp.Regexp, text, code string) [][]string {
 		matches = append(matches, match)
 	}
 	return matches
+}
+
+var inlineHandler = regexp.MustCompile(`(?i)\bon[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))`)
+
+// Keep HTML SDK uses, but give scripts and inline handlers their JS context.
+func htmlSDKUsage(markup string) string {
+	markup = scriptTag.ReplaceAllStringFunc(markup, func(script string) string {
+		match := scriptTag.FindStringSubmatch(script)
+		_, executable := scriptViews(match[2])
+		return executable
+	})
+	return inlineHandler.ReplaceAllStringFunc(markup, func(attr string) string {
+		match := inlineHandler.FindStringSubmatch(attr)
+		value := match[1] + match[2] + match[3]
+		_, executable := scriptViews(html.UnescapeString(value))
+		return executable
+	})
 }

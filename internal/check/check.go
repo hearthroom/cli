@@ -264,11 +264,7 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 		}
 		checkFind(rule, rw, r, &markers)
 		replace := activeHTML(rule.Replace)
-		sdkUsage := scriptTag.ReplaceAllStringFunc(replace, func(script string) string {
-			match := scriptTag.FindStringSubmatch(script)
-			_, executable := scriptViews(match[2])
-			return executable
-		})
+		sdkUsage := htmlSDKUsage(replace)
 		if strings.Contains(sdkUsage, "sdk.") || strings.Contains(sdkUsage, "[data-chat") || strings.Contains(sdkUsage, "[data-slot") || strings.Contains(sdkUsage, "--chat-") {
 			usesSDK = true
 		}

@@ -61,3 +61,25 @@ Implementation note: the provider's WebSocket route accepts
   paid request.
 - With `--allow-spend` on a real account, the reply streams and the settled
   status prints at the end.
+# Continue saved Agent preparation
+
+`hearthroom play my-card --continue --allow-spend` resumes only the latest
+eligible Agent operation in the current conversation. `--history --json` shows
+its state, `allowedActions`, `chargeCredits` and `settled` status first. Continue
+requires `failed_retryable` or `stopped`, `agentTurn=true`, and an allowed
+`continue` action. Missing status or original user text stops without generation.
+
+The CLI sends a fresh client operation key, the original message and the parent
+`resumeFromOperationId` through the provider's existing WebSocket contract. It
+preserves preparation and does not add another user message. Omit `--model` to
+keep the interrupted model, or pass a supported replacement. The provider still
+validates ownership, history epoch, latest-user identity, age and existing child
+continuations; an outdated local read cannot override those checks.
+
+Only new work is charged; previous charges remain. Continuation may still fail
+and incur charges. There is no automatic loop. `--continue` cannot be combined
+with `-m`, `--new-session`, `--history`, `--stop`, `--agent` or `--greeting`.
+
+CLI terminal output reports allowed actions as provided by the server; listing
+an action does not imply this CLI implements every server action. Display rules
+and browser scripts are still outside the terminal's streamed turn path.

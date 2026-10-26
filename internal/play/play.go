@@ -132,11 +132,13 @@ type Message struct {
 
 // MessagesResponse is GET /open/v1/conversation/messages.
 type MessagesResponse struct {
-	Total       int64     `json:"total"`
-	Size        int       `json:"size"`
-	Pages       int       `json:"pages"`
-	HasNextPage bool      `json:"hasNextPage"`
-	Chats       []Message `json:"chats"`
+	Total                    int64             `json:"total"`
+	Size                     int               `json:"size"`
+	Pages                    int               `json:"pages"`
+	HasNextPage              bool              `json:"hasNextPage"`
+	Chats                    []Message         `json:"chats"`
+	Operations               []OperationStatus `json:"operations,omitempty"`
+	OperationStatusAvailable bool              `json:"operationStatusAvailable"`
 }
 
 // History reads one page of messages (newest first, as the API returns).
@@ -232,14 +234,15 @@ func ParseFrame(frame string) (Event, error) {
 
 // TurnOptions describe one streamed turn.
 type TurnOptions struct {
-	ConversationID    string
-	Message           string
-	Model             string
-	ClientOperationID string
-	OperationKind     string // send | rewrite_response
-	Language          string
-	AgentMode         *bool
-	ThinkingDepth     string
+	ConversationID        string
+	Message               string
+	Model                 string
+	ClientOperationID     string
+	OperationKind         string // send | rewrite_response | retry_generation
+	ResumeFromOperationID string
+	Language              string
+	AgentMode             *bool
+	ThinkingDepth         string
 	// AllowSpend must be true; the function refuses otherwise.
 	AllowSpend bool
 	// OnEvent receives every server event in order.
@@ -279,6 +282,9 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 	}
 	if opts.ClientOperationID == "" {
 		opts.ClientOperationID = NewClientOperationID()
+	}
+	if opts.ResumeFromOperationID != "" {
+		opts.OperationKind = "retry_generation"
 	}
 	if opts.OperationKind == "" {
 		opts.OperationKind = "send"
@@ -326,6 +332,9 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 		"clientOperationId": opts.ClientOperationID,
 		"operationKind":     opts.OperationKind,
 		"from":              "hearthroom-cli",
+	}
+	if opts.ResumeFromOperationID != "" {
+		frame["resumeFromOperationId"] = opts.ResumeFromOperationID
 	}
 	if opts.Model != "" {
 		frame["model"] = opts.Model

@@ -24,6 +24,7 @@ func (a *App) playCommand() *cobra.Command {
 		greeting, historyN                          int
 		allowSpend, history, stop, show, newSession bool
 		agent                                       string
+		continueTurn                                bool
 	)
 	c := &cobra.Command{
 		Use:   "play [dir]",
@@ -41,9 +42,21 @@ without one the provider replies in English. --new-session archives the current
 conversation with the card and starts a fresh one, so two folders can test the
 same card without sharing a thread.
 
+[COPY] --continue resumes the latest eligible saved Agent preparation without adding
+another user message. It requires --allow-spend; only new usage is charged,
+earlier charges remain, and continuation may still fail. Use --model to switch
+models; omit it to keep the interrupted model.
+
 With --json, every server event is printed as one JSON object per line.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if continueTurn {
+				for _, name := range []string{"message", "new-session", "history", "stop", "agent", "greeting"} {
+					if cmd.Flags().Changed(name) {
+						return output.Exitf(2, "[COPY] --continue cannot be combined with --%s", name)
+					}
+				}
+			}
 			if err := a.RequireAuth(); err != nil {
 				return err
 			}
@@ -126,7 +139,31 @@ With --json, every server event is printed as one JSON object per line.`,
 					a.Out.Line("[%s]%s", tag, incompleteMark(m))
 					a.Out.Line("%s", m.Text)
 				}
+				if page.OperationStatusAvailable && len(page.Operations) > 0 {
+					a.printPlayStatus(page.Operations[len(page.Operations)-1], args, roleID)
+				}
 				return nil
+			}
+			var continuation *play.Continuation
+			if continueTurn {
+				page, e := play.History(ctx, a.Client(), start.ConversationID, 1, 50)
+				if e != nil {
+					return e
+				}
+				continuation, e = play.PrepareContinuation(start.ConversationID, page)
+				if e != nil {
+					return output.Exit(2, e)
+				}
+				if !a.Out.JSON {
+					a.printPlayStatus(continuation.Operation, args, roleID)
+				}
+				if !allowSpend {
+					return output.Exitf(3, "[COPY] Continuing charges new work; earlier charges remain. Re-run with --allow-spend; continuation can still fail.")
+				}
+				message = continuation.Message
+				if !a.Out.JSON {
+					a.Out.Note("[COPY] Continuing saved preparation; new work is charged even if it fails. Earlier charges remain.")
+				}
 			}
 			if message == "" {
 				if a.Out.JSON {
@@ -153,6 +190,9 @@ With --json, every server event is printed as one JSON object per line.`,
 			opts := play.TurnOptions{
 				ConversationID: start.ConversationID, Message: message, Model: model, AllowSpend: true,
 				ThinkingDepth: thinking, Language: turnLanguage(language, f),
+			}
+			if continuation != nil {
+				opts.ResumeFromOperationID = continuation.Operation.OperationID
 			}
 			switch agent {
 			case "on":
@@ -197,6 +237,10 @@ With --json, every server event is printed as one JSON object per line.`,
 			if a.Out.JSON {
 				_ = a.Out.JSONValue(map[string]any{"result": res})
 			} else {
+				var status play.OperationStatus
+				if json.Unmarshal(res.Status, &status) == nil && status.State != "" {
+					a.printPlayStatus(status, args, roleID)
+				}
 				if res.FinishReason != "" {
 					a.Out.Note("[finished: %s]", res.FinishReason)
 				}
@@ -210,6 +254,7 @@ With --json, every server event is printed as one JSON object per line.`,
 			return nil
 		},
 	}
+	c.Flags().BoolVar(&continueTurn, "continue", false, "[COPY] continue the latest saved preparation (spends credits; requires --allow-spend)")
 	c.Flags().StringVar(&roleID, "role", "", "card id instead of a folder")
 	c.Flags().StringVar(&language, "language", "", "reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)")
 	c.Flags().BoolVar(&newSession, "new-session", false, "archive the current conversation with this card and start a fresh one")

@@ -148,6 +148,7 @@ func Card(dir string) (*Result, error) {
 			r.errorf(card.LorebookFile, "not valid JSON: %v", err)
 		}
 	}
+	checkLorebookRegex(lorebook, r)
 	definition := read(card.DefinitionFile)
 	welcome := read(card.WelcomeFile)
 	var openings []string

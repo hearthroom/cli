@@ -167,6 +167,8 @@ is refused; export the video as MP4 (H.264) first.
 
 ## lorebook.json
 
+Lorebook keywords and secondary keywords need `/pattern/flags` syntax for regular expressions (for example, `/chapter[4-6]/`, with flags optional); without the `/…/` delimiters, they are matched as plain text.
+
 ```json
 {
   "name": "Island",

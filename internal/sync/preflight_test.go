@@ -209,7 +209,7 @@ func TestRemoteLanguageControlsPreflight(t *testing.T) {
 	for _, tc := range []struct {
 		local, remote string
 		allowed       bool
-	}{{"en", "zh-Hant", false}, {"zh-Hant", "en", true}} {
+	}{{"en", "zh-Hant", false}, {"ja", "en", true}} {
 		t.Run(tc.local+tc.remote, func(t *testing.T) {
 			writes := 0
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -378,6 +378,28 @@ func TestURLExpansionRejectedBeforeMediaUpload(t *testing.T) {
 			after, _ := json.Marshal(f.State)
 			if err == nil || !strings.Contains(err.Error(), "131073") || writes != 0 || string(before) != string(after) {
 				t.Fatalf("err=%v writes=%d state changed=%v", err, writes, string(before) != string(after))
+			}
+		})
+	}
+}
+
+func TestPreflightRejectsImpossibleScriptSwitchBeforeRules(t *testing.T) {
+	for _, remote := range []string{"en", "ja", "ko"} {
+		t.Run(remote, func(t *testing.T) {
+			writes := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "GET" {
+					writes++
+				}
+				json.NewEncoder(w).Encode(map[string]any{"language": remote})
+			}))
+			defer srv.Close()
+			f, _ := card.Init(t.TempDir(), "Script", "zh-Hant")
+			f.Rules = &card.Rules{Rules: []card.DisplayRule{{Find: "x", Replace: "ok"}}}
+			c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+			_, err := Push(context.Background(), c, f, PushOptions{To: "owned", SkipMedia: true, Force: true})
+			if err == nil || !strings.Contains(err.Error(), "language") || writes != 0 {
+				t.Fatalf("err=%v writes=%d", err, writes)
 			}
 		})
 	}

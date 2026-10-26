@@ -131,6 +131,9 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 		}
 		if remote.Language != "" {
 			language = remote.Language
+			if _, switches := switchableScript(f); owned && switches && language != "zh-Hant" && language != "zh-Hans" {
+				return nil, preflightErrorf("card.json: language for this existing card has an unsupported value %q. Use %s.", f.Manifest.Language, language)
+			}
 		}
 	}
 	// Check all URL-independent constraints even when a provider assigns media URLs only on upload.

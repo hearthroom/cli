@@ -23,6 +23,8 @@ my-card/
     state.json       sync state written by the CLI
 ```
 
+`--create` defaults to **unlisted**: anyone with the link can play the latest saved content, including changes that have not passed review. Creating a card does not submit it for review or add it to public listings. To change an owned card's visibility, use `hearthroom card visibility set private my-card`, `set unlisted my-card` or `set public my-card`. Later pushes preserve its visibility. Trial cards stay private.
+
 ## card.json
 
 ```json

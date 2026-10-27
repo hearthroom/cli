@@ -437,7 +437,7 @@ Each submission carries an operation id kept in .hearthroom/state.json until
 the site accepts it, so running submit again after a lost reply does not submit
 twice. --fandom names the work the card is based on, if any.
 
-Updates are silent by default. --major-update requests a notification to people
+Updates are silent by default. --notify requests a notification to people
 who follow the author or saved the card, after the reviewed version goes live.
 It requires --update-note: a plain-text change log of at least 10 non-whitespace
 Unicode code points and at most 200 code points in total. Line endings become
@@ -545,8 +545,8 @@ listing quota. Run it only when the author asks.`,
 		},
 	}
 	c.Flags().StringVar(&fandom, "fandom", "", "the work the card is based on, if any")
-	c.Flags().BoolVar(&majorUpdate, "major-update", false, "notify followers and people who saved the card after the reviewed update goes live (requires --update-note)")
-	c.Flags().StringVar(&updateNote, "update-note", "", "plain-text change log for --major-update (10 non-whitespace Unicode code points minimum, 200 total maximum)")
+	c.Flags().BoolVar(&majorUpdate, "notify", false, "notify followers and people who saved the card after the reviewed update goes live (requires --update-note)")
+	c.Flags().StringVar(&updateNote, "update-note", "", "plain-text change log for --notify (10 non-whitespace Unicode code points minimum, 200 total maximum)")
 	return c
 }
 
@@ -557,7 +557,7 @@ func submissionUpdate(major bool, note string) (string, string, error) {
 	note = strings.TrimFunc(note, unicode.IsSpace)
 	if !major {
 		if note != "" {
-			return "", "", errors.New("--update-note requires --major-update; omit the note for a silent update")
+			return "", "", errors.New("--update-note requires --notify; omit the note for a silent update")
 		}
 		return "minor", "", nil
 	}
@@ -568,7 +568,7 @@ func submissionUpdate(major bool, note string) (string, string, error) {
 		}
 	}
 	if nonWhitespace < 10 {
-		return "", "", errors.New("--major-update requires --update-note with at least 10 non-whitespace Unicode code points")
+		return "", "", errors.New("--notify requires --update-note with at least 10 non-whitespace Unicode code points")
 	}
 	if utf8.RuneCountInString(note) > 200 {
 		return "", "", errors.New("--update-note must contain at most 200 Unicode code points, including spaces and line breaks")

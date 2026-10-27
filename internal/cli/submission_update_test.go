@@ -37,7 +37,7 @@ func TestSubmitUpdateContract(t *testing.T) {
 			site := &ratingSite{}
 			args, _ := updateSubmitArgs(t, site)
 			if tc.major {
-				args = append(args, "--major-update")
+				args = append(args, "--notify")
 			}
 			if tc.note != "" {
 				args = append(args, "--update-note", tc.note)
@@ -77,7 +77,7 @@ func TestSubmitUpdateRejectsInvalidNotesBeforeRequest(t *testing.T) {
 			site := &ratingSite{}
 			args, dir := updateSubmitArgs(t, site)
 			if tc.major {
-				args = append(args, "--major-update")
+				args = append(args, "--notify")
 			}
 			args = append(args, "--update-note", tc.note)
 			stdout, stderr, err := runCLI(t, args...)
@@ -102,11 +102,18 @@ func TestSubmitUpdateStillRequiresAuthorAuthentication(t *testing.T) {
 	site := &ratingSite{}
 	args, _ := updateSubmitArgs(t, site)
 	t.Setenv(auth.EnvToken, "")
-	if _, _, err := runCLI(t, append(args, "--major-update", "--update-note", "New route and ending")...); err == nil {
+	if _, _, err := runCLI(t, append(args, "--notify", "--update-note", "New route and ending")...); err == nil {
 		t.Fatal("notifying update bypassed authentication")
 	}
 	if len(site.submits) != 0 {
 		t.Fatal("unauthenticated request sent")
+	}
+}
+
+func TestSubmitUpdateUsesNotifyFlag(t *testing.T) {
+	_, _, err := runCLI(t, "card", "submit", "--major-update")
+	if err == nil || !strings.Contains(err.Error(), "unknown flag: --major-update") {
+		t.Fatalf("retired draft flag is still accepted: %v", err)
 	}
 }
 
@@ -123,11 +130,11 @@ func TestSubmitUpdateRetryDigest(t *testing.T) {
 		first, second []string
 		wantSame      bool
 	}{
-		{"same major", []string{"--major-update", "--update-note", "New route and ending"}, []string{"--major-update", "--update-note", "New route and ending"}, true},
-		{"normalized note", []string{"--major-update", "--update-note", " New route\r\nand ending "}, []string{"--major-update", "--update-note", "New route\nand ending"}, true},
-		{"changed note", []string{"--major-update", "--update-note", "New route and ending"}, []string{"--major-update", "--update-note", "Another route and ending"}, false},
-		{"silent to notifying", nil, []string{"--major-update", "--update-note", "New route and ending"}, false},
-		{"notifying to silent", []string{"--major-update", "--update-note", "New route and ending"}, nil, false},
+		{"same major", []string{"--notify", "--update-note", "New route and ending"}, []string{"--notify", "--update-note", "New route and ending"}, true},
+		{"normalized note", []string{"--notify", "--update-note", " New route\r\nand ending "}, []string{"--notify", "--update-note", "New route\nand ending"}, true},
+		{"changed note", []string{"--notify", "--update-note", "New route and ending"}, []string{"--notify", "--update-note", "Another route and ending"}, false},
+		{"silent to notifying", nil, []string{"--notify", "--update-note", "New route and ending"}, false},
+		{"notifying to silent", []string{"--notify", "--update-note", "New route and ending"}, nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			site := &ratingSite{cardReplies: []int{http.StatusBadGateway, http.StatusCreated}}

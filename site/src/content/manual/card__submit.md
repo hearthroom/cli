@@ -18,7 +18,7 @@ Each submission carries an operation id kept in .hearthroom/state.json until
 the site accepts it, so running submit again after a lost reply does not submit
 twice. --fandom names the work the card is based on, if any.
 
-Updates are silent by default. --major-update requests a notification to people
+Updates are silent by default. --notify requests a notification to people
 who follow the author or saved the card, after the reviewed version goes live.
 It requires --update-note: a plain-text change log of at least 10 non-whitespace
 Unicode code points and at most 200 code points in total. Line endings become
@@ -39,8 +39,8 @@ hearthroom card submit [dir] [flags]
 
 ```
       --fandom string        the work the card is based on, if any
-      --major-update         notify followers and people who saved the card after the reviewed update goes live (requires --update-note)
-      --update-note string   plain-text change log for --major-update (10 non-whitespace Unicode code points minimum, 200 total maximum)
+      --notify               notify followers and people who saved the card after the reviewed update goes live (requires --update-note)
+      --update-note string   plain-text change log for --notify (10 non-whitespace Unicode code points minimum, 200 total maximum)
 ```
 
 ## Global options

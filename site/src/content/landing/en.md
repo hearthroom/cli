@@ -13,7 +13,7 @@ title: Hearthroom CLI
 - `hearthroom card validate` returns the provider's pre-publish report with the character limits it enforces.
 - `hearthroom card render` shows an opening after your display rules, with the same engine the play page uses, and how each rule fared.
 - `hearthroom card import` converts SillyTavern PNG / JSON / CHARX cards and MMD three-file sets and lists every field it could not place.
-- `hearthroom play -m "…" --allow-spend` sends a turn and streams the reply. This is the only command that spends credits, and only with the flag.
+- `hearthroom play -m "…" --allow-spend` sends a message and streams the reply; `hearthroom play --continue --allow-spend` resumes the latest eligible saved Agent preparation. Both may spend credits and require `--allow-spend`. Continue charges only new model usage; earlier charges stay unchanged, and continuation may still incur charges if it fails.
 - Also: `card pull`, `card list`, `search`, `tags`, `author`, `media upload|ls|rm`, `models`, `wallet`, `whoami`, `upgrade`.
 - Every command accepts `--json`. `hearthroom auth login` signs in with a one-time code you approve on any device, so it works over SSH; agents use `--no-wait` then `--resume`. `HEARTHROOM_TOKEN` skips sign-in.
 

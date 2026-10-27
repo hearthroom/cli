@@ -54,7 +54,7 @@ For the screen (a status panel drawn from a block the model writes, choice butto
 
 ## Spending is opt-in
 
-Starting a conversation, reading history, pushing, validating, rendering, importing and browsing are free. Only `play -m` generates a reply and spends credits on the provider, and it refuses to run without `--allow-spend`. An agent cannot spend credits by accident.
+Starting a conversation, reading history, pushing, validating, rendering, importing and browsing are free. Both `play -m` and `play --continue` may spend credits and require `--allow-spend` as explicit spending consent.
 
 ## A typical loop
 

@@ -18,13 +18,13 @@ Each submission carries an operation id kept in .hearthroom/state.json until
 the site accepts it, so running submit again after a lost reply does not submit
 twice. --fandom names the work the card is based on, if any.
 
-Updates are silent by default. --notify requests a notification to people
-who follow the author or saved the card, after the reviewed version goes live.
-It requires --update-note: a plain-text change log of at least 10 non-whitespace
-Unicode code points and at most 200 code points in total. Line endings become
-LF and surrounding whitespace is removed; internal spaces and line breaks count
-toward the maximum. Notifications for the same card are limited to once every
-7 days; the site enforces this limit. Saving with card push does not notify.
+The default is a silent update, with no update notification.
+
+Leading and trailing whitespace is trimmed. A changelog needs at least 10 non-whitespace Unicode code points and no more than 200 code points in total; internal whitespace and line breaks count toward the total limit.
+
+Each card can send one update notification every 7 days; silent updates remain available between notifications.
+
+Notifications follow each recipient’s notification settings.
 
 Submitting publishes the card once reviewers approve it and may use your weekly
 listing quota. Run it only when the author asks.
@@ -39,8 +39,8 @@ hearthroom card submit [dir] [flags]
 
 ```
       --fandom string        the work the card is based on, if any
-      --notify               notify followers and people who saved the card after the reviewed update goes live (requires --update-note)
-      --update-note string   plain-text change log for --notify (10 non-whitespace Unicode code points minimum, 200 total maximum)
+      --notify               Send an update notification to people who saved this card or follow its creator after the new version is approved and published; requires --update-note.
+      --update-note string   Public changelog shown in the notification: at least 10 characters excluding whitespace, with a total limit of 200; requires --notify.
 ```
 
 ## Global options

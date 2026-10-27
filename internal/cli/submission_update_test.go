@@ -62,16 +62,16 @@ func TestSubmitUpdateContract(t *testing.T) {
 
 func TestSubmitUpdateRejectsInvalidNotesBeforeRequest(t *testing.T) {
 	for _, tc := range []struct {
-		name, note string
-		major      bool
+		name, note, wantErr string
+		major               bool
 	}{
-		{"missing", "", true},
-		{"whitespace", "\n\t\u2003\u00a0", true},
-		{"nine astral points", strings.Repeat("😀", 9), true},
-		{"spaces cannot make ten", "abc def ghi\u2003\n", true},
-		{"201 astral points", strings.Repeat("😀", 201), true},
-		{"201 includes whitespace", "1234567890" + strings.Repeat(" ", 190) + "a", true},
-		{"note does not authorize notification", "New route and ending", false},
+		{"missing", "", "An update notification needs a changelog. Use --update-note to describe what changed.", true},
+		{"whitespace", "\n\t\u2003\u00a0", "An update notification needs a changelog. Use --update-note to describe what changed.", true},
+		{"nine astral points", strings.Repeat("😀", 9), "Add details about what is new or changed to reach 10 characters, excluding whitespace.", true},
+		{"spaces cannot make ten", "abc def ghi\u2003\n", "Add details about what is new or changed to reach 10 characters, excluding whitespace.", true},
+		{"201 astral points", strings.Repeat("😀", 201), "Shorten the changelog to 200 characters or fewer before submitting.", true},
+		{"201 includes whitespace", "1234567890" + strings.Repeat(" ", 190) + "a", "Shorten the changelog to 200 characters or fewer before submitting.", true},
+		{"note does not authorize notification", "New route and ending", "A changelog requires Update and notify. Add --notify or remove --update-note before submitting.", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			site := &ratingSite{}
@@ -81,7 +81,7 @@ func TestSubmitUpdateRejectsInvalidNotesBeforeRequest(t *testing.T) {
 			}
 			args = append(args, "--update-note", tc.note)
 			stdout, stderr, err := runCLI(t, args...)
-			if err == nil || !strings.Contains(err.Error(), "update") {
+			if err == nil || err.Error() != tc.wantErr {
 				t.Fatalf("validation error = %v", err)
 			}
 			if len(site.submits) != 0 {

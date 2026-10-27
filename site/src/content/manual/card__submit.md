@@ -22,7 +22,7 @@ The default is a silent update, with no update notification.
 
 Leading and trailing whitespace is trimmed. A changelog needs at least 10 non-whitespace Unicode code points and no more than 200 code points in total; internal whitespace and line breaks count toward the total limit.
 
-Each card can send one update notification every 7 days; silent updates remain available between notifications.
+Each card can send one update notification every 3 days; silent updates remain available between notifications.
 
 Notifications follow each recipient’s notification settings.
 

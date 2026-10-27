@@ -67,7 +67,7 @@ Implementation note: the provider's WebSocket route accepts
 eligible Agent operation in the current conversation. `--history --json` shows
 its state, `allowedActions`, `chargeCredits` and `settled` status first. Continue
 requires `failed_retryable` or `stopped`, `agentTurn=true`, and an allowed
-`continue` action. Missing status or original user text stops without generation.
+`continue` action. Missing status or original user text blocks continuation before generation.
 
 The CLI sends a fresh client operation key, the original message and the parent
 `resumeFromOperationId` through the provider's existing WebSocket contract. It

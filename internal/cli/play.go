@@ -42,10 +42,12 @@ without one the provider replies in English. --new-session archives the current
 conversation with the card and starts a fresh one, so two folders can test the
 same card without sharing a thread.
 
-[COPY] --continue resumes the latest eligible saved Agent preparation without adding
-another user message. It requires --allow-spend; only new usage is charged,
-earlier charges remain, and continuation may still fail. Use --model to switch
-models; omit it to keep the interrupted model.
+--continue resumes saved Agent preparation from the latest eligible turn without
+sending your message again. It requires --allow-spend: only new model usage is
+charged, earlier charges stay unchanged, and continuation may still incur charges
+if it fails.
+
+Use --model <model> to switch models, or omit it to keep the previous model.
 
 With --json, every server event is printed as one JSON object per line.`,
 		Args: cobra.MaximumNArgs(1),
@@ -53,7 +55,7 @@ With --json, every server event is printed as one JSON object per line.`,
 			if continueTurn {
 				for _, name := range []string{"message", "new-session", "history", "stop", "agent", "greeting"} {
 					if cmd.Flags().Changed(name) {
-						return output.Exitf(2, "[COPY] --continue cannot be combined with --%s", name)
+						return output.Exitf(2, "--continue cannot be combined with --%s; remove the conflicting flag and try again", name)
 					}
 				}
 			}
@@ -164,11 +166,11 @@ With --json, every server event is printed as one JSON object per line.`,
 					a.printPlayStatus(continuation.Operation, hintArgs, roleID)
 				}
 				if !allowSpend {
-					return output.Exitf(3, "[COPY] Continuing charges new work; earlier charges remain. Re-run with --allow-spend; continuation can still fail.")
+					return output.Exitf(3, "continuation may spend credits even if it fails; only new model usage is charged, and earlier charges stay unchanged. Re-run with --allow-spend to confirm")
 				}
 				message = continuation.Message
 				if !a.Out.JSON {
-					a.Out.Note("[COPY] Continuing saved preparation; new work is charged even if it fails. Earlier charges remain.")
+					a.Out.Note("Continuing saved preparation; new model usage may cost credits even if continuation fails, and earlier charges stay unchanged.")
 				}
 			}
 			if message == "" {
@@ -260,7 +262,7 @@ With --json, every server event is printed as one JSON object per line.`,
 			return nil
 		},
 	}
-	c.Flags().BoolVar(&continueTurn, "continue", false, "[COPY] continue the latest saved preparation (spends credits; requires --allow-spend)")
+	c.Flags().BoolVar(&continueTurn, "continue", false, "continue the latest saved Agent preparation (spends credits; requires --allow-spend)")
 	c.Flags().StringVar(&roleID, "role", "", "card id instead of a folder")
 	c.Flags().StringVar(&language, "language", "", "reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)")
 	c.Flags().BoolVar(&newSession, "new-session", false, "archive the current conversation with this card and start a fresh one")

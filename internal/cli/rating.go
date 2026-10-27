@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 
@@ -419,7 +421,8 @@ func parseTopics(line string, topics []ratingTopic) []ratingTopic {
 }
 
 func (a *App) cardSubmit() *cobra.Command {
-	var fandom string
+	var fandom, updateNote string
+	var majorUpdate bool
 	c := &cobra.Command{
 		Use:   "submit [dir]",
 		Short: "Submit the linked card for review on the community site, with its content rating",
@@ -434,10 +437,22 @@ Each submission carries an operation id kept in .hearthroom/state.json until
 the site accepts it, so running submit again after a lost reply does not submit
 twice. --fandom names the work the card is based on, if any.
 
+Updates are silent by default. --major-update requests a notification to people
+who follow the author or saved the card, after the reviewed version goes live.
+It requires --update-note: a plain-text change log of at least 10 non-whitespace
+Unicode code points and at most 200 code points in total. Line endings become
+LF and surrounding whitespace is removed; internal spaces and line breaks count
+toward the maximum. Notifications for the same card are limited to once every
+7 days; the site enforces this limit. Saving with card push does not notify.
+
 Submitting publishes the card once reviewers approve it and may use your weekly
 listing quota. Run it only when the author asks.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			kind, note, err := submissionUpdate(majorUpdate, updateNote)
+			if err != nil {
+				return output.Exit(2, err)
+			}
 			f, err := loadFolder(args)
 			if err != nil {
 				return err
@@ -467,8 +482,19 @@ listing quota. Run it only when the author asks.`,
 			// The digest covers the card as last pushed: the site answers a known
 			// operation id with the version it already made, so a retry may reuse
 			// the id only while the card is the one that id was first sent for.
-			digest := card.Digest(map[string]any{"roleId": f.State.RoleID, "answers": rating.Answers, "fandom": fandom, "sections": f.State.Sections})
+			digestFields := map[string]any{"roleId": f.State.RoleID, "answers": rating.Answers, "fandom": fandom, "sections": f.State.Sections}
+			legacyDigest := card.Digest(digestFields)
+			digestFields["updateKind"], digestFields["updateNote"] = kind, note
+			digest := card.Digest(digestFields)
 			sub := f.State.Submission
+			// Old clients did not record update metadata. Their pending default
+			// submission is the same silent intent; keep its uncertain operation.
+			if sub != nil && sub.RoleID == f.State.RoleID && kind == "minor" && sub.Digest == legacyDigest {
+				sub.Digest = digest
+				if err := f.SaveState(); err != nil {
+					return err
+				}
+			}
 			if sub == nil || sub.RoleID != f.State.RoleID || sub.Digest != digest {
 				id, err := newUUID()
 				if err != nil {
@@ -480,7 +506,7 @@ listing quota. Run it only when the author asks.`,
 					return err
 				}
 			}
-			body := map[string]any{"roleId": f.State.RoleID, "ratingAnswers": rating.Answers, "operationId": sub.OperationID}
+			body := map[string]any{"roleId": f.State.RoleID, "ratingAnswers": rating.Answers, "operationId": sub.OperationID, "updateKind": kind, "updateNote": note}
 			if fandom != "" {
 				body["fandom"] = fandom
 			}
@@ -519,7 +545,35 @@ listing quota. Run it only when the author asks.`,
 		},
 	}
 	c.Flags().StringVar(&fandom, "fandom", "", "the work the card is based on, if any")
+	c.Flags().BoolVar(&majorUpdate, "major-update", false, "notify followers and people who saved the card after the reviewed update goes live (requires --update-note)")
+	c.Flags().StringVar(&updateNote, "update-note", "", "plain-text change log for --major-update (10 non-whitespace Unicode code points minimum, 200 total maximum)")
 	return c
+}
+
+// submissionUpdate normalizes the metadata before both validation and operation
+// hashing, so retries of equivalent text keep their original operation identity.
+func submissionUpdate(major bool, note string) (string, string, error) {
+	note = strings.ReplaceAll(strings.ReplaceAll(note, "\r\n", "\n"), "\r", "\n")
+	note = strings.TrimFunc(note, unicode.IsSpace)
+	if !major {
+		if note != "" {
+			return "", "", errors.New("--update-note requires --major-update; omit the note for a silent update")
+		}
+		return "minor", "", nil
+	}
+	nonWhitespace := 0
+	for _, r := range note {
+		if !unicode.IsSpace(r) {
+			nonWhitespace++
+		}
+	}
+	if nonWhitespace < 10 {
+		return "", "", errors.New("--major-update requires --update-note with at least 10 non-whitespace Unicode code points")
+	}
+	if utf8.RuneCountInString(note) > 200 {
+		return "", "", errors.New("--update-note must contain at most 200 Unicode code points, including spaces and line breaks")
+	}
+	return "major", note, nil
 }
 
 // unpushedSections lists the sections that changed since the last push.

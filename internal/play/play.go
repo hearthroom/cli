@@ -234,6 +234,7 @@ func ParseFrame(frame string) (Event, error) {
 
 // TurnOptions describe one streamed turn.
 type TurnOptions struct {
+	DebugRecall           bool
 	ConversationID        string
 	Message               string
 	Model                 string
@@ -251,6 +252,7 @@ type TurnOptions struct {
 
 // TurnResult summarises a finished turn.
 type TurnResult struct {
+	RecallDebug  json.RawMessage `json:"recallDebug,omitempty"`
 	StreamID     string          `json:"streamId,omitempty"`
 	ChatID       string          `json:"chatId,omitempty"`
 	Answer       string          `json:"answer"`
@@ -333,6 +335,9 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 		"operationKind":     opts.OperationKind,
 		"from":              "hearthroom-cli",
 	}
+	if opts.DebugRecall {
+		frame["debug"] = "recall"
+	}
 	if opts.ResumeFromOperationID != "" {
 		frame["resumeFromOperationId"] = opts.ResumeFromOperationID
 	}
@@ -402,6 +407,13 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 			}
 		case "thinking":
 			thinking.WriteString(ev.Text)
+		case "recallDebug":
+			var payload struct {
+				Debug json.RawMessage `json:"recallDebug"`
+			}
+			if json.Unmarshal(ev.Data, &payload) == nil {
+				res.RecallDebug = payload.Debug
+			}
 		case "operationStatus":
 			res.Status = ev.Data
 		case "error":
@@ -416,6 +428,16 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 			res.Answer, res.Thinking = answer.String(), thinking.String()
 			return res, nil
 		case "done", "sessionExpired", "turn_already_consumed":
+			if opts.DebugRecall && len(res.RecallDebug) == 0 {
+				res.RecallDebug = []byte(`{"schemaVersion":"recall_debug_v1","status":"unsupported"}`)
+				if res.StreamID != "" {
+					if debug, readErr := ReadRecallDebug(ctx, c, res.StreamID); readErr == nil {
+						res.RecallDebug = debug
+					} else {
+						res.RecallDebug = []byte(`{"schemaVersion":"recall_debug_v1","status":"unavailable"}`)
+					}
+				}
+			}
 			res.Answer, res.Thinking = answer.String(), thinking.String()
 			if ev.Type != "done" {
 				res.Error = ev.Type
@@ -458,4 +480,19 @@ func firstNonEmpty(v ...string) string {
 		}
 	}
 	return ""
+}
+
+// ReadRecallDebug reads only the capture attached to an existing paid operation.
+// It never submits a turn or retries a generation.
+func ReadRecallDebug(ctx context.Context, c *api.Client, operation string) (json.RawMessage, error) {
+	var out struct {
+		Debug json.RawMessage `json:"recallDebug"`
+	}
+	if err := c.OpenGet(ctx, "/conversation/operations/"+url.PathEscape(operation), url.Values{"include": {"recallDebug"}}, &out); err != nil {
+		return nil, err
+	}
+	if len(out.Debug) == 0 {
+		return json.RawMessage(`{"schemaVersion":"recall_debug_v1","status":"unsupported"}`), nil
+	}
+	return out.Debug, nil
 }

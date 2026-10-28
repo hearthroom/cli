@@ -93,6 +93,9 @@ func fakeStream(t *testing.T, script []string, wantModel string, wantLanguage ..
 		if frame["conversationId"] != "conv1" || frame["message"] != "hi" || frame["operationKind"] != "send" || frame["clientOperationId"] == "" || (wantModel != "" && frame["model"] != wantModel) {
 			t.Errorf("chat frame = %v", frame)
 		}
+		if len(wantLanguage) > 1 && frame["debug"] != wantLanguage[1] {
+			t.Error("debug not carried on paid turn")
+		}
 		// The provider defaults a missing language to English, so a Traditional
 		// Chinese card must carry its language on every turn; an empty one is omitted.
 		if got, ok := frame["language"]; (lang != "" && got != lang) || (lang == "" && ok) {

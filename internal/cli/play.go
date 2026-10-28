@@ -25,6 +25,7 @@ func (a *App) playCommand() *cobra.Command {
 		allowSpend, history, stop, show, newSession bool
 		agent                                       string
 		continueTurn                                bool
+		debugRecall                                 bool
 	)
 	c := &cobra.Command{
 		Use:   "play [dir]",
@@ -49,9 +50,12 @@ if it fails.
 
 Use --model <model> to switch models, or omit it to keep the previous model.
 
-With --json, every server event is printed as one JSON object per line.`,
+With --json, every server event is printed as one JSON object per line.` + "\n\n" + recallLabel("help.details") + "\n\n" + recallLabel("help.readback") + "\n\n" + recallLabel("help.continue") + "\n\n" + recallLabel("help.interpretation"),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if debugRecall && (history || stop || (!continueTurn && strings.TrimSpace(message) == "")) {
+				return output.Exitf(2, "%s", recallLabel("invalid_use"))
+			}
 			if continueTurn {
 				for _, name := range []string{"message", "new-session", "history", "stop", "agent", "greeting"} {
 					if cmd.Flags().Changed(name) {
@@ -196,7 +200,7 @@ With --json, every server event is printed as one JSON object per line.`,
 				return output.Exit(3, play.ErrSpendNotAllowed)
 			}
 			opts := play.TurnOptions{
-				ConversationID: start.ConversationID, Message: message, Model: model, AllowSpend: true,
+				ConversationID: start.ConversationID, Message: message, Model: model, AllowSpend: true, DebugRecall: debugRecall,
 				ThinkingDepth: thinking, Language: turnLanguage(language, f),
 			}
 			if continuation != nil {
@@ -242,6 +246,9 @@ With --json, every server event is printed as one JSON object per line.`,
 			if err != nil && !errors.Is(err, ctx.Err()) {
 				return err
 			}
+			if !a.Out.JSON && debugRecall {
+				fmt.Fprintln(a.Out.Out, formatRecallDebug(res.RecallDebug))
+			}
 			if a.Out.JSON {
 				_ = a.Out.JSONValue(map[string]any{"result": res})
 			} else {
@@ -262,6 +269,7 @@ With --json, every server event is printed as one JSON object per line.`,
 			return nil
 		},
 	}
+	c.Flags().BoolVar(&debugRecall, "debug-recall", false, recallLabel("flag.help"))
 	c.Flags().BoolVar(&continueTurn, "continue", false, "continue the latest saved Agent preparation (spends credits; requires --allow-spend)")
 	c.Flags().StringVar(&roleID, "role", "", "card id instead of a folder")
 	c.Flags().StringVar(&language, "language", "", "reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)")

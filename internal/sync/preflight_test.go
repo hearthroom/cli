@@ -23,7 +23,7 @@ func TestPushPreflightRejectsBeforeAnyWrite(t *testing.T) {
 		edit func(*card.Folder)
 		want string
 	}{
-		{"replace", func(f *card.Folder) { f.Rules.Rules[0].Replace = strings.Repeat("界", 87382) }, "262146"},
+		{"replace", func(f *card.Folder) { f.Rules.Rules[0].Replace = strings.Repeat("界", 174763) }, "524289"},
 		{"empty find", func(f *card.Folder) { f.Rules.Rules[0].Find = " " }, "find"},
 		{"shared state", func(f *card.Folder) {
 			f.Rules.SharedState = json.RawMessage(`{"counters":{"x":{"maxStep":1001,"perMember":1}}}`)
@@ -114,7 +114,7 @@ func TestDryRunReportsExactRewrittenRuleBytesWithoutState(t *testing.T) {
 	}
 	json.Unmarshal(raw, &out)
 	want := len(`<img src="https://cdn.example/library/safe/icon.svg">`)
-	if len(out.Rules) != 1 || out.Rules[0].ID != "icon" || out.Rules[0].Bytes != want || out.Rules[0].Remaining != 262144-want {
+	if len(out.Rules) != 1 || out.Rules[0].ID != "icon" || out.Rules[0].Bytes != want || out.Rules[0].Remaining != 524288-want {
 		t.Fatalf("report=%s; want bytes=%d", raw, want)
 	}
 	after, _ := json.Marshal(f.State)
@@ -124,7 +124,7 @@ func TestDryRunReportsExactRewrittenRuleBytesWithoutState(t *testing.T) {
 }
 
 func TestRuleReportMatchesWireAndBoundary(t *testing.T) {
-	for _, n := range []int{262144, 262145} {
+	for _, n := range []int{524288, 524289} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
 			writes := 0
 			actual := 0
@@ -146,7 +146,7 @@ func TestRuleReportMatchesWireAndBoundary(t *testing.T) {
 			f.Rules = &card.Rules{Rules: []card.DisplayRule{{ID: "r", Find: "x", Replace: strings.Repeat("界", 43690) + strings.Repeat("x", n-131070)}}}
 			c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
 			res, err := Push(context.Background(), c, f, PushOptions{To: "owned", SkipMedia: true})
-			if n == 262144 {
+			if n == 524288 {
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -371,12 +371,12 @@ func TestURLExpansionRejectedBeforeMediaUpload(t *testing.T) {
 			f.Manifest.Media.Folder = "safe"
 			os.MkdirAll(filepath.Join(f.Dir, "assets"), 0755)
 			os.WriteFile(filepath.Join(f.Dir, "assets/icon.svg"), []byte("svg"), 0644)
-			f.Rules = &card.Rules{Rules: []card.DisplayRule{{ID: "expands", Find: "x", Replace: strings.Repeat("a", 262092) + `<img src="assets/icon.svg">`}}}
+			f.Rules = &card.Rules{Rules: []card.DisplayRule{{ID: "expands", Find: "x", Replace: strings.Repeat("a", 524236) + `<img src="assets/icon.svg">`}}}
 			before, _ := json.Marshal(f.State)
 			c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
 			_, err := Push(context.Background(), c, f, PushOptions{To: "owned", DryRun: dry})
 			after, _ := json.Marshal(f.State)
-			if err == nil || !strings.Contains(err.Error(), "262145") || writes != 0 || string(before) != string(after) {
+			if err == nil || !strings.Contains(err.Error(), "524289") || writes != 0 || string(before) != string(after) {
 				t.Fatalf("err=%v writes=%d state changed=%v", err, writes, string(before) != string(after))
 			}
 		})

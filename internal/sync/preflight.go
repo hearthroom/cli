@@ -12,7 +12,7 @@ import (
 
 // These v1 limits match provider role/author_asset.go and role/limits.go.
 // TestProviderPreflightContract checks the receiving source when supplied.
-const ruleReplaceMax = 256 << 10
+const ruleReplaceMax = 512 << 10
 const rulesTotalMax = 32 << 20
 const trialBodyMax = 48 << 20
 

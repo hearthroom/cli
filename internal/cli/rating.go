@@ -433,13 +433,7 @@ run "hearthroom card push --create". The new card defaults to unlisted:
 anyone with its link can play the latest saved content before review.
 Local edits that were not pushed are not part of the submission.
 
-New review submissions need more than 3,000 effective characters (at least
-3,001), combining the character definition and enabled constant Lorebook entry
-content. Either part can supply the content. The site counts letters and numbers
-after removing markup and template variables; spaces, punctuation and emoji do
-not count. Openings, example dialogue and other instructions are excluded.
-On refusal, add substantive content to either part, push, then submit again.
-Existing public cards remain listed; their next submission must meet this rule.
+Review uses the last pushed version. The combined character count for the character definition and enabled always-on Lorebook entries must reach 3001; content in either section counts toward the minimum. Opening messages and example conversations do not count.
 
 Each submission carries an operation id kept in .hearthroom/state.json until
 the site accepts it, so running submit again after a lost reply does not submit
@@ -630,9 +624,9 @@ func submitError(err error, dir string) error {
 		raw, _ := json.Marshal(ae.Detail)
 		if json.Unmarshal(raw, &detail) == nil && detail.ReviewLength.Required > 0 && detail.ReviewLength.Remaining > 0 {
 			n := detail.ReviewLength
-			return output.Exit(2, fmt.Errorf("%w: review counted %d effective characters in the character definition and %d in enabled constant Lorebook content: %d total, %d required, %d more needed. Add substantive content to either part, push the changes, then submit again", err, n.Persona, n.ConstantWorldbook, n.Total, n.Required, n.Remaining))
+			return output.Exit(2, fmt.Errorf("%w: Counted characters: character definition %d, enabled always-on Lorebook entries %d, total %d. The submission minimum is %d; add %d more in either section, push your changes, then submit again.", err, n.Persona, n.ConstantWorldbook, n.Total, n.Required, n.Remaining))
 		}
-		return output.Exit(2, fmt.Errorf("%w: review needs more content in the character definition or enabled constant Lorebook entries. Add substantive content to either part, push the changes, then submit again", err))
+		return output.Exit(2, err)
 	}
 	return err
 }

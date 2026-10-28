@@ -62,7 +62,7 @@ func TestSubmitLengthRefusalExplainsCountsAndPreservesJSON(t *testing.T) {
 					t.Fatalf("lost server detail: %s", stdout.String())
 				}
 			} else {
-				for _, want := range []string{"2800", "3001", "201", "character definition", "enabled constant Lorebook", "push"} {
+				for _, want := range []string{"2800", "3001", "201", "character definition", "enabled always-on Lorebook", "push"} {
 					if !strings.Contains(stderr.String(), want) {
 						t.Errorf("human error missing %q: %s", want, stderr.String())
 					}

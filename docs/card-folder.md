@@ -256,22 +256,19 @@ computes the rating from the answers. `hearthroom card rate` asks the questions
 (or takes `--answers` from an agent) and writes this file;
 `hearthroom card submit` sends the answers with the card.
 
-New review submissions also need more than 3,000 effective characters (at least
-3,001) across the character definition and enabled constant Lorebook entry
-content, combined. Either part can supply the content. The site counts the
-frozen version, not unpushed local edits, and returns the two counts, total and
-remaining amount when it refuses a submission. Add substantive content to
-either part, push the changes, then submit again. Existing public cards are
-not removed by this rule; their next submission must meet it.
+Each new review submission must contain more than 3,000 counted characters, meaning a minimum of 3,001, across the
+character definition and the content of enabled always-on Lorebook entries. The two parts contribute to one combined
+total; neither has a separate minimum.
 
-After NFC normalization, each Unicode letter or number counts as one character,
-including each English letter; combining marks do not count separately.
-Whitespace, punctuation, symbols and emoji do not count. HTML tags and comments,
-script/style content, Markdown image syntax and link destinations, and template
-variables (`{{...}}` or `${...}`) are removed; HTML entities are decoded before
-counting. Openings, example dialogue, custom instructions, entry names/keywords,
-disabled entries and nonconstant entries are excluded. The opening has no new
-minimum length.
+The count is based on Unicode letters and numbers after NFC normalization. English is counted by character, not by word.
+Spaces, punctuation, symbols and emoji do not count. HTML tags, comments, script and style contents, template variables,
+Markdown link destinations and images are excluded; readable link text counts. Markdown code blocks are not excluded as
+a whole: their letters and numbers still count. Entry names and keywords, opening messages, example conversations,
+custom instructions, disabled entries and entries that are not always on do not contribute to the minimum.
+
+The service checks the actual version submitted for review. With the CLI, push local changes before submitting; unpushed
+edits do not count. This rule applies to new review submissions and does not retroactively remove cards that are already
+public. Meeting the character minimum does not guarantee review approval.
 
 ```json
 {

@@ -83,3 +83,18 @@ with `-m`, `--new-session`, `--history`, `--stop`, `--agent` or `--greeting`.
 CLI terminal output reports allowed actions as provided by the server; listing
 an action does not imply this CLI implements every server action. Display rules
 and browser scripts are still outside the terminal's streamed turn path.
+
+## Author Lorebook recall details
+
+```sh
+hearthroom play my-card -m "Inspect the scene" --debug-recall --allow-spend
+hearthroom play my-card --continue --debug-recall --allow-spend --json
+```
+
+Recall details help you check how your card's Lorebook entries were found and which content was sent to the model. Use `--debug-recall` with `--message` or `--continue` and `--allow-spend`. Only the card's author can use this feature, and both `chat.play` and `role.read` are required. Normal chat billing applies.
+
+Reading saved recall details does not search again or generate another reply. Details cannot be collected later for a turn that did not have `--debug-recall` enabled. An authenticated author can read the saved capture through `GET /open/v1/conversation/operations/<operationId>?include=recallDebug`.
+
+With `--continue`, recall details cover only this continuation. Entries already available from earlier preparation are marked separately; they were not necessarily read again. Normal continuation billing applies.
+
+An entry being found, read or sent to the model does not mean the model used it in its reply. The answer and `recallDebug` remain separate in the existing NDJSON output. Missing, unsupported and incomplete details are reported separately; the CLI never resubmits a paid turn to collect them.

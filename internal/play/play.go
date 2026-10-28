@@ -361,6 +361,25 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 	}
 
 	res := &TurnResult{}
+	defer func() {
+		if !opts.DebugRecall || len(res.RecallDebug) > 0 {
+			return
+		}
+		res.RecallDebug = []byte(`{"schemaVersion":"recall_debug_v1","status":"unsupported"}`)
+		if res.StreamID == "" {
+			return
+		}
+		readCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+		defer cancel()
+		if debug, readErr := ReadRecallDebug(readCtx, c, res.StreamID); readErr == nil {
+			res.RecallDebug = debug
+		} else {
+			var response *api.Error
+			if !errors.As(readErr, &response) || response.Status != http.StatusNotFound {
+				res.RecallDebug = []byte(`{"schemaVersion":"recall_debug_v1","status":"unavailable"}`)
+			}
+		}
+	}()
 	var answer, thinking strings.Builder
 	for {
 		ev, err := readEvent(ctx, conn)
@@ -428,16 +447,6 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 			res.Answer, res.Thinking = answer.String(), thinking.String()
 			return res, nil
 		case "done", "sessionExpired", "turn_already_consumed":
-			if opts.DebugRecall && len(res.RecallDebug) == 0 {
-				res.RecallDebug = []byte(`{"schemaVersion":"recall_debug_v1","status":"unsupported"}`)
-				if res.StreamID != "" {
-					if debug, readErr := ReadRecallDebug(ctx, c, res.StreamID); readErr == nil {
-						res.RecallDebug = debug
-					} else {
-						res.RecallDebug = []byte(`{"schemaVersion":"recall_debug_v1","status":"unavailable"}`)
-					}
-				}
-			}
 			res.Answer, res.Thinking = answer.String(), thinking.String()
 			if ev.Type != "done" {
 				res.Error = ev.Type

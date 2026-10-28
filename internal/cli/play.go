@@ -53,7 +53,7 @@ Use --model <model> to switch models, or omit it to keep the previous model.
 With --json, every server event is printed as one JSON object per line.` + "\n\n" + recallLabel("help.details") + "\n\n" + recallLabel("help.readback") + "\n\n" + recallLabel("help.continue") + "\n\n" + recallLabel("help.interpretation"),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if debugRecall && (history || stop || (!continueTurn && strings.TrimSpace(message) == "")) {
+			if debugRecall && (!allowSpend || history || stop || (!continueTurn && strings.TrimSpace(message) == "")) {
 				return output.Exitf(2, "%s", recallLabel("invalid_use"))
 			}
 			if continueTurn {

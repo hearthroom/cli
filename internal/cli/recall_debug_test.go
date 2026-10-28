@@ -2,9 +2,27 @@ package cli
 
 import (
 	"encoding/json"
+	"github.com/hearthroom/cli/internal/auth"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+func TestRecallDebugRejectsMissingSpendBeforeStartingConversation(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Write([]byte(`{"conversationId":"conv1"}`))
+	}))
+	defer srv.Close()
+	_, _, err := runCLI(t, "play", "--role", "r1", "--message", "hi", "--debug-recall", "--new-session", "--api", srv.URL, "--config-dir", cfg)
+	if err == nil || !strings.Contains(err.Error(), recallLabel("invalid_use")) || calls != 0 {
+		t.Fatalf("invalid debug request reached conversation mutation: calls=%d err=%v", calls, err)
+	}
+}
 
 func TestRecallDebugPresentationDistinguishesMissingPartialAndEmpty(t *testing.T) {
 	for _, tc := range []struct{ raw, want string }{{`{"status":"ready"}`, "These details contain no entries from your own Lorebooks that can be displayed."}, {`{"status":"not_recorded"}`, "Recall details were not enabled for this turn and cannot be collected later."}, {`{"status":"ready","partial":true}`, "Recall details are incomplete. Some items or content are not shown."}, {`{"status":"unsupported"}`, "The service did not return recall details for this turn. Normal chat billing still applies."}} {

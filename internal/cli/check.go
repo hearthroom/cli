@@ -37,6 +37,11 @@ without signing in or sending anything:
   - rating.json (never sent): whether the content rating that card submit needs is
     there and has the shape this build knows (card rate writes it).
 
+A replacement larger than 256 KiB and no larger than 512 KiB produces a warning:
+it may slow down play, so consider splitting the rule into smaller rules.
+This warning does not fail the check. A replacement larger than 512 KiB is an
+error. Sizes are measured in UTF-8 bytes, including for disabled rules.
+
 --replay reads replies ("hearthroom play --history" text or --json output,
 preview/replies.md with "## " headings, or paragraphs) and reports protocol health:
 how often the [status] block is written, missing closers, full-width punctuation,

@@ -257,8 +257,8 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 		total += len(rule.Find) + rb + len(rule.Name)
 		if rb > contract.Provider.ReplaceMaxBytes {
 			r.errorf(rw, "replace is %d bytes, over %d (UTF-8 bytes; strip comments or split script and style into two rules)", rb, contract.Provider.ReplaceMaxBytes)
-		} else if float64(rb) > float64(contract.Provider.ReplaceMaxBytes)*0.85 {
-			r.warnf(rw, "replace is %d bytes, close to the %d limit", rb, contract.Provider.ReplaceMaxBytes)
+		} else if rb > 256*1024 {
+			r.warnf(rw, "replacement is %d bytes and may slow down play; consider splitting this rule into smaller rules.", rb)
 		}
 		if !rule.Enabled {
 			continue

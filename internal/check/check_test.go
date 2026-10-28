@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -390,6 +391,29 @@ func TestSDKScriptContexts(t *testing.T) {
 			}
 			if (result.Errors() > 0) != tc.Error {
 				t.Fatalf("error = %v, want %v: %v", result.Errors() > 0, tc.Error, msgs(result))
+			}
+		})
+	}
+}
+
+func TestLargeReplacementAdvisory(t *testing.T) {
+	for _, n := range []int{136325, 262144, 262145, 300 * 1024, 524288, 524289} {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			replacement := strings.Repeat("界", n/3) + strings.Repeat("x", n%3)
+			body, err := json.Marshal(map[string]any{"pageMode": "sandbox", "rules": []any{map[string]any{"id": "large", "find": "marker", "replace": replacement, "enabled": false}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir := write(t, t.TempDir(), map[string]string{"card.json": `{"name":"Fixture","language":"en"}`, "rules.json": string(body)})
+			r, err := Card(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, want := has(msgs(r), "warning:", "play"), n > 262144 && n <= 524288; got != want {
+				t.Fatalf("warning=%v want=%v: %v", got, want, msgs(r))
+			}
+			if got, want := r.Errors() > 0, n > 524288; got != want {
+				t.Fatalf("errors=%v want=%v: %v", got, want, msgs(r))
 			}
 		})
 	}

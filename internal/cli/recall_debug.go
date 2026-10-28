@@ -78,6 +78,9 @@ func formatRecallDebug(raw json.RawMessage) string {
 			if hit.Content != "" {
 				fmt.Fprintf(&b, "    %s\n", strings.ReplaceAll(hit.Content, "\n", "\n    "))
 			}
+			if hit.Truncated {
+				b.WriteString("    " + recallLabel("content_truncated") + "\n")
+			}
 		}
 	}
 	for _, call := range data.Dispatches {

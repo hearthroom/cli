@@ -39,3 +39,10 @@ func TestRecallDebugPresentationDistinguishesMissingPartialAndEmpty(t *testing.T
 		t.Fatal("raw enum, missing zero semantics or terminal control escaped")
 	}
 }
+
+func TestRecallDebugToolContentDisclosesTruncation(t *testing.T) {
+	out := formatRecallDebug(json.RawMessage(`{"status":"ready","partial":true,"tools":[{"sequence":1,"tool":"read","result":"completed","hits":[{"entryId":"synthetic-entry","kind":"full","content":"Visible author excerpt","truncated":true}]}]}`))
+	if !strings.Contains(out, recallLabel("content_truncated")) {
+		t.Fatal("tool content omits its truncation notice")
+	}
+}

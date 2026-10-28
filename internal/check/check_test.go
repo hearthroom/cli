@@ -73,7 +73,7 @@ func TestRuleErrors(t *testing.T) {
 	})
 	r, _ := Card(dir)
 	m := msgs(r)
-	for _, want := range []string{"invalid pattern", "empty string", "find is blank", "over 131072", `flag "v"`, "duplicate rule id"} {
+	for _, want := range []string{"invalid pattern", "empty string", "find is blank", "over 262144", `flag "v"`, "duplicate rule id"} {
 		if !has(m, "error:", want) {
 			t.Errorf("missing error %q in %v", want, m)
 		}

@@ -11,7 +11,7 @@ Reads the folder and reports what the provider's validate and render cannot see,
 without signing in or sending anything:
 
   - rules.json: invalid or empty-matching patterns, flags outside gimsuy, blank find,
-    duplicate ids, a replacement over 128 KiB (UTF-8 bytes) or a set over 32 MiB,
+    duplicate ids, a replacement over 256 KiB (UTF-8 bytes) or a set over 32 MiB,
     sdk capabilities and event names the sandbox page does not have, sdk.off/once,
     sdk.vars, module syntax, an await before sdk.message.send, invalid save keys,
     attributes the sanitizer strips (data-*, aria-*, role; on* inside <svg>), tags with

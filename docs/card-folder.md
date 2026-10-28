@@ -256,6 +256,23 @@ computes the rating from the answers. `hearthroom card rate` asks the questions
 (or takes `--answers` from an agent) and writes this file;
 `hearthroom card submit` sends the answers with the card.
 
+New review submissions also need more than 3,000 effective characters (at least
+3,001) across the character definition and enabled constant Lorebook entry
+content, combined. Either part can supply the content. The site counts the
+frozen version, not unpushed local edits, and returns the two counts, total and
+remaining amount when it refuses a submission. Add substantive content to
+either part, push the changes, then submit again. Existing public cards are
+not removed by this rule; their next submission must meet it.
+
+After NFC normalization, each Unicode letter or number counts as one character,
+including each English letter; combining marks do not count separately.
+Whitespace, punctuation, symbols and emoji do not count. HTML tags and comments,
+script/style content, Markdown image syntax and link destinations, and template
+variables (`{{...}}` or `${...}`) are removed; HTML entities are decoded before
+counting. Openings, example dialogue, custom instructions, entry names/keywords,
+disabled entries and nonconstant entries are excluded. The opening has no new
+minimum length.
+
 ```json
 {
   "answers": {

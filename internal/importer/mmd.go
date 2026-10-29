@@ -91,9 +91,10 @@ type MMDFile struct {
 	Part     string
 	FileName string
 	// rules
-	Set      *RuleSet
-	Welcome  string
-	RoleName string
+	Set              *RuleSet
+	DockOffByDefault bool
+	Welcome          string
+	RoleName         string
 	// book
 	Book *Book
 	// definition
@@ -138,7 +139,7 @@ func ClassifyMMDFile(fileName string, content []byte) (*MMDFile, error) {
 		if len(rules) == 0 {
 			return nil, ErrMMDEmpty
 		}
-		return &MMDFile{Part: PartRules, FileName: fileName, Set: &RuleSet{Rules: rules}}, nil
+		return &MMDFile{Part: PartRules, FileName: fileName, Set: &RuleSet{Rules: rules}, DockOffByDefault: true}, nil
 	}
 	if isObj {
 		if book := WorldInfoToBook(obj); book != nil {
@@ -157,7 +158,8 @@ func ClassifyMMDFile(fileName string, content []byte) (*MMDFile, error) {
 				name = text(obj["name"])
 			}
 		}
-		return &MMDFile{Part: PartRules, FileName: fileName, Set: set, Welcome: welcome, RoleName: name}, nil
+		_, native := obj["rules"].([]any)
+		return &MMDFile{Part: PartRules, FileName: fileName, Set: set, DockOffByDefault: !native && set.Format != "tavern", Welcome: welcome, RoleName: name}, nil
 	}
 	return nil, ErrMMDUnknown
 }
@@ -311,6 +313,28 @@ func StemOf(fileName string) string {
 	return strings.TrimSpace(extRe.ReplaceAllString(filepath.Base(fileName), ""))
 }
 
+const mmdDockFind = `/([\s\S])$/`
+const mmdDockCSS = ":root * { --lt-dock: none !important; }"
+
+func hasMMDImportDockRule(set *RuleSet) bool {
+	for _, rule := range set.Rules {
+		if rule.Find == mmdDockFind && strings.Contains(rule.Replace, mmdDockCSS) {
+			return true
+		}
+	}
+	return false
+}
+
+type mmdDockCopy struct{ name, description string }
+
+var mmdDockCopies = map[string]mmdDockCopy{
+	"zh-Hant": {"側邊自動留白（關閉）", "這條規則讓正文不再為側邊按鈕自動留白；停用或刪除這條規則，就會恢復自動留白。"},
+	"zh-Hans": {"侧边自动留白（关闭）", "这条规则会取消正文为侧边按钮自动预留的空间；停用或删除这条规则，就会恢复自动留白。"},
+	"en":      {"No auto side spacing", "This rule removes auto side spacing. Disable or delete it to restore spacing."},
+	"ja":      {"左右の自動余白（無効）", "このルールはサイドボタン用の自動余白をなくします。ルールを無効にするか削除すると、自動余白が元に戻ります。"},
+	"ko":      {"자동 좌우 여백 해제", "이 규칙은 양옆 버튼을 위한 자동 여백을 없애요. 규칙을 끄거나 삭제하면 자동 여백이 돌아와요."},
+}
+
 // MergeMMDFiles combines classified files into one Result. Missing parts
 // are reported; the last file of each part wins.
 func MergeMMDFiles(files []*MMDFile, language string) *Result {
@@ -342,6 +366,20 @@ func MergeMMDFiles(files []*MMDFile, language string) *Result {
 	if rules != nil {
 		r.Welcome = rules.Welcome
 		r.Rules = rules.Set
+		if rules.DockOffByDefault && rules.Set != nil && !hasMMDImportDockRule(rules.Set) {
+			dockCopy, ok := mmdDockCopies[language]
+			if !ok {
+				dockCopy = mmdDockCopies["en"]
+			}
+			copied := *rules.Set
+			copied.Rules = append(append([]RegexRule(nil), rules.Set.Rules...), RegexRule{
+				Name:    dockCopy.name,
+				Find:    mmdDockFind,
+				Replace: "$1<style>/* " + dockCopy.description + " */\n" + mmdDockCSS + "\n</style>",
+				Enabled: true,
+			})
+			r.Rules = &copied
+		}
 		if def == nil && rules.Set != nil && rules.Set.Personality != "" {
 			r.Definition = rules.Set.Personality
 			r.Notes = append(r.Notes, "the persona came from the rules file's personality field (no persona TXT was given); review definition.md")

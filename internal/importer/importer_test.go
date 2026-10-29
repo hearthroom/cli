@@ -315,3 +315,46 @@ func TestDecoratorsAndKeys(t *testing.T) {
 		t.Fatalf("split: %d", len(parts))
 	}
 }
+
+func TestMMDImportDockDefault(t *testing.T) {
+	source, err := ClassifyMMDFile("rules.json", []byte(`{"chatVersion":1,"statusbar":"<s>","regex_scripts":[{"scriptName":"author","findRegex":"<s>","replaceString":"<style>.rail{--lt-dock:right}</style>"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := source.Set.Rules[0]
+	result := MergeMMDFiles([]*MMDFile{source}, "en")
+	if len(result.Rules.Rules) != 2 {
+		t.Fatalf("expected one added rule, got %d", len(result.Rules.Rules))
+	}
+	added := result.Rules.Rules[1]
+	if result.Rules.Rules[0] != before || len(source.Set.Rules) != 1 || !added.Enabled || !strings.Contains(added.Replace, "--lt-dock: none !important") {
+		t.Fatal("source changed or dock default missing")
+	}
+	again := MergeMMDFiles([]*MMDFile{source}, "en")
+	if len(again.Rules.Rules) != 2 {
+		t.Fatal("preview duplicated the default")
+	}
+	rep, err := WriteFolder(result, filepath.Join(t.TempDir(), "mmd"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := card.Load(rep.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Rules.Rules) != 2 || f.Rules.Rules[1].Replace != added.Replace {
+		t.Fatal("default lost in saved folder")
+	}
+	native, _ := ClassifyMMDFile("own.json", []byte(`{"version":1,"rules":[{"name":"own","find":"x","replace":"y"}]}`))
+	if got := MergeMMDFiles([]*MMDFile{native}, "en"); len(got.Rules.Rules) != 1 {
+		t.Fatal("native import changed")
+	}
+}
+
+func TestMMDImportKeepsDisabledDockDefault(t *testing.T) {
+	source, _ := ClassifyMMDFile("mmd.json", []byte(`{"regex_scripts":[{"scriptName":"No auto side spacing","findRegex":"/([\\s\\S])$/","replaceString":"$1<style>:root * { --lt-dock: none !important; }</style>","disabled":true}]}`))
+	got := MergeMMDFiles([]*MMDFile{source}, "ja")
+	if len(got.Rules.Rules) != 1 || got.Rules.Rules[0].Enabled {
+		t.Fatal("re-import duplicated or re-enabled the default")
+	}
+}

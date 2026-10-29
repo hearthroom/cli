@@ -152,6 +152,11 @@ func (c *Client) OpenPutLanguage(ctx context.Context, path, language string, bod
 	return c.doWith(ctx, http.MethodPut, c.API+"/open/v1"+path, nil, body, out, authRequired, http.Header{"Language": {language}})
 }
 
+// OpenPostHeader is OpenPost with extra request headers (e.g. Idempotency-Key).
+func (c *Client) OpenPostHeader(ctx context.Context, path string, header http.Header, body, out any) error {
+	return c.doWith(ctx, http.MethodPost, c.API+"/open/v1"+path, nil, body, out, authRequired, header)
+}
+
 func (c *Client) OpenPatch(ctx context.Context, path string, body, out any) error {
 	return c.do(ctx, http.MethodPatch, c.API+"/open/v1"+path, nil, body, out, authRequired)
 }

@@ -296,19 +296,33 @@
   {
     "slug": "media",
     "command": "hearthroom media",
-    "short": "Upload and list files in your media library",
+    "short": "Upload, list and generate files in your media library",
     "parent": "hearthroom",
     "children": [
+      "media/generate",
       "media/ls",
+      "media/models",
       "media/mv",
       "media/rm",
       "media/upload"
     ]
   },
   {
+    "slug": "media/generate",
+    "command": "hearthroom media generate",
+    "short": "Generate images with a model and optionally save them to your media library",
+    "parent": "media"
+  },
+  {
     "slug": "media/ls",
     "command": "hearthroom media ls",
     "short": "List files in your media library",
+    "parent": "media"
+  },
+  {
+    "slug": "media/models",
+    "command": "hearthroom media models",
+    "short": "List image models for media generate, with price and sizes",
     "parent": "media"
   },
   {

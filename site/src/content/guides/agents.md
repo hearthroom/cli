@@ -54,7 +54,15 @@ For the screen (a status panel drawn from a block the model writes, choice butto
 
 ## Spending is opt-in
 
-Starting a conversation, reading history, pushing, validating, rendering, importing and browsing are free. Both `play -m` and `play --continue` may spend credits and require `--allow-spend` as explicit spending consent.
+Starting a conversation, reading history, pushing, validating, rendering, importing and browsing are free. Both `play -m` and `play --continue` may spend credits and require `--allow-spend` as explicit spending consent. So does `media generate`, which pays per image from purchased credits only (granted credits cannot pay for it; refused prompts and failures are free):
+
+```sh
+hearthroom media models                          # image models, credits per image, sizes
+hearthroom media generate --model <id> --prompt "…" --size 1024x1536 \
+  --dir my-card --allow-spend --json            # images[].url is the library URL a card can use
+```
+
+Sign-ins from CLI versions before image generation lack its permission; the command then says to run `hearthroom auth login` again.
 
 ## A typical loop
 

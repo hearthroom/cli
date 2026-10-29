@@ -27,8 +27,9 @@ import (
 
 // Scopes requested at registration and login. email.read is included only so
 // the CLI can say which account is signed in (providers have no mandatory
-// nickname); referral and model.invoke are deliberately excluded.
-const Scopes = "profile.read email.read role.read role.write chat.play"
+// nickname); media.generate lets `media generate` spend purchased credits on
+// images; referral and model.invoke are deliberately excluded.
+const Scopes = "profile.read email.read role.read role.write chat.play media.generate"
 
 // LoopbackPorts are the fixed redirect ports registered with the provider.
 // The provider matches loopback redirect URIs exactly, port included, so the

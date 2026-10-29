@@ -96,6 +96,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `card list` · `card view <id>` | Your cards on the provider; a community card |
 | `search [text]` · `tags` · `author <handle>` | Browse the board: `--zone`, `--sort`, `--tag`, `--author` |
 | `media upload <files…>` · `media ls` | Your media library |
+| `media models` · `media generate --model … --prompt "…" --dir <folder> --allow-spend` | Image models with price and sizes; generate an image (purchased credits) and save it to your library |
 | `play [dir] -m "…" --allow-spend` | Send a turn and stream the reply; `--history`, `--stop`, `--model`, `--json` |
 | `models` · `wallet` · `whoami` | Provider catalog, balance, identity |
 | `upgrade` | Update to the latest release (`--check` only reports) |

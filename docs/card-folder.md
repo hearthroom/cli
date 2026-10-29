@@ -166,6 +166,10 @@ is refused; export the video as MP4 (H.264) first.
   directory is uploaded and the directory part is rewritten to its served URL,
   so file names can be chosen at runtime. Name such files after the values the
   card produces (`happy.webp` for `<face>happy</face>`).
+- Generated images: `media generate --out assets/portrait.png` downloads the
+  result into the folder, so the card references it like any other asset;
+  `media generate --dir <folder>` saves it in the library instead and prints
+  its URL, which `media.portrait` and the Markdown files can use directly.
 
 ## lorebook.json
 

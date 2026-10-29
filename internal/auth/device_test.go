@@ -240,6 +240,12 @@ func TestLoginUsesDeviceFlowAndHonoursSlowDown(t *testing.T) {
 	if df.Get("client_id") != "hh_client_test" || df.Get("scope") != Scopes || df.Get("resource") != Resource(dp.srv.URL) {
 		t.Fatalf("device request form = %v", df)
 	}
+	// media generate needs media.generate; saving the result needs role.write.
+	for _, want := range []string{"media.generate", "role.write"} {
+		if !strings.Contains(" "+df.Get("scope")+" ", " "+want+" ") {
+			t.Fatalf("device request scope %q lacks %s", df.Get("scope"), want)
+		}
+	}
 	if pf.Get("device_code") != "hh_dc_secret" || pf.Get("client_id") != "hh_client_test" {
 		t.Fatalf("poll form = %v", pf)
 	}

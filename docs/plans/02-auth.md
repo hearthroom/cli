@@ -23,7 +23,7 @@ authorization-code flow with PKCE on a loopback port.
    cannot see cards the author made on the community site. The first-party
    client belongs to the community application, so the CLI and the site see
    the same inventory.
-   Registration requests the scopes `profile.read email.read role.read role.write chat.play`.
+   Registration requests the scopes `profile.read email.read role.read role.write chat.play media.generate`.
    A provider may allow sign-in with a code only for clients somebody is
    accountable for (the first-party client), never for anonymous dynamic
    registrations.

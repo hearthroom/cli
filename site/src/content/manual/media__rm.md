@@ -28,4 +28,4 @@ hearthroom media rm <id>...
 
 ## See also
 
-- [`hearthroom media`](/manual/media/) — Upload and list files in your media library
+- [`hearthroom media`](/manual/media/) — Upload, list and generate files in your media library

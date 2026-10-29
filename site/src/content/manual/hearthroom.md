@@ -25,7 +25,7 @@ AGENTS.md in the folder that says so).
 - [`hearthroom card`](/manual/card/) — Work with card folders: init, check, push, validate, render, preview, pull, import, list, rate, submit
 - [`hearthroom completion`](/manual/completion/) — Shell completion: install, uninstall, or print the script
 - [`hearthroom lorebook`](/manual/lorebook/) — Build lorebook.json from one Markdown file per entry, and check the entries
-- [`hearthroom media`](/manual/media/) — Upload and list files in your media library
+- [`hearthroom media`](/manual/media/) — Upload, list and generate files in your media library
 - [`hearthroom models`](/manual/models/) — List models the provider offers
 - [`hearthroom play`](/manual/play/) — Talk to a card from the terminal (experimental)
 - [`hearthroom search`](/manual/search/) — Browse or search the community board (no sign-in needed)

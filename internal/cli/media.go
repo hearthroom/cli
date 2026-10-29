@@ -21,7 +21,7 @@ func init() {
 func (a *App) mediaCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "media",
-		Short: "Upload and list files in your media library",
+		Short: "Upload, list and generate files in your media library",
 	}
 
 	var relPath, roleID string
@@ -193,7 +193,7 @@ image first.`,
 			return nil
 		},
 	}
-	cmd.AddCommand(up, ls, rm, a.mediaMoveCommand())
+	cmd.AddCommand(up, ls, rm, a.mediaMoveCommand(), a.mediaModelsCommand(), a.mediaGenerateCommand())
 	return cmd
 }
 

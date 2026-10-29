@@ -18,14 +18,15 @@ const genTaskID = "0199aabb-ccdd-7eee-8fff-000011112222"
 
 // genProvider fakes the signed-in generation endpoints and the media library.
 type genProvider struct {
-	srv       *httptest.Server
-	mu        sync.Mutex
-	create    string // "200", "202", or an error status
-	polls     int
-	idemKeys  []string
-	genBody   map[string]any
-	saveBody  map[string]any
-	saveCalls int
+	srv        *httptest.Server
+	mu         sync.Mutex
+	create     string // "200", "202", or an error status
+	polls      int
+	idemKeys   []string
+	genBody    map[string]any
+	saveBody   map[string]any
+	saveCalls  int
+	modelsLang string
 }
 
 func newGenProvider(t *testing.T, create string) *genProvider {
@@ -43,11 +44,17 @@ func newGenProvider(t *testing.T, create string) *genProvider {
 		return m
 	}
 	mux.HandleFunc("GET /open/v1/generations/models", func(w http.ResponseWriter, r *http.Request) {
+		p.mu.Lock()
+		p.modelsLang = r.URL.Query().Get("language")
+		p.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []any{
-			map[string]any{"id": "image-model-a", "name": "Image Model A", "type": "image",
+			map[string]any{"id": "image-model-a", "name": "Image Model", "type": "image", "lane": "lane-a", "lane_name": "Lane North",
 				"pricing":        map[string]any{"unit": "credits_per_image", "credits": map[string]any{"standard": 35}},
 				"capabilities":   map[string]any{"sizes": []string{"1024x1024", "1024x1536"}, "max_images": 2},
 				"content_policy": map[string]any{"nsfw": "none", "real_person": false}},
+			map[string]any{"id": "image-model-b", "name": "Image Model", "type": "image", "lane": "lane-b", "lane_name": "Lane South",
+				"pricing":      map[string]any{"unit": "credits_per_image", "credits": map[string]any{"standard": 61}},
+				"capabilities": map[string]any{"sizes": []string{"1024x1024"}, "max_images": 4}},
 			map[string]any{"id": "some-video", "name": "Video", "type": "video"},
 		}})
 	})
@@ -112,14 +119,36 @@ func (p *genProvider) run(t *testing.T, args ...string) (string, string, error) 
 	return runCLI(t, append(append([]string{"media"}, args...), "--api", p.srv.URL, "--config-dir", t.TempDir())...)
 }
 
+// Two models with the same name differ by lane; the lane name is shown and
+// asked for in the terminal's language.
 func TestMediaModelsListsImageModels(t *testing.T) {
 	p := newGenProvider(t, "200")
+	t.Setenv("LC_ALL", "zh_TW.UTF-8")
 	out, _, err := p.run(t, "models")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "image-model-a") || !strings.Contains(out, "35") || !strings.Contains(out, "1024x1536") || strings.Contains(out, "some-video") {
+	var rowA, rowB string
+	for _, line := range strings.Split(out, "\n") {
+		switch {
+		case strings.HasPrefix(line, "image-model-a "):
+			rowA = line
+		case strings.HasPrefix(line, "image-model-b "):
+			rowB = line
+		}
+	}
+	if !strings.Contains(out, "LANE") || !strings.Contains(rowA, "Lane North") || !strings.Contains(rowA, " 35 ") || !strings.Contains(rowA, "1024x1536") ||
+		!strings.Contains(rowB, "Lane South") || !strings.Contains(rowB, " 61 ") || strings.Contains(out, "some-video") {
 		t.Fatalf("models output:\n%s", out)
+	}
+	if p.modelsLang != "zh-Hant" {
+		t.Fatalf("language = %q", p.modelsLang)
+	}
+	t.Setenv("LC_ALL", "C")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "")
+	if _, _, err := p.run(t, "models"); err != nil || p.modelsLang != "" {
+		t.Fatalf("without a locale: err = %v, language = %q", err, p.modelsLang)
 	}
 }
 

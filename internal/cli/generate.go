@@ -26,10 +26,13 @@ import (
 var generatePollEvery = 3 * time.Second
 
 type genModel struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Pricing struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+	// Lane and LaneName tell apart same-name models served by different channels.
+	Lane     string `json:"lane"`
+	LaneName string `json:"lane_name"`
+	Pricing  struct {
 		Unit    string           `json:"unit"`
 		Credits map[string]int64 `json:"credits"`
 	} `json:"pricing"`
@@ -66,8 +69,12 @@ func (a *App) mediaModelsCommand() *cobra.Command {
 			if err := a.RequireAuth(); err != nil {
 				return err
 			}
+			var q url.Values
+			if l := envLocale(); l != "" {
+				q = url.Values{"language": {l}} // lane names in the terminal's language
+			}
 			var raw json.RawMessage
-			if err := a.Client().OpenGet(cmd.Context(), "/generations/models", nil, &raw); err != nil {
+			if err := a.Client().OpenGet(cmd.Context(), "/generations/models", q, &raw); err != nil {
 				return generationError(err)
 			}
 			if a.Out.JSON {
@@ -84,10 +91,10 @@ func (a *App) mediaModelsCommand() *cobra.Command {
 				if m.Type != "image" {
 					continue // only image models can be generated through these endpoints today
 				}
-				rows = append(rows, []string{m.ID, clip(m.Name, 24), priceOf(m), strings.Join(m.Capabilities.Sizes, " "),
+				rows = append(rows, []string{m.ID, clip(m.Name, 24), m.LaneName, priceOf(m), strings.Join(m.Capabilities.Sizes, " "),
 					fmt.Sprint(m.Capabilities.MaxImages), m.ContentPolicy.NSFW})
 			}
-			a.Out.Table([]string{"MODEL", "NAME", "CREDITS/IMAGE", "SIZES", "MAX", "ADULT"}, rows)
+			a.Out.Table([]string{"MODEL", "NAME", "LANE", "CREDITS/IMAGE", "SIZES", "MAX", "ADULT"}, rows)
 			a.Out.Line("Images are paid from purchased credits only; refused prompts and failures are free.")
 			return nil
 		},

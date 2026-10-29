@@ -67,10 +67,8 @@ var ratingLocales = []string{"zh-Hant", "zh-Hans", "en", "ja", "ko"}
 // defaultRatingLocale picks the questionnaire language from the environment
 // (LC_ALL, LC_MESSAGES, LANG), then the card's language, then English.
 func defaultRatingLocale(cardLanguage string) string {
-	for _, k := range []string{"LC_ALL", "LC_MESSAGES", "LANG"} {
-		if l := localeFromEnv(os.Getenv(k)); l != "" {
-			return l
-		}
+	if l := envLocale(); l != "" {
+		return l
 	}
 	for _, l := range ratingLocales {
 		if l == cardLanguage {
@@ -78,6 +76,16 @@ func defaultRatingLocale(cardLanguage string) string {
 		}
 	}
 	return "en"
+}
+
+// envLocale is the display language from LC_ALL, LC_MESSAGES or LANG, or "".
+func envLocale() string {
+	for _, k := range []string{"LC_ALL", "LC_MESSAGES", "LANG"} {
+		if l := localeFromEnv(os.Getenv(k)); l != "" {
+			return l
+		}
+	}
+	return ""
 }
 
 func localeFromEnv(v string) string {

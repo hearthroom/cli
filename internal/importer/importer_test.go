@@ -358,3 +358,29 @@ func TestMMDImportKeepsDisabledDockDefault(t *testing.T) {
 		t.Fatal("re-import duplicated or re-enabled the default")
 	}
 }
+
+func TestMMDImportRulesArrayPayload(t *testing.T) {
+	file, err := ClassifyMMDFile("mmd.json", []byte(`{"chatVersion":1,"pageDepth":1,"statusbar":"<s>","welcome":"Hi","rules":[{"find":"<s>","replace":"<b>HUD</b>"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := MergeMMDFiles([]*MMDFile{file}, "en")
+	if len(got.Rules.Rules) != 2 || got.Rules.PageMode != "sandbox" || got.Welcome != "Hi" {
+		t.Fatal("MMD rules-array default missing")
+	}
+}
+
+func TestMMDImportFullRuleCapacity(t *testing.T) {
+	rules := make([]RegexRule, 500)
+	for i := range rules {
+		rules[i] = RegexRule{Name: "author", Find: "token", Replace: "text", Enabled: true}
+	}
+	file := &MMDFile{Part: PartRules, Set: &RuleSet{Rules: rules}, DockOffByDefault: true}
+	got := MergeMMDFiles([]*MMDFile{file}, "en")
+	if len(got.Rules.Rules) != 500 {
+		t.Fatal("valid full-capacity import became oversized")
+	}
+	if !strings.Contains(strings.Join(got.Notes, "\n"), "side spacing") {
+		t.Fatal("capacity fallback not explained")
+	}
+}

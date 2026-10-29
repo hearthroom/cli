@@ -159,7 +159,9 @@ func ClassifyMMDFile(fileName string, content []byte) (*MMDFile, error) {
 			}
 		}
 		_, native := obj["rules"].([]any)
-		return &MMDFile{Part: PartRules, FileName: fileName, Set: set, DockOffByDefault: !native && set.Format != "tavern", Welcome: welcome, RoleName: name}, nil
+		_, mmdDepth := obj["pageDepth"]
+		_, mmdVersion := obj["chatVersion"]
+		return &MMDFile{Part: PartRules, FileName: fileName, Set: set, DockOffByDefault: (!native || mmdDepth || mmdVersion) && set.Format != "tavern", Welcome: welcome, RoleName: name}, nil
 	}
 	return nil, ErrMMDUnknown
 }
@@ -366,7 +368,10 @@ func MergeMMDFiles(files []*MMDFile, language string) *Result {
 	if rules != nil {
 		r.Welcome = rules.Welcome
 		r.Rules = rules.Set
-		if rules.DockOffByDefault && rules.Set != nil && !hasMMDImportDockRule(rules.Set) {
+		if rules.DockOffByDefault && rules.Set != nil && !hasMMDImportDockRule(rules.Set) && len(rules.Set.Rules) >= 500 {
+			r.Notes = append(r.Notes, "The rule limit has been reached, so automatic side spacing keeps its current setting; remove rules from the source file and import again to turn it off by default.")
+		}
+		if rules.DockOffByDefault && rules.Set != nil && !hasMMDImportDockRule(rules.Set) && len(rules.Set.Rules) < 500 {
 			dockCopy, ok := mmdDockCopies[language]
 			if !ok {
 				dockCopy = mmdDockCopies["en"]

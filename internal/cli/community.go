@@ -258,6 +258,10 @@ func (a *App) walletCommand() *cobra.Command {
 					Amount int64  `json:"amount"`
 					At     string `json:"at"`
 					Reason string `json:"reason"`
+					// A memory summary is billed apart from the turn that needed it;
+					// operationId is that turn's (the streamId play reports).
+					MemoryCompaction bool   `json:"memoryCompaction"`
+					OperationID      string `json:"operationId"`
 				} `json:"ledger"`
 			}
 			if err := json.Unmarshal(raw, &w); err != nil {
@@ -277,7 +281,14 @@ func (a *App) walletCommand() *cobra.Command {
 						break
 					}
 					when := strings.Replace(clip(e.At, 16), "T", " ", 1)
-					a.Out.Line("  %s  %+d  %s", when, e.Amount, e.Reason)
+					reason := e.Reason
+					if e.MemoryCompaction {
+						reason = "memory compaction"
+						if e.OperationID != "" {
+							reason += " (turn " + e.OperationID + ")"
+						}
+					}
+					a.Out.Line("  %s  %+d  %s", when, e.Amount, reason)
 				}
 			}
 			return nil

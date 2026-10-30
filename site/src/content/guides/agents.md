@@ -60,7 +60,11 @@ Starting a conversation, reading history, pushing, validating, rendering, import
 hearthroom media models                          # image models, credits per image, sizes
 hearthroom media generate --model <id> --prompt "…" --size 1024x1536 \
   --dir my-card --allow-spend --json            # images[].url is the library URL a card can use
+hearthroom media generate --model <id> --prompt "…" \
+  --image my-card/portrait.png --dir my-card --allow-spend   # same character, new scene
 ```
+
+Pass the card's portrait with `--image` for every later image (banner, expressions, scenes) so the face, hair and outfit stay the same; models list how many they take under REFS, and references cost nothing extra.
 
 Sign-ins from CLI versions before image generation lack its permission; the command then says to run `hearthroom auth login` again.
 

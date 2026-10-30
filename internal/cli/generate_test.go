@@ -50,7 +50,7 @@ func newGenProvider(t *testing.T, create string) *genProvider {
 		_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []any{
 			map[string]any{"id": "image-model-a", "name": "Image Model", "type": "image", "lane": "lane-a", "lane_name": "Lane North",
 				"pricing":        map[string]any{"unit": "credits_per_image", "credits": map[string]any{"standard": 35}},
-				"capabilities":   map[string]any{"sizes": []string{"1024x1024", "1024x1536"}, "max_images": 2},
+				"capabilities":   map[string]any{"sizes": []string{"1024x1024", "1024x1536"}, "max_images": 2, "max_reference_images": 4},
 				"content_policy": map[string]any{"nsfw": "none", "real_person": false}},
 			map[string]any{"id": "image-model-b", "name": "Image Model", "type": "image", "lane": "lane-b", "lane_name": "Lane South",
 				"pricing":      map[string]any{"unit": "credits_per_image", "credits": map[string]any{"standard": 61}},
@@ -100,6 +100,15 @@ func newGenProvider(t *testing.T, create string) *genProvider {
 		_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{"folders": []any{map[string]any{"id": "f-uuid-1", "name": "mira"}}}})
 	})
 	mux.HandleFunc("GET /open/v1/image/list", func(w http.ResponseWriter, r *http.Request) {
+		if q := r.URL.Query().Get("q"); q == "mira/portrait.png" || q == "mira/missing.png" {
+			// A reference looked up by library path; the substring match also returns a near miss.
+			list := []any{map[string]any{"id": "asset-9", "fileName": "mira/portrait.png.bak", "imageUrl": "https://cdn.test/u/abc/mira/portrait.png.bak"}}
+			if q == "mira/portrait.png" {
+				list = append(list, map[string]any{"id": "asset-2", "fileName": "mira/portrait.png", "imageUrl": "https://cdn.test/u/abc/mira/portrait.png"})
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{"imageList": list}})
+			return
+		}
 		if r.URL.Query().Get("q") != "image-model-a-0199aabb" {
 			t.Errorf("library lookup q = %q", r.URL.Query().Get("q"))
 		}
@@ -137,7 +146,7 @@ func TestMediaModelsListsImageModels(t *testing.T) {
 			rowB = line
 		}
 	}
-	if !strings.Contains(out, "LANE") || !strings.Contains(rowA, "Lane North") || !strings.Contains(rowA, " 35 ") || !strings.Contains(rowA, "1024x1536") ||
+	if !strings.Contains(out, "LANE") || !strings.Contains(rowA, "Lane North") || !strings.Contains(rowA, " 35 ") || !strings.Contains(rowA, "1024x1536") || !strings.Contains(rowA, " 2    4 ") ||
 		!strings.Contains(rowB, "Lane South") || !strings.Contains(rowB, " 61 ") || strings.Contains(out, "some-video") {
 		t.Fatalf("models output:\n%s", out)
 	}
@@ -248,5 +257,30 @@ func TestMediaGenerateInsufficientPurchasedCredits(t *testing.T) {
 	_, _, err := p.run(t, "generate", "--model", "m", "--prompt", "x", "--allow-spend")
 	if err == nil || !strings.Contains(err.Error(), "purchased credits") || !strings.Contains(err.Error(), "gift credits do not count") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// --image sends reference images from the library: URLs pass through, library
+// paths resolve to their URL, and an unknown path stops before anything is spent.
+func TestMediaGenerateSendsReferenceImages(t *testing.T) {
+	p := newGenProvider(t, "200")
+	_, _, err := p.run(t, "generate", "--model", "image-model-a", "--prompt", "the same girl, full body",
+		"--image", "/mira/portrait.png", "--image", "https://cdn.test/u/abc/mira/face.png", "--allow-spend", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs, _ := p.genBody["images"].([]any)
+	if len(refs) != 2 || refs[0] != "https://cdn.test/u/abc/mira/portrait.png" || refs[1] != "https://cdn.test/u/abc/mira/face.png" {
+		t.Fatalf("images = %v", p.genBody["images"])
+	}
+
+	p = newGenProvider(t, "200")
+	_, _, err = p.run(t, "generate", "--model", "image-model-a", "--prompt", "x", "--image", "mira/missing.png", "--allow-spend")
+	if err == nil || !strings.Contains(err.Error(), "mira/missing.png") || len(p.idemKeys) != 0 {
+		t.Fatalf("err = %v, generate calls = %d", err, len(p.idemKeys))
+	}
+	_, _, err = p.run(t, "generate", "--model", "image-model-a", "--prompt", "x", "--image", "http://cdn.test/a.png", "--allow-spend")
+	if err == nil || len(p.idemKeys) != 0 {
+		t.Fatalf("plain http must be refused before spending: err = %v", err)
 	}
 }

@@ -19,6 +19,11 @@ A saved image prints its library URL, which a card can use directly, e.g. as
 media.portrait in card.json; a file downloaded into the card's assets/ is
 referenced by its relative path instead.
 
+To keep a character looking the same across images, pass its portrait with
+--image (a library URL, or its path in the library as "media ls" shows it;
+repeatable, up to the model's REFS in "media models").
+Reference images cost nothing extra.
+
 Each run sends an Idempotency-Key. If the command stops waiting, run it again
 with the printed --idempotency-key to pick up the same generation without
 being charged twice.
@@ -37,6 +42,7 @@ hearthroom media generate [flags]
       --dir string               save to this media library path, e.g. the card's folder name
       --folder string            save to an existing media library folder, by name or id
       --idempotency-key string   reuse a key to resume the same generation without paying twice (default: a new key)
+      --image stringArray        reference image from your media library, as a URL or library path (repeatable); keeps a character consistent
       --model string             model id from "hearthroom media models"
       --out string               also download to this file; with -n above 1, -1, -2… are added before the extension
       --prompt string            what to draw (at most 4000 characters)

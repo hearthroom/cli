@@ -39,6 +39,8 @@ type genModel struct {
 	Capabilities struct {
 		Sizes     []string `json:"sizes"`
 		MaxImages int      `json:"max_images"`
+		// MaxReferenceImages is how many --image references the model takes; 0 means none.
+		MaxReferenceImages int `json:"max_reference_images"`
 	} `json:"capabilities"`
 	ContentPolicy struct {
 		NSFW       string `json:"nsfw"`
@@ -92,9 +94,9 @@ func (a *App) mediaModelsCommand() *cobra.Command {
 					continue // only image models can be generated through these endpoints today
 				}
 				rows = append(rows, []string{m.ID, clip(m.Name, 24), m.LaneName, priceOf(m), strings.Join(m.Capabilities.Sizes, " "),
-					fmt.Sprint(m.Capabilities.MaxImages), m.ContentPolicy.NSFW})
+					fmt.Sprint(m.Capabilities.MaxImages), fmt.Sprint(m.Capabilities.MaxReferenceImages), m.ContentPolicy.NSFW})
 			}
-			a.Out.Table([]string{"MODEL", "NAME", "LANE", "CREDITS/IMAGE", "SIZES", "MAX", "ADULT"}, rows)
+			a.Out.Table([]string{"MODEL", "NAME", "LANE", "CREDITS/IMAGE", "SIZES", "MAX", "REFS", "ADULT"}, rows)
 			a.Out.Line("Images are paid from purchased credits only; refused prompts and failures are free.")
 			return nil
 		},
@@ -123,6 +125,7 @@ func priceOf(m genModel) string {
 func (a *App) mediaGenerateCommand() *cobra.Command {
 	var model, prompt, promptFile, size, folder, dir, outFile, idemKey string
 	var n int
+	var refs []string
 	var allowSpend bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
@@ -139,6 +142,11 @@ Results are kept for 7 days. To keep one, save it to your media library with
 A saved image prints its library URL, which a card can use directly, e.g. as
 media.portrait in card.json; a file downloaded into the card's assets/ is
 referenced by its relative path instead.
+
+To keep a character looking the same across images, pass its portrait with
+--image (a library URL, or its path in the library as "media ls" shows it;
+repeatable, up to the model's REFS in "media models").
+Reference images cost nothing extra.
 
 Each run sends an Idempotency-Key. If the command stops waiting, run it again
 with the printed --idempotency-key to pick up the same generation without
@@ -171,6 +179,11 @@ being charged twice.`,
 			if folder != "" && dir != "" {
 				return output.Exitf(2, "use --folder or --dir, not both")
 			}
+			for _, r := range refs {
+				if strings.Contains(r, "://") && !strings.HasPrefix(r, "https://") {
+					return output.Exitf(2, "--image %s: use an https URL or a media library path", r)
+				}
+			}
 			if !allowSpend {
 				return output.Exitf(3, "media generate spends purchased credits; re-run with --allow-spend to confirm")
 			}
@@ -201,6 +214,17 @@ being charged twice.`,
 			body := map[string]any{"model": model, "prompt": prompt, "n": n}
 			if size != "" {
 				body["size"] = size
+			}
+			if len(refs) > 0 {
+				urls := make([]string, len(refs))
+				for i, r := range refs {
+					u, err := referenceURL(ctx, c, r)
+					if err != nil {
+						return err
+					}
+					urls[i] = u
+				}
+				body["images"] = urls
 			}
 			a.Out.Note("Generating with %s (idempotency key %s)…", model, idemKey)
 			// 200 carries the task under "harbor"; 202 is the task itself.
@@ -301,6 +325,7 @@ being charged twice.`,
 	f.StringVar(&promptFile, "prompt-file", "", "read the prompt from a file, or - for stdin")
 	f.StringVar(&size, "size", "", "one of the model's sizes, e.g. 1024x1536 (default: the model's)")
 	f.IntVarP(&n, "count", "n", 1, "number of images (up to the model's MAX)")
+	f.StringArrayVar(&refs, "image", nil, "reference image from your media library, as a URL or library path (repeatable); keeps a character consistent")
 	f.StringVar(&dir, "dir", "", "save to this media library path, e.g. the card's folder name")
 	f.StringVar(&folder, "folder", "", "save to an existing media library folder, by name or id")
 	f.StringVar(&outFile, "out", "", "also download to this file; with -n above 1, -1, -2… are added before the extension")
@@ -330,6 +355,32 @@ func folderID(ctx context.Context, c *api.Client, want string) (string, error) {
 		}
 	}
 	return "", output.Exitf(2, "no media library folder named %q; use --dir %s to save under that path instead", want, want)
+}
+
+// referenceURL turns a --image value into the library URL the provider accepts.
+// An https URL passes through; a library path must name an existing file.
+func referenceURL(ctx context.Context, c *api.Client, ref string) (string, error) {
+	if strings.HasPrefix(ref, "https://") {
+		return ref, nil
+	}
+	want := strings.Trim(ref, "/")
+	var list struct {
+		Data struct {
+			ImageList []struct {
+				URL      string `json:"imageUrl"`
+				FileName string `json:"fileName"`
+			} `json:"imageList"`
+		} `json:"data"`
+	}
+	if err := c.OpenGet(ctx, "/image/list", url.Values{"q": {want}, "kind": {"image"}, "pageSize": {"100"}}, &list); err != nil {
+		return "", err
+	}
+	for _, it := range list.Data.ImageList {
+		if it.FileName == want {
+			return it.URL, nil
+		}
+	}
+	return "", output.Exitf(2, "--image %s: no image at that path in your media library (see `hearthroom media ls`)", ref)
 }
 
 type libraryEntry struct{ URL, FileName string }

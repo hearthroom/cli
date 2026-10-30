@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `media generate --image <library URL or path>` sends reference images so a character keeps the same face, hair and outfit across images; `media models` lists how many each model takes (REFS). References cost nothing extra.
+
 ## 0.10.2 (2026-10-22)
 
 - Disabled Lorebook entries are preserved on push, including their enabled state, matching options and groups.

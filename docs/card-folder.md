@@ -170,6 +170,8 @@ is refused; export the video as MP4 (H.264) first.
   result into the folder, so the card references it like any other asset;
   `media generate --dir <folder>` saves it in the library instead and prints
   its URL, which `media.portrait` and the Markdown files can use directly.
+  Later images of the same character take the portrait as a reference:
+  `--image <library path or URL>` keeps the face, hair and outfit.
 
 ## lorebook.json
 

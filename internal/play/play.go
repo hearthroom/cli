@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -275,6 +274,12 @@ func NewClientOperationID() string {
 // the client's bearer, connects with protocolVersion 2 (the version providers implement today), authenticates, sends
 // the chat frame and reads until done, error or context cancellation. On
 // cancellation it sends a stop control frame before closing.
+//
+// The provider keeps generating when the socket drops, so a stream that closes
+// before done is reattached to the same reply from the last event received
+// (resumeStreamId/lastEventId). Without a stream id yet, the operation is found
+// in the free history by this turn's client operation id. Resuming never sends
+// the message again.
 func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, error) {
 	if !opts.AllowSpend {
 		return nil, ErrSpendNotAllowed
@@ -291,42 +296,11 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 	if opts.OperationKind == "" {
 		opts.OperationKind = "send"
 	}
-	var ticket struct {
-		Ticket    string `json:"ticket"`
-		ExpiresIn int    `json:"expiresIn"`
-	}
-	if err := c.OpenPost(ctx, "/conversation/ws-ticket", nil, &ticket); err != nil {
-		return nil, fmt.Errorf("get stream ticket: %w", err)
-	}
-	if ticket.Ticket == "" {
-		return nil, errors.New("get stream ticket: empty ticket")
-	}
-	wsURL := strings.Replace(strings.Replace(c.API, "https://", "wss://", 1), "http://", "ws://", 1) + "/open/v1/conversation/ws?protocolVersion=2"
-	dialCtx, cancelDial := context.WithTimeout(ctx, 20*time.Second)
-	defer cancelDial()
-	conn, _, err := websocket.Dial(dialCtx, wsURL, &websocket.DialOptions{
-		HTTPClient: c.HTTP,
-		HTTPHeader: http.Header{"User-Agent": {c.UserAgent}, "X-Client-Platform": {"web"}},
-	})
+	conn, err := openStream(ctx, c, nil, opts.OnEvent)
 	if err != nil {
-		return nil, fmt.Errorf("connect stream: %w", err)
-	}
-	conn.SetReadLimit(64 << 20)
-	defer conn.CloseNow()
-
-	if err := writeJSON(ctx, conn, map[string]string{"type": "auth", "ticket": ticket.Ticket}); err != nil {
 		return nil, err
 	}
-	ev, err := readEvent(ctx, conn)
-	if err != nil {
-		return nil, fmt.Errorf("stream handshake: %w", err)
-	}
-	if ev.Type != "ready" {
-		return nil, fmt.Errorf("stream handshake rejected: %s %s", ev.Type, truncate(string(ev.Data), 200))
-	}
-	if opts.OnEvent != nil {
-		opts.OnEvent(ev)
-	}
+	defer func() { conn.CloseNow() }()
 
 	frame := map[string]any{
 		"conversationId":    opts.ConversationID,
@@ -380,31 +354,185 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 			}
 		}
 	}()
-	var answer, thinking strings.Builder
+	s := &turnStream{res: res, onEvent: opts.OnEvent}
+	dropped, err := s.read(ctx, conn)
+	for attempt := 1; dropped && attempt <= resumeAttempts; attempt++ {
+		opID := res.StreamID
+		if opID == "" {
+			opID = findOperation(ctx, c, opts.ConversationID, opts.ClientOperationID)
+		}
+		if opID == "" {
+			break
+		}
+		if opts.OnEvent != nil {
+			opts.OnEvent(Event{Type: "reconnecting", Data: json.RawMessage(fmt.Sprintf(`{"attempt":%d,"operationId":%q}`, attempt, opID))})
+		}
+		select {
+		case <-ctx.Done():
+			s.finish()
+			res.Error = "interrupted"
+			return res, ctx.Err()
+		case <-time.After(resumeBackoff * time.Duration(attempt)):
+		}
+		next, openErr := openStream(ctx, c, url.Values{"resumeStreamId": {opID}, "lastEventId": {strconv.FormatInt(s.lastSeq, 10)}}, opts.OnEvent)
+		if openErr != nil {
+			if ctx.Err() != nil {
+				s.finish()
+				res.Error = "interrupted"
+				return res, ctx.Err()
+			}
+			continue
+		}
+		conn.CloseNow()
+		conn = next
+		dropped, err = s.read(ctx, conn)
+	}
+	if dropped {
+		s.finish()
+		res.Error = StreamClosedBeforeDone
+	}
+	return res, err
+}
+
+// StreamClosedBeforeDone is TurnResult.Error when the socket dropped and could
+// not be reattached. The provider may still finish and save the reply.
+const StreamClosedBeforeDone = "stream closed before done"
+
+// resumeAttempts bounds how often a dropped stream is reattached.
+const resumeAttempts = 3
+
+// pingInterval matches the provider's control protocol: clients ping every ten
+// seconds. A turn that is preparing (summarising memory, an Agent step) sends
+// no reply text for a while, and a proxy on the way may drop a socket whose
+// client side stays silent.
+var (
+	pingInterval  = 10 * time.Second
+	resumeBackoff = time.Second
+)
+
+// openStream gets a ticket, connects and completes the handshake. extra adds
+// query parameters (a resume names the stream and the last event received).
+func openStream(ctx context.Context, c *api.Client, extra url.Values, onEvent func(Event)) (*websocket.Conn, error) {
+	var ticket struct {
+		Ticket    string `json:"ticket"`
+		ExpiresIn int    `json:"expiresIn"`
+	}
+	if err := c.OpenPost(ctx, "/conversation/ws-ticket", nil, &ticket); err != nil {
+		return nil, fmt.Errorf("get stream ticket: %w", err)
+	}
+	if ticket.Ticket == "" {
+		return nil, errors.New("get stream ticket: empty ticket")
+	}
+	q := url.Values{"protocolVersion": {"2"}}
+	for k, v := range extra {
+		q[k] = v
+	}
+	wsURL := strings.Replace(strings.Replace(c.API, "https://", "wss://", 1), "http://", "ws://", 1) + "/open/v1/conversation/ws?" + q.Encode()
+	dialCtx, cancelDial := context.WithTimeout(ctx, 20*time.Second)
+	defer cancelDial()
+	conn, _, err := websocket.Dial(dialCtx, wsURL, &websocket.DialOptions{
+		HTTPClient: c.HTTP,
+		HTTPHeader: http.Header{"User-Agent": {c.UserAgent}, "X-Client-Platform": {"web"}},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("connect stream: %w", err)
+	}
+	conn.SetReadLimit(64 << 20)
+	if err := writeJSON(ctx, conn, map[string]string{"type": "auth", "ticket": ticket.Ticket}); err != nil {
+		conn.CloseNow()
+		return nil, err
+	}
+	ev, err := readEvent(ctx, conn)
+	if err != nil {
+		conn.CloseNow()
+		return nil, fmt.Errorf("stream handshake: %w", err)
+	}
+	if ev.Type != "ready" {
+		conn.CloseNow()
+		return nil, fmt.Errorf("stream handshake rejected: %s %s", ev.Type, truncate(string(ev.Data), 200))
+	}
+	if onEvent != nil {
+		onEvent(ev)
+	}
+	return conn, nil
+}
+
+// findOperation looks up this turn's operation in the free history by its
+// client operation id. Empty means not found (refused before admission, or the
+// history could not be read).
+func findOperation(ctx context.Context, c *api.Client, conversationID, clientOperationID string) string {
+	page, err := History(ctx, c, conversationID, 1, 20)
+	if err != nil {
+		return ""
+	}
+	for _, op := range page.Operations {
+		if op.ClientOperationID == clientOperationID {
+			return op.OperationID
+		}
+	}
+	return ""
+}
+
+// turnStream accumulates one turn across the connections that carry it.
+type turnStream struct {
+	res              *TurnResult
+	onEvent          func(Event)
+	answer, thinking strings.Builder
+	lastSeq          int64
+}
+
+func (s *turnStream) finish() {
+	s.res.Answer, s.res.Thinking = s.answer.String(), s.thinking.String()
+}
+
+// read consumes one connection until done, an error frame or cancellation.
+// dropped reports a socket that closed before the turn ended.
+func (s *turnStream) read(ctx context.Context, conn *websocket.Conn) (dropped bool, err error) {
+	pingCtx, stopPing := context.WithCancel(ctx)
+	defer stopPing()
+	go func() {
+		t := time.NewTicker(pingInterval)
+		defer t.Stop()
+		for {
+			select {
+			case <-pingCtx.Done():
+				return
+			case <-t.C:
+				if writeJSON(pingCtx, conn, map[string]string{"type": "ping"}) != nil {
+					return
+				}
+			}
+		}
+	}()
+	res := s.res
 	for {
-		ev, err := readEvent(ctx, conn)
+		_, raw, err := conn.Read(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				// Interrupted: ask the server to stop, then report what we have.
 				stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				_ = writeJSON(stopCtx, conn, map[string]string{"action": "stop"})
 				cancel()
-				res.Answer, res.Thinking = answer.String(), thinking.String()
+				s.finish()
 				res.Error = "interrupted"
-				return res, ctx.Err()
+				return false, ctx.Err()
 			}
-			if errors.Is(err, io.EOF) || websocket.CloseStatus(err) != -1 {
-				res.Answer, res.Thinking = answer.String(), thinking.String()
-				if res.Error == "" && res.FinishReason == "" {
-					res.Error = "stream closed before done"
-				}
-				return res, nil
-			}
-			return res, err
+			// A close, EOF or reset all mean the socket is gone while the
+			// provider may still be generating.
+			s.finish()
+			return res.Error == "" && res.FinishReason == "", nil
+		}
+		ev, err := ParseFrame(string(raw))
+		if err != nil {
+			s.finish()
+			return false, err
 		}
 		res.Events++
-		if opts.OnEvent != nil {
-			opts.OnEvent(ev)
+		if ev.ID > s.lastSeq {
+			s.lastSeq = ev.ID
+		}
+		if s.onEvent != nil {
+			s.onEvent(ev)
 		}
 		switch ev.Type {
 		case "streamMeta":
@@ -420,12 +548,12 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 			_ = json.Unmarshal(ev.Data, &m)
 			res.ChatID = m.ChatID
 		case "answer":
-			answer.WriteString(ev.Text)
+			s.answer.WriteString(ev.Text)
 			if ev.Final != nil && *ev.Final != "" {
 				res.FinishReason = *ev.Final
 			}
 		case "thinking":
-			thinking.WriteString(ev.Text)
+			s.thinking.WriteString(ev.Text)
 		case "recallDebug":
 			var payload struct {
 				Debug json.RawMessage `json:"recallDebug"`
@@ -444,14 +572,14 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 			_ = json.Unmarshal(ev.Data, &e)
 			res.Error = firstNonEmpty(e.Error, e.Code, "error")
 			res.ErrorType = e.ErrorType
-			res.Answer, res.Thinking = answer.String(), thinking.String()
-			return res, nil
+			s.finish()
+			return false, nil
 		case "done", "sessionExpired", "turn_already_consumed":
-			res.Answer, res.Thinking = answer.String(), thinking.String()
+			s.finish()
 			if ev.Type != "done" {
 				res.Error = ev.Type
 			}
-			return res, nil
+			return false, nil
 		}
 	}
 }

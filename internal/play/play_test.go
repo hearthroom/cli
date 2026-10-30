@@ -84,6 +84,15 @@ func fakeStream(t *testing.T, script []string, wantModel string, wantLanguage ..
 			return
 		}
 		_ = conn.Write(ctx, websocket.MessageText, []byte("event: ready\ndata: {\"accountBound\":true}\n\n"))
+		if r.URL.Query().Get("resumeStreamId") != "" {
+			// A resumed stream sends no chat frame; replay the script again.
+			for _, s := range script {
+				if err := conn.Write(ctx, websocket.MessageText, []byte(s)); err != nil {
+					return
+				}
+			}
+			return
+		}
 		_, raw, err = conn.Read(ctx)
 		if err != nil {
 			return
@@ -101,6 +110,8 @@ func fakeStream(t *testing.T, script []string, wantModel string, wantLanguage ..
 		if got, ok := frame["language"]; (lang != "" && got != lang) || (lang == "" && ok) {
 			t.Errorf("chat frame language = %v (want %q)", got, lang)
 		}
+		// Discard the client's pings, as the provider does.
+		ctx = conn.CloseRead(ctx)
 		for _, s := range script {
 			if err := conn.Write(ctx, websocket.MessageText, []byte(s)); err != nil {
 				return

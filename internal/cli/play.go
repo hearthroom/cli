@@ -236,6 +236,8 @@ With --json, every server event is printed as one JSON object per line.` + "\n\n
 						a.Out.Note("  … %s %s", p.Stage, p.Resource)
 					case "error":
 						a.Out.Note("error: %s", string(ev.Data))
+					case "reconnecting":
+						a.Out.Note("  … connection dropped; reattaching to the same reply")
 					}
 				}
 			}
@@ -262,6 +264,11 @@ With --json, every server event is printed as one JSON object per line.` + "\n\n
 				if res.Error != "" {
 					a.Out.Note("[%s]", res.Error)
 				}
+			}
+			if res.Error == play.StreamClosedBeforeDone {
+				// The provider keeps generating without the socket. Sending again
+				// would start a second paid turn for the same message.
+				return output.Exitf(1, "the connection dropped before the reply finished; it may still be saved. Check with: hearthroom play %s --history (sending again starts a new paid turn)", playTarget(hintArgs, roleID))
 			}
 			if res.Error != "" && res.Error != "interrupted" {
 				return output.Exitf(1, "the turn did not complete: %s", res.Error)

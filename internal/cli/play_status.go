@@ -16,13 +16,18 @@ func (a *App) printPlayStatus(status play.OperationStatus, args []string, roleID
 	}
 	a.Out.Note("Generation: %s; credits: %d; settlement: %s; allowed actions: %s", status.State, status.ChargeCredits, settlement, actions)
 	if status.CanContinue() {
-		target := "--role " + playShellQuote(roleID)
-		if len(args) > 0 {
-			target = playShellQuote(args[0])
-		}
 		a.Out.Note("Continue saved preparation:")
-		a.Out.Note("hearthroom play %s --continue --allow-spend", target)
+		a.Out.Note("hearthroom play %s --continue --allow-spend", playTarget(args, roleID))
 		a.Out.Note("Add --model <model> to switch models.")
 	}
 }
+
+// playTarget names the card for a suggested command: the folder argument, else --role.
+func playTarget(args []string, roleID string) string {
+	if len(args) > 0 {
+		return playShellQuote(args[0])
+	}
+	return "--role " + playShellQuote(roleID)
+}
+
 func playShellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }

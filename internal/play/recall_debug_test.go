@@ -29,6 +29,7 @@ func TestRecallDebugTurnPreservesSeparatePayload(t *testing.T) {
 func TestRecallDebugRecoversSavedDetailsOnErrorAndDisconnect(t *testing.T) {
 	for _, terminal := range []string{"event: error\ndata: {\"code\":\"upstream_error\"}\n\n", ""} {
 		t.Run(terminal, func(t *testing.T) {
+			fastResume(t)
 			script := []string{"event: streamMeta\ndata: {\"streamId\":\"saved-op\"}\n\n"}
 			if terminal != "" {
 				script = append(script, terminal)

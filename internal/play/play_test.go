@@ -110,8 +110,15 @@ func fakeStream(t *testing.T, script []string, wantModel string, wantLanguage ..
 		if got, ok := frame["language"]; (lang != "" && got != lang) || (lang == "" && ok) {
 			t.Errorf("chat frame language = %v (want %q)", got, lang)
 		}
-		// Discard the client's pings, as the provider does.
-		ctx = conn.CloseRead(ctx)
+		// Discard the client's pings, as the provider does. (CloseRead would close
+		// the connection on the first ping: it is a data frame.)
+		go func() {
+			for {
+				if _, _, err := conn.Read(ctx); err != nil {
+					return
+				}
+			}
+		}()
 		for _, s := range script {
 			if err := conn.Write(ctx, websocket.MessageText, []byte(s)); err != nil {
 				return

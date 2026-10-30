@@ -197,3 +197,46 @@ func TestTurnGivesUpWhenTheOperationCannotBeFound(t *testing.T) {
 		t.Fatalf("queries = %v; want no resume without an operation", s.queries)
 	}
 }
+
+// Ctrl-C must stop the reply on the provider, which keeps generating without the
+// socket. Cancelling the read closes the socket before a stop frame could be
+// written, so the stop goes through the HTTP endpoint --stop uses.
+func TestTurnInterruptStopsTheReplyOnTheProvider(t *testing.T) {
+	fastResume(t)
+	stopped := make(chan map[string]any, 1)
+	s := &resumeServer{t: t}
+	s.conns = []func(context.Context, *websocket.Conn){func(ctx context.Context, conn *websocket.Conn) {
+		write(ctx, conn, "event: streamMeta\ndata: {\"streamId\":\"op5\"}\n\n")
+		<-ctx.Done()
+	}}
+	srv := s.start()
+	mux := srv.Config.Handler
+	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/open/v1/conversation/stop" {
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			stopped <- body
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
+	c := api.New(srv.URL, "http://site", "t", func(context.Context) (string, error) { return "tok", nil })
+	ctx, cancel := context.WithCancel(context.Background())
+	res, err := Turn(ctx, c, TurnOptions{ConversationID: "conv1", Message: "hi", AllowSpend: true, OnEvent: func(ev Event) {
+		if ev.Type == "streamMeta" {
+			cancel()
+		}
+	}})
+	if err == nil || res.Error != "interrupted" {
+		t.Fatalf("res=%+v err=%v", res, err)
+	}
+	select {
+	case body := <-stopped:
+		if body["conversationId"] != "conv1" || body["streamId"] != "op5" {
+			t.Fatalf("stop body = %v", body)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("interrupt did not stop the reply on the provider")
+	}
+}

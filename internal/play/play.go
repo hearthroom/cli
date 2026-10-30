@@ -273,7 +273,8 @@ func NewClientOperationID() string {
 // Turn sends one message and streams the reply. It obtains a ticket with
 // the client's bearer, connects with protocolVersion 2 (the version providers implement today), authenticates, sends
 // the chat frame and reads until done, error or context cancellation. On
-// cancellation it sends a stop control frame before closing.
+// cancellation it stops the reply through the stop endpoint: the provider keeps
+// generating without the socket, and cancelling the read has already closed it.
 //
 // The provider keeps generating when the socket drops, so a stream that closes
 // before done is reattached to the same reply from the last event received
@@ -355,37 +356,49 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 		}
 	}()
 	s := &turnStream{res: res, onEvent: opts.OnEvent}
+	interrupted := func() (*TurnResult, error) {
+		s.finish()
+		res.Error = "interrupted"
+		stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_ = Stop(stopCtx, c, opts.ConversationID, res.StreamID)
+		return res, ctx.Err()
+	}
 	dropped, err := s.read(ctx, conn)
 	for attempt := 1; dropped && attempt <= resumeAttempts; attempt++ {
+		if opts.OnEvent != nil {
+			opts.OnEvent(Event{Type: "reconnecting", Data: json.RawMessage(fmt.Sprintf(`{"attempt":%d}`, attempt))})
+		}
+		select {
+		case <-ctx.Done():
+			return interrupted()
+		case <-time.After(resumeBackoff * time.Duration(attempt)):
+		}
+		// Look the operation up on every attempt: a drop right after the chat
+		// frame can land before the provider has recorded it.
 		opID := res.StreamID
 		if opID == "" {
 			opID = findOperation(ctx, c, opts.ConversationID, opts.ClientOperationID)
 		}
+		if ctx.Err() != nil {
+			return interrupted()
+		}
 		if opID == "" {
-			break
-		}
-		if opts.OnEvent != nil {
-			opts.OnEvent(Event{Type: "reconnecting", Data: json.RawMessage(fmt.Sprintf(`{"attempt":%d,"operationId":%q}`, attempt, opID))})
-		}
-		select {
-		case <-ctx.Done():
-			s.finish()
-			res.Error = "interrupted"
-			return res, ctx.Err()
-		case <-time.After(resumeBackoff * time.Duration(attempt)):
+			continue
 		}
 		next, openErr := openStream(ctx, c, url.Values{"resumeStreamId": {opID}, "lastEventId": {strconv.FormatInt(s.lastSeq, 10)}}, opts.OnEvent)
 		if openErr != nil {
 			if ctx.Err() != nil {
-				s.finish()
-				res.Error = "interrupted"
-				return res, ctx.Err()
+				return interrupted()
 			}
 			continue
 		}
 		conn.CloseNow()
 		conn = next
 		dropped, err = s.read(ctx, conn)
+	}
+	if ctx.Err() != nil && res.Error == "interrupted" {
+		return interrupted()
 	}
 	if dropped {
 		s.finish()
@@ -509,10 +522,7 @@ func (s *turnStream) read(ctx context.Context, conn *websocket.Conn) (dropped bo
 		_, raw, err := conn.Read(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
-				// Interrupted: ask the server to stop, then report what we have.
-				stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				_ = writeJSON(stopCtx, conn, map[string]string{"action": "stop"})
-				cancel()
+				// Interrupted: Turn stops the reply and reports what we have.
 				s.finish()
 				res.Error = "interrupted"
 				return false, ctx.Err()

@@ -60,8 +60,8 @@ var ErrGreetingNotApplied = errors.New("the card already had a current conversat
 
 // StartNew archives the current conversation with the card (the provider
 // keeps it as history when it has a user message, otherwise discards it) and
-// opens a fresh one. Two folders that share a card no longer step on each
-// other's conversation.
+// opens a fresh one. The provider keeps one current conversation per card and
+// account, so two folders that share a card still share it.
 //
 // save-and-start-new opens the next conversation itself. A server that knows
 // greetingIndex opens it with the requested greeting and echoes the index back.

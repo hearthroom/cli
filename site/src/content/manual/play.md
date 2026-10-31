@@ -17,10 +17,29 @@ charged and shown.
 
 Turns carry the card's language from card.json unless --language says otherwise;
 without one the provider replies in English. --new-session archives the current
-conversation with the card and starts a fresh one, so two folders can test the
-same card without sharing a thread.
+conversation with the card and starts a fresh one.
+
+The provider keeps one current conversation per card and account, whichever
+folder or client opens it, so two runs against the same card share it: run them
+one after another, or push a copy of the folder without its .hearthroom/ as a
+second trial card to test in parallel.
+
+--continue resumes saved Agent preparation from the latest eligible turn without
+sending your message again. It requires --allow-spend: only new model usage is
+charged, earlier charges stay unchanged, and continuation may still incur charges
+if it fails.
+
+Use --model <model> to switch models, or omit it to keep the previous model.
 
 With --json, every server event is printed as one JSON object per line.
+
+Recall details help you check how your card's Lorebook entries were found and which content was sent to the model. Use --debug-recall with --message or --continue and --allow-spend. Only the card's author can use this feature, and both chat.play and role.read are required. Normal chat billing applies.
+
+Reading saved recall details does not search again or generate another reply. Details cannot be collected later for a turn that did not have --debug-recall enabled.
+
+With --continue, recall details cover only this continuation. Entries already available from earlier preparation are marked separately; they were not necessarily read again. Normal continuation billing applies.
+
+An entry being found, read or sent to the model does not mean the model used it in its reply.
 
 ## Usage
 
@@ -33,6 +52,8 @@ hearthroom play [dir] [flags]
 ```
       --agent string              agent mode for this turn: on or off (default: saved preference)
       --allow-spend               confirm that this turn may spend credits
+      --continue                  continue the latest saved Agent preparation (spends credits; requires --allow-spend)
+      --debug-recall              include Lorebook recall details for your own card in this paid turn (requires role.read)
       --greeting int              opening for a new conversation (0 = main, 1.. = alternates); an existing conversation is resumed as is, so pair it with --new-session
       --history                   print recent messages instead of sending
       --language string           reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)

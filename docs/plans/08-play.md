@@ -19,7 +19,9 @@ hearthroom play … --stop
    or `--role`.
 2. `POST /open/v1/conversation/start` opens or resumes the current conversation
    (`firstPageSize` fetches recent history in the same call). This does not
-   generate and does not spend.
+   generate and does not spend. The provider keeps one current conversation
+   per card and account; the `conversationId` saved in the folder is not sent,
+   so two folders on the same card share that conversation.
 3. Without `--allow-spend`, `play -m` stops here and prints the cost notice and
    the exact flag to add. With it:
    - `POST /open/v1/conversation/ws-ticket`, then connect to

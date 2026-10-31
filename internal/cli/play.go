@@ -40,8 +40,12 @@ charged and shown.
 
 Turns carry the card's language from card.json unless --language says otherwise;
 without one the provider replies in English. --new-session archives the current
-conversation with the card and starts a fresh one, so two folders can test the
-same card without sharing a thread.
+conversation with the card and starts a fresh one.
+
+The provider keeps one current conversation per card and account, whichever
+folder or client opens it, so two runs against the same card share it: run them
+one after another, or push a copy of the folder without its .hearthroom/ as a
+second trial card to test in parallel.
 
 --continue resumes saved Agent preparation from the latest eligible turn without
 sending your message again. It requires --allow-spend: only new model usage is

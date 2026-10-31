@@ -31,6 +31,8 @@ type genListed struct {
 	Data      []struct {
 		URL     string `json:"url"`
 		AssetID string `json:"asset_id"`
+		// Deleted marks an image the author deleted; its number stays so the others keep theirs.
+		Deleted bool `json:"deleted"`
 	} `json:"data"`
 }
 
@@ -74,26 +76,32 @@ media library. Results that are not saved are deleted after 7 days.`,
 				if i > 0 {
 					a.Out.Line("")
 				}
-				saved := 0
+				saved, kept := 0, 0
 				for _, d := range g.Data {
 					if d.AssetID != "" {
 						saved++
 					}
+					if !d.Deleted {
+						kept++
+					}
 				}
 				meta := []string{time.Unix(g.CreatedAt, 0).Local().Format("2006-01-02 15:04"), g.Model, g.Size, g.Status}
 				if g.Status == "completed" {
-					meta = append(meta, fmt.Sprintf("%d credits", g.Credits), fmt.Sprintf("%d/%d saved", saved, len(g.Data)))
-					if g.ExpiresAt > 0 && len(g.Data) > saved {
+					meta = append(meta, fmt.Sprintf("%d credits", g.Credits), fmt.Sprintf("%d/%d saved", saved, kept))
+					if g.ExpiresAt > 0 && kept > saved {
 						meta = append(meta, "unsaved images deleted "+until(now, time.Unix(g.ExpiresAt, 0)))
 					}
 				}
 				a.Out.Line("%s  %s", g.ID, strings.Join(meta, " · "))
 				for n, d := range g.Data {
-					mark := ""
-					if d.AssetID != "" {
-						mark = "  [saved]"
+					switch {
+					case d.Deleted:
+						a.Out.Line("  %d. (deleted)", n+1)
+					case d.AssetID != "":
+						a.Out.Line("  %d. %s  [saved]", n+1, d.URL)
+					default:
+						a.Out.Line("  %d. %s", n+1, d.URL)
 					}
-					a.Out.Line("  %d. %s%s", n+1, d.URL, mark)
 				}
 			}
 			a.Out.Line("")
@@ -161,8 +169,10 @@ Saving is free and uses your media library storage.`,
 				if err := c.OpenGet(ctx, "/generations/"+url.PathEscape(id), nil, &task); err != nil {
 					return generationError(err)
 				}
-				for i := range task.Data {
-					picks = append(picks, i+1)
+				for i, d := range task.Data {
+					if !d.Deleted {
+						picks = append(picks, i+1)
+					}
 				}
 				if len(picks) == 0 {
 					return output.Exitf(1, "generation %s has no images to save (still running, failed, or older than 7 days)", id)

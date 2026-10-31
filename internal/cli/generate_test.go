@@ -125,7 +125,7 @@ func newGenProvider(t *testing.T, create string) *genProvider {
 			map[string]any{"id": "0199aabb-0000-7000-8000-000000000002", "model": "image-model-b", "status": "in_progress", "price_tier": "1024x1024", "created_at": 1800000100},
 			map[string]any{"id": genTaskID, "model": "image-model-a", "status": "completed", "price_tier": "1024x1536", "credits": 70,
 				"created_at": 1800000000, "expires_at": time.Now().Add(50 * time.Hour).Unix(),
-				"data": []any{map[string]any{"url": "https://assets.test/media-gen/a/0.png", "asset_id": "asset-1"}, map[string]any{"url": "https://assets.test/media-gen/a/1.png"}}},
+				"data": []any{map[string]any{"url": "https://assets.test/media-gen/a/0.png", "asset_id": "asset-1"}, map[string]any{"url": "https://assets.test/media-gen/a/1.png"}, map[string]any{"url": "", "deleted": true}}},
 		}})
 	})
 	mux.HandleFunc("GET /open/v1/image/folder/list", func(w http.ResponseWriter, r *http.Request) {
@@ -324,7 +324,7 @@ func TestMediaGenerationsListsImagesWithSavedMarks(t *testing.T) {
 		t.Fatalf("query = %q", p.listQuery)
 	}
 	for _, want := range []string{genTaskID, "image-model-a", "1024x1536", "70 credits", "1/2 saved", "unsaved images deleted in 3d",
-		"  1. https://assets.test/media-gen/a/0.png  [saved]", "  2. https://assets.test/media-gen/a/1.png\n", "in_progress", "media save <id> --pick"} {
+		"  1. https://assets.test/media-gen/a/0.png  [saved]", "  2. https://assets.test/media-gen/a/1.png\n", "  3. (deleted)", "in_progress", "media save <id> --pick"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `media generations` lists the image generations of the last 7 days from any signed-in client, with each image's number, result URL and whether it is saved.
+- `media save <id> --pick <n> --name <name> --dir|--folder` saves only the chosen images under the given names; a name already in that folder is refused instead of replaced.
+- `media generate --dir|--folder` prints each saved image's library URL from the save itself, so the URL no longer goes missing.
 - `media generate --image <library URL or path>` sends reference images so a character keeps the same face, hair and outfit across images; `media models` lists how many each model takes (REFS). References cost nothing extra.
 
 ## 0.10.2 (2026-10-22)

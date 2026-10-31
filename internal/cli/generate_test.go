@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -27,6 +28,7 @@ type genProvider struct {
 	saveBody   map[string]any
 	saveCalls  int
 	modelsLang string
+	listQuery  string
 }
 
 func newGenProvider(t *testing.T, create string) *genProvider {
@@ -93,8 +95,38 @@ func newGenProvider(t *testing.T, create string) *genProvider {
 		p.mu.Lock()
 		p.saveCalls++
 		_ = json.NewDecoder(r.Body).Decode(&p.saveBody)
+		body := p.saveBody
 		p.mu.Unlock()
-		_ = json.NewEncoder(w).Encode(map[string]any{"id": genTaskID, "object": "media.saved", "asset_ids": []string{"asset-1"}})
+		items, _ := body["items"].([]any)
+		ids, assets := []string{}, []any{}
+		for _, it := range items {
+			item := it.(map[string]any)
+			n := int(item["index"].(float64))
+			name, _ := item["name"].(string)
+			if name == "taken" {
+				w.WriteHeader(http.StatusConflict)
+				_, _ = w.Write([]byte(`{"error":{"type":"invalid_request_error","code":"name_taken","param":"items","message":"A file with that name is already in this folder. Pick another name."}}`))
+				return
+			}
+			if name == "" {
+				name = fmt.Sprintf("image-model-a-000011112222-%d", n+1)
+			}
+			id := fmt.Sprintf("asset-%d", n+1)
+			ids = append(ids, id)
+			assets = append(assets, map[string]any{"index": n, "asset_id": id, "url": "https://cdn.test/u/abc/mira/" + name + ".png"})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": genTaskID, "object": "media.saved", "asset_ids": ids, "assets": assets})
+	})
+	mux.HandleFunc("GET /open/v1/generations", func(w http.ResponseWriter, r *http.Request) {
+		p.mu.Lock()
+		p.listQuery = r.URL.RawQuery
+		p.mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []any{
+			map[string]any{"id": "0199aabb-0000-7000-8000-000000000002", "model": "image-model-b", "status": "in_progress", "price_tier": "1024x1024", "created_at": 1800000100},
+			map[string]any{"id": genTaskID, "model": "image-model-a", "status": "completed", "price_tier": "1024x1536", "credits": 70,
+				"created_at": 1800000000, "expires_at": time.Now().Add(50 * time.Hour).Unix(),
+				"data": []any{map[string]any{"url": "https://assets.test/media-gen/a/0.png", "asset_id": "asset-1"}, map[string]any{"url": "https://assets.test/media-gen/a/1.png"}}},
+		}})
 	})
 	mux.HandleFunc("GET /open/v1/image/folder/list", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{"folders": []any{map[string]any{"id": "f-uuid-1", "name": "mira"}}}})
@@ -109,12 +141,8 @@ func newGenProvider(t *testing.T, create string) *genProvider {
 			_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{"imageList": list}})
 			return
 		}
-		if r.URL.Query().Get("q") != "image-model-a-0199aabb" {
-			t.Errorf("library lookup q = %q", r.URL.Query().Get("q"))
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{"imageList": []any{
-			map[string]any{"id": "asset-1", "fileName": "mira/image-model-a-0199aabb-1.png", "imageUrl": "https://cdn.test/u/abc/mira/image-model-a-0199aabb-1.png"},
-		}}})
+		// Saving returns the library URLs, so generate never searches the library for them.
+		t.Errorf("unexpected library search q = %q", r.URL.Query().Get("q"))
 	})
 	mux.HandleFunc("GET /result/1.png", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("PNGDATA")) })
 	p.srv = httptest.NewServer(mux)
@@ -199,7 +227,7 @@ func TestMediaGenerateSyncSavesToDirAndDownloads(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	img := res.Images[0]
-	if res.TaskID != genTaskID || img["assetId"] != "asset-1" || img["url"] != "https://cdn.test/u/abc/mira/image-model-a-0199aabb-1.png" || img["file"] != file {
+	if res.TaskID != genTaskID || img["assetId"] != "asset-1" || img["url"] != "https://cdn.test/u/abc/mira/image-model-a-000011112222-1.png" || img["file"] != file {
 		t.Fatalf("json = %s", out)
 	}
 }
@@ -219,7 +247,7 @@ func TestMediaGenerateAsyncPollsAndSavesToFolder(t *testing.T) {
 	if len(ids) != 1 || ids[0] != "f-uuid-1" || p.saveBody["directory"] != nil {
 		t.Fatalf("save body = %v", p.saveBody)
 	}
-	if !strings.Contains(out, "https://cdn.test/u/abc/mira/image-model-a-0199aabb-1.png") || !strings.Contains(out, "35 credits") {
+	if !strings.Contains(out, "https://cdn.test/u/abc/mira/image-model-a-000011112222-1.png") || !strings.Contains(out, "35 credits") {
 		t.Fatalf("output:\n%s", out)
 	}
 }
@@ -282,5 +310,74 @@ func TestMediaGenerateSendsReferenceImages(t *testing.T) {
 	_, _, err = p.run(t, "generate", "--model", "image-model-a", "--prompt", "x", "--image", "http://cdn.test/a.png", "--allow-spend")
 	if err == nil || len(p.idemKeys) != 0 {
 		t.Fatalf("plain http must be refused before spending: err = %v", err)
+	}
+}
+
+// Recent generations list each image with its number and whether it is saved.
+func TestMediaGenerationsListsImagesWithSavedMarks(t *testing.T) {
+	p := newGenProvider(t, "200")
+	out, _, err := p.run(t, "generations", "--limit", "5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.listQuery != "limit=5&type=image" {
+		t.Fatalf("query = %q", p.listQuery)
+	}
+	for _, want := range []string{genTaskID, "image-model-a", "1024x1536", "70 credits", "1/2 saved", "unsaved images deleted in 3d",
+		"  1. https://assets.test/media-gen/a/0.png  [saved]", "  2. https://assets.test/media-gen/a/1.png\n", "in_progress", "media save <id> --pick"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+	if _, _, err := p.run(t, "generations", "--limit", "500"); err == nil {
+		t.Fatal("limit above 100 must be refused")
+	}
+}
+
+// Picked images are saved under the given names; only those are sent.
+func TestMediaSavePicksImagesUnderTheirNames(t *testing.T) {
+	p := newGenProvider(t, "200")
+	out, _, err := p.run(t, "save", genTaskID, "--pick", "2", "--name", "hero", "--dir", "/mira/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, _ := p.saveBody["items"].([]any)
+	if p.saveBody["directory"] != "mira" || len(items) != 1 || items[0].(map[string]any)["index"] != float64(1) || items[0].(map[string]any)["name"] != "hero" {
+		t.Fatalf("save body = %v", p.saveBody)
+	}
+	if !strings.Contains(out, "2. saved → https://cdn.test/u/abc/mira/hero.png") {
+		t.Fatalf("output:\n%s", out)
+	}
+	if _, _, err := p.run(t, "save", genTaskID, "--pick", "1,2", "--name", "only-one", "--dir", "mira"); err == nil || !strings.Contains(err.Error(), "one --name per --pick") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, _, err := p.run(t, "save", genTaskID, "--pick", "1"); err == nil || !strings.Contains(err.Error(), "--dir") {
+		t.Fatalf("a target is required: %v", err)
+	}
+}
+
+// A taken name is refused with what to do next; nothing is overwritten.
+func TestMediaSaveTakenNameSaysChooseAnother(t *testing.T) {
+	p := newGenProvider(t, "200")
+	_, _, err := p.run(t, "save", genTaskID, "--pick", "1", "--name", "taken", "--folder", "mira")
+	if err == nil || !strings.Contains(err.Error(), "choose another --name") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+// Without --pick every image of the generation is saved.
+func TestMediaSaveWithoutPickSavesEveryImage(t *testing.T) {
+	p := newGenProvider(t, "200")
+	p.polls = 5 // the task is already completed
+	out, _, err := p.run(t, "save", genTaskID, "--dir", "mira", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, _ := p.saveBody["items"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["index"] != float64(0) || items[0].(map[string]any)["name"] != nil {
+		t.Fatalf("save body = %v", p.saveBody)
+	}
+	if !strings.Contains(out, `"url": "https://cdn.test/u/abc/mira/image-model-a-000011112222-1.png"`) {
+		t.Fatalf("json:\n%s", out)
 	}
 }

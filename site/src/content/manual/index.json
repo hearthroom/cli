@@ -300,10 +300,12 @@
     "parent": "hearthroom",
     "children": [
       "media/generate",
+      "media/generations",
       "media/ls",
       "media/models",
       "media/mv",
       "media/rm",
+      "media/save",
       "media/upload"
     ]
   },
@@ -311,6 +313,12 @@
     "slug": "media/generate",
     "command": "hearthroom media generate",
     "short": "Generate images with a model and optionally save them to your media library",
+    "parent": "media"
+  },
+  {
+    "slug": "media/generations",
+    "command": "hearthroom media generations",
+    "short": "List your recent image generations and which images are saved",
     "parent": "media"
   },
   {
@@ -335,6 +343,12 @@
     "slug": "media/rm",
     "command": "hearthroom media rm",
     "short": "Delete files from your media library by id (see `media ls`)",
+    "parent": "media"
+  },
+  {
+    "slug": "media/save",
+    "command": "hearthroom media save",
+    "short": "Save picked images of a generation to your media library, under names you choose",
     "parent": "media"
   },
   {

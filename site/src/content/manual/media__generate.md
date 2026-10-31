@@ -12,9 +12,11 @@ sizes). It spends purchased credits per image, so it requires --allow-spend;
 granted or gift credits cannot pay for it. Refused prompts and failed
 generations are not charged.
 
-Results are kept for 7 days. To keep one, save it to your media library with
---dir <path> (created if missing, e.g. the card's folder name) or --folder
-<name or id> (an existing folder), and/or download it with --out <file>.
+Results are kept for 7 days. To keep them, save them to your media library
+with --dir <path> (created if missing, e.g. the card's folder name) or --folder
+<name or id> (an existing folder), and/or download them with --out <file>.
+To look first and keep only some, leave both out, then use "media generations"
+and "media save --pick".
 A saved image prints its library URL, which a card can use directly, e.g. as
 media.portrait in card.json; a file downloaded into the card's assets/ is
 referenced by its relative path instead.

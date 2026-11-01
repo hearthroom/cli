@@ -198,6 +198,12 @@ Lorebook keywords and secondary keywords need `/pattern/flags` syntax for regula
 `id` fields appear after `pull` or a push to an owned card; they hold the
 provider's ids and let later pushes update instead of duplicate. `disabled: true` keeps an entry in the uploaded Lorebook with its enabled state turned off. To delete a CLI-managed entry from an owned card, remove it locally and push with `--prune`. Without that flag, push lists the entries it would delete and stops before writing the Lorebook. Entries created by other tools are kept. Empty entry content is rejected rather than silently omitted.
 
+### Lorebook recall allowance
+
+Each turn, newly triggered entries can take up to about one-eighth of the model's context; entries matching the current message come first, and an entry too long to fit is skipped for the next one.
+
+The allowance follows the selected context tier, measured in tokens, and includes the entry's formatting. Always-on entries and entries retained from earlier turns do not use this new-entry allowance. Among new entries, current-message keyword matches come before matches from recent messages, followed by semantic candidates; competing entries are ordered by reranker score when available. Selected entries are sent in author order. Keep each entry to roughly 500 characters where possible, and keep always-on entries concise; this is writing advice, not an upload limit.
+
 ## rules.json
 
 ```json

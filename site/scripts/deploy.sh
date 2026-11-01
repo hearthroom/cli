@@ -22,9 +22,4 @@ CLI_VERSION="$version" npx astro build
 npx vitest run
 if [ "${1:-}" = "--dry-run" ]; then npx wrangler deploy --dry-run; exit 0; fi
 npx wrangler deploy
-for h in cli.hearthroom.club cli.sukisuki.ai cli.sukisuki.chat; do
-  printf '%-22s / %s  /llms.txt %s  /manual/card/push.md %s\n' "$h" \
-    "$(curl -sS -o /dev/null -w '%{http_code}' "https://$h/")" \
-    "$(curl -sS -o /dev/null -w '%{http_code}' "https://$h/llms.txt")" \
-    "$(curl -sS -o /dev/null -w '%{http_code}' "https://$h/manual/card/push.md")"
-done
+node scripts/verify-hosts.mjs

@@ -3,13 +3,14 @@ compatibility_date = "2026-09-01"
 account_id = "e1448ac973e62649758da2498fc9df5a"
 
 # The main Hearthroom Worker owns the wildcard routes (*.hearthroom.club/*,
-# *.sukisuki.ai/*, *.sukisuki.chat/*). A more specific route wins, so the CLI
-# site takes exactly these three hosts; custom_domain cannot coexist with the
+# *.sukisuki.ai/*, *.sukisuki.chat/*, *.sukisuki.pro/*). A more specific route wins, so the CLI
+# site takes exactly these four hosts; custom_domain cannot coexist with the
 # wildcards. The proxied wildcard DNS records already exist.
 routes = [
   { pattern = "cli.hearthroom.club/*", zone_name = "hearthroom.club" },
   { pattern = "cli.sukisuki.ai/*", zone_name = "sukisuki.ai" },
   { pattern = "cli.sukisuki.chat/*", zone_name = "sukisuki.chat" },
+  { pattern = "cli.sukisuki.pro/*", zone_name = "sukisuki.pro" },
 ]
 
 [assets]

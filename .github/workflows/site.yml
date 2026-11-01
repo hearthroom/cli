@@ -2,7 +2,7 @@ name: Site
 
 # Deploys cli.hearthroom.club (and its sukisuki aliases) when the site or the
 # CLI's command tree changes. Needs CLOUDFLARE_API_TOKEN (Workers Scripts and
-# Workers Routes edit on the three zones) and CLOUDFLARE_ACCOUNT_ID as
+# Workers Routes edit on the four zones) and CLOUDFLARE_ACCOUNT_ID as
 # repository secrets. Local deploys keep working through site/scripts/deploy.sh.
 on:
   push:
@@ -53,8 +53,4 @@ jobs:
           workingDirectory: site
           command: deploy
       - name: read back
-        run: |
-          for h in cli.hearthroom.club cli.sukisuki.ai cli.sukisuki.chat; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' "https://$h/llms.txt")
-            echo "$h /llms.txt $code"; [ "$code" = "200" ] || exit 1
-          done
+        run: node site/scripts/verify-hosts.mjs

@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hearthroom.club"><img src="https://raw.githubusercontent.com/hearthroom/hearthroom/main/web/public/icons/icon-192.png" width="96" alt=""></a>
+  <a href="https://sukisuki.ai"><img src="https://raw.githubusercontent.com/hearthroom/hearthroom/main/web/public/icons/icon-192.png" width="96" alt=""></a>
 </p>
 
 <h1 align="center">Hearthroom CLI</h1>
@@ -13,9 +13,19 @@
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/github/license/hearthroom/cli"></a>
 </p>
 
-`hearthroom` is the command-line client for [Hearthroom](https://hearthroom.club), the open community for AI character cards. A card is a folder of plain files. You edit it with any editor or any coding agent, push it to a private trial card to play it, validate it against the provider's rules, and browse the community, without leaving the shell.
+`hearthroom` is the command-line client for [Hearthroom](https://sukisuki.ai), the open community for AI character cards. A card is a folder of plain files. You edit it with any editor or any coding agent, push it to a private trial card to play it, validate it against the provider's rules, and browse the community, without leaving the shell.
 
-If you want the web editor, use [hearthroom.club](https://hearthroom.club). The CLI is for people and agents who already have a terminal.
+If you want the web editor, use [sukisuki.ai](https://sukisuki.ai). The CLI is for people and agents who already have a terminal.
+
+## Official domains
+
+These exact hosts belong to the same Hearthroom community and its connected services; a different host is not automatically official.
+
+- `sukisuki.ai` is the primary community site. `hearthroom.club`, `sukisuki.chat`, and `sukisuki.pro` serve the same community directly, without redirecting to the primary site; each `www` redirects to its own root. Sign-in sessions are separate by origin.
+- `play.sukisuki.ai`, `play.hearthroom.club`, `play.sukisuki.chat`, and `play.sukisuki.pro` host card apps; they do not redirect to the primary site.
+- `cli.hearthroom.club`, `cli.sukisuki.ai`, and `cli.sukisuki.chat` serve the CLI documentation directly; they do not redirect to the primary community site.
+- The `downloads` subdomain of each of the four community roots serves app downloads; `playground` serves the playground; `c<card-id>` hosts an isolated card sandbox. These hosts do not redirect to the primary site. Sandbox content is authored by card creators.
+- `api.harperharbor.com` is the connected service API, `console.harperharbor.com` its account and billing console, and `assets.harperharbor.com` its media host. They do not redirect to the community site.
 
 ## Install
 
@@ -131,7 +141,7 @@ Agents should start at [sukisuki.ai/llms.txt](https://sukisuki.ai/llms.txt): it 
 
 ## Provider and community
 
-Hearthroom is provider-neutral. The CLI reads the provider API base from `--api`, `HEARTHROOM_API` or its config, and learns capabilities such as relative media paths and file limits from the provider's responses. For the default provider it signs in through a client issued to the CLI by the community application, so you see the same cards as on the website; for any other provider it registers itself dynamically, and that provider decides what such a client may see. The community site's public endpoints need no sign-in; member endpoints reuse the same sign-in as the provider. Nothing here adds server capability: the CLI is a client of the documented [Hearthroom developer APIs](https://hearthroom.club/developers).
+Hearthroom is provider-neutral. The CLI reads the provider API base from `--api`, `HEARTHROOM_API` or its config, and learns capabilities such as relative media paths and file limits from the provider's responses. For the default provider it signs in through a client issued to the CLI by the community application, so you see the same cards as on the website; for any other provider it registers itself dynamically, and that provider decides what such a client may see. The community site's public endpoints need no sign-in; member endpoints reuse the same sign-in as the provider. Nothing here adds server capability: the CLI is a client of the documented [Hearthroom developer APIs](https://sukisuki.ai/developers).
 
 ## Development
 

@@ -23,6 +23,8 @@ describe("Markdown twins and llms files", () => {
       expect(p.body).not.toMatch(/^---\n/);
     }
     const index = llmsIndex(pages);
+    expect(index).toContain("## Official domains");
+    expect(index).toContain("api.harperharbor.com");
     for (const p of pages) expect(index).toContain(`https://cli.hearthroom.club${p.md}`);
     expect(index.startsWith("# Hearthroom CLI\n\n> ")).toBe(true);
   });

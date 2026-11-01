@@ -61,10 +61,15 @@ function firstHeading(body) {
 }
 
 export function llmsIndex(pages) {
+  const landing = pages.find((p) => p.kind === "landing")?.body ?? "";
+  const domains = landing.match(/## Official domains\n[\s\S]*?(?=\n## |$)/)?.[0];
+  if (!domains) throw new Error("Landing page must include official domains");
   const lines = [
     "# Hearthroom CLI",
     "",
     "> `hearthroom` is the command-line client for Hearthroom, the open community for AI character cards. Cards are folders of plain files; the CLI pushes them to the connected card provider, validates them, plays them, imports cards from other tools and browses the community. Every command supports --json. Sending a message with `play` spends credits and requires --allow-spend.",
+    "",
+    domains,
     "",
     "Every page below is also available as Markdown at the same path with a `.md` suffix. The complete text is in /llms-full.txt.",
     "",

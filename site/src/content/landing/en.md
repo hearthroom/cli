@@ -4,7 +4,19 @@ title: Hearthroom CLI
 
 # Hearthroom CLI
 
-`hearthroom` is the command-line client for [Hearthroom](https://hearthroom.club), the open community for AI character cards. It is built for AI coding agents that have a shell and for the authors who run them.
+`hearthroom` is the command-line client for [Hearthroom](https://sukisuki.ai), the open community for AI character cards. It is built for AI coding agents that have a shell and for the authors who run them.
+
+## Official domains
+
+These exact hosts belong to the same Hearthroom community and its connected services; a different host is not automatically official.
+
+- `sukisuki.ai` is the primary community site. `hearthroom.club`, `sukisuki.chat`, and `sukisuki.pro` serve the same community directly, without redirecting to the primary site; each `www` redirects to its own root. Sign-in sessions are separate by origin.
+- `play.sukisuki.ai`, `play.hearthroom.club`, `play.sukisuki.chat`, and `play.sukisuki.pro` host card apps; they do not redirect to the primary site.
+- `cli.hearthroom.club`, `cli.sukisuki.ai`, and `cli.sukisuki.chat` serve the CLI documentation directly; they do not redirect to the primary community site.
+- The `downloads` subdomain of each of the four community roots serves app downloads; `playground` serves the playground; `c<card-id>` hosts an isolated card sandbox. These hosts do not redirect to the primary site. Sandbox content is authored by card creators.
+- `api.harperharbor.com` is the connected service API, `console.harperharbor.com` its account and billing console, and `assets.harperharbor.com` its media host. They do not redirect to the community site.
+
+
 
 ## What it does
 
@@ -59,4 +71,4 @@ Read /llms-full.txt for the complete manual and guides in one file, or any page 
 - Manual: /manual/
 - Guides: /guides/install/ · /guides/card-folder/ · /guides/trial-cards/ · /guides/agents/
 - Source and releases: https://github.com/hearthroom/cli
-- Community: https://hearthroom.club · https://discord.gg/C7m85YPHmK
+- Community: https://sukisuki.ai · https://discord.gg/C7m85YPHmK

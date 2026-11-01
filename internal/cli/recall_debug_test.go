@@ -46,3 +46,10 @@ func TestRecallDebugToolContentDisclosesTruncation(t *testing.T) {
 		t.Fatal("tool content omits its truncation notice")
 	}
 }
+
+func TestRecallDebugNamesSemanticExclusion(t *testing.T) {
+	out := formatRecallDebug(json.RawMessage(`{"status":"ready","selections":[{"scope":"role","entries":[{"name":"Secret","decision":"excluded","reason":"semantic_disabled"}]}]}`))
+	if !strings.Contains(out, "Semantic recall disabled") || strings.Contains(out, "semantic_disabled") {
+		t.Fatalf("missing author explanation: %s", out)
+	}
+}

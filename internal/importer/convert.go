@@ -247,7 +247,7 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 			}
 			lb.Entries = append(lb.Entries, card.LorebookEntry{
 				Name: e.Name, Content: e.Content, Keywords: nonNil(e.Keywords), SecondaryKeywords: e.SecondaryKeywords,
-				Constant: e.Constant, Disabled: !e.Enabled, MatchOptions: mo,
+				SemanticRecall: e.SemanticRecall, Constant: e.Constant, Disabled: !e.Enabled, MatchOptions: mo,
 			})
 		}
 		f.Lorebook = lb

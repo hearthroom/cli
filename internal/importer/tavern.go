@@ -707,6 +707,7 @@ func SplitEntryContent(content string, max int) []string {
 
 // EntryDraft is a Lorebook entry in the folder's shape plus match options.
 type EntryDraft struct {
+	SemanticRecall    *bool
 	Name              string
 	Content           string
 	Keywords          []string
@@ -778,6 +779,12 @@ func BookEntriesToDrafts(entries []BookEntry, language string) []EntryDraft {
 			base = fmt.Sprintf("#%d", i+1)
 		}
 		keywords := entryKeywords(e, append(append([]string{}, e.Keys...), dec.AdditionalKeys...))
+		var semantic *bool
+		if ext, ok := e.Extensions["harperharbor"].(map[string]any); ok {
+			if on, ok := ext["semanticRecall"].(bool); ok {
+				semantic = &on
+			}
+		}
 		parts := SplitEntryContent(content, limit)
 		opts := EntryMatchOptions(e)
 		groupID, _ := opts["groupId"].(string)
@@ -801,7 +808,7 @@ func BookEntriesToDrafts(entries []BookEntry, language string) []EntryDraft {
 					mo["groupOrder"] = 0
 				}
 			}
-			drafts = append(drafts, EntryDraft{
+			drafts = append(drafts, EntryDraft{SemanticRecall: semantic,
 				Name:              name,
 				Content:           part,
 				Keywords:          keywords,

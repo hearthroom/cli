@@ -57,6 +57,7 @@ var recallLabels = map[string]string{
 	"scope.role":           "Card",
 	"scope.world":          "World",
 	"secondary":            "Secondary key",
+	"semantic_disabled":    "Semantic recall disabled",
 	"secondary_veto":       "Secondary condition not met",
 	"selected":             "Selected",
 	"source.constant":      "Fixed context",

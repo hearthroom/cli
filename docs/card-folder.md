@@ -186,6 +186,7 @@ Lorebook keywords and secondary keywords need `/pattern/flags` syntax for regula
       "content": "The lamp burns whale oil and must be trimmed at dusk.",
       "keywords": ["lamp", "light"],
       "secondaryKeywords": [],
+      "semanticRecall": false,
       "constant": false,
       "disabled": false,
       "triggerRegion": "both",
@@ -197,6 +198,10 @@ Lorebook keywords and secondary keywords need `/pattern/flags` syntax for regula
 
 `id` fields appear after `pull` or a push to an owned card; they hold the
 provider's ids and let later pushes update instead of duplicate. `disabled: true` keeps an entry in the uploaded Lorebook with its enabled state turned off. To delete a CLI-managed entry from an owned card, remove it locally and push with `--prune`. Without that flag, push lists the entries it would delete and stops before writing the Lorebook. Entries created by other tools are kept. Empty entry content is rejected rather than silently omitted.
+
+`semanticRecall` defaults to on for new entries. Set it to `false` to allow only keyword or regular-expression activation; constant entries and content already retained in a conversation stay available. Set it to `true` to enable semantic recall again. An omitted field in a patch preserves the saved setting. Markdown entry sources accept `semanticRecall: false` or `semanticRecall: true` in their frontmatter.
+
+Turn off semantic recall on an entry when it must only appear once its keywords match, for example to keep a story reveal in order. Agent semantic lookup also excludes it; explicit list, read and text search remain available. Split pieces of one logical entry stay together: if any piece has semantic recall off, the group is keyword-only.
 
 ### Lorebook recall allowance
 

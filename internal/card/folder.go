@@ -93,7 +93,8 @@ type Lorebook struct {
 
 // LorebookEntry mirrors the provider's entry fields.
 type LorebookEntry struct {
-	ID                string          `json:"id,omitempty"` // remote entryId when known
+	SemanticRecall    *bool           `json:"semanticRecall,omitempty"` // nil keeps the provider default (on for new entries)
+	ID                string          `json:"id,omitempty"`             // remote entryId when known
 	Name              string          `json:"name"`
 	Content           string          `json:"content"`
 	Category          string          `json:"category,omitempty"`

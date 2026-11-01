@@ -157,6 +157,13 @@ func ParseSource(fileName, text string) (Source, error) {
 		s.Entry.Keywords = []string{}
 	}
 	s.Entry.SecondaryKeywords = list(fields["secondaryKeywords"])
+	if v, ok := fields["semanticRecall"]; ok {
+		if v != "true" && v != "false" {
+			return s, fmt.Errorf("semanticRecall must be true or false")
+		}
+		on := v == "true"
+		s.Entry.SemanticRecall = &on
+	}
 	s.Entry.Constant = truthy(fields["constant"])
 	s.Entry.Disabled = truthy(fields["disabled"])
 	if v := fields["category"]; v != "" {

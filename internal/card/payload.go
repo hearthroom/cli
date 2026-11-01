@@ -167,6 +167,9 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 				"keywords":  nonNil(e.Keywords),
 				"isEnabled": !e.Disabled,
 			}
+			if e.SemanticRecall != nil {
+				entry["semanticRecall"] = *e.SemanticRecall
+			}
 			if len(e.SecondaryKeywords) > 0 {
 				entry["secondaryKeywords"] = e.SecondaryKeywords
 			}
@@ -283,6 +286,7 @@ type RemoteDetail struct {
 
 // RemoteEntry is one Lorebook entry from GET /open/v1/worldbook/entry/list.
 type RemoteEntry struct {
+	SemanticRecall    *bool           `json:"semanticRecall,omitempty"`
 	EntryID           string          `json:"entryId"`
 	Name              string          `json:"name"`
 	Content           string          `json:"content"`
@@ -352,7 +356,7 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 			lb.Entries = append(lb.Entries, LorebookEntry{
 				ID: e.EntryID, Name: e.Name, Content: e.Content, Category: e.Category,
 				Keywords: nonNil(e.Keywords), SecondaryKeywords: e.SecondaryKeywords,
-				Constant: e.IsConstant, Disabled: !e.IsEnabled, TriggerRegion: e.TriggerRegion,
+				SemanticRecall: e.SemanticRecall, Constant: e.IsConstant, Disabled: !e.IsEnabled, TriggerRegion: e.TriggerRegion,
 				MatchOptions: nullToNil(e.MatchOptions),
 			})
 		}

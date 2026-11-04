@@ -323,6 +323,26 @@ and returns an unsubscribe function. Only successful complete AI messages are
 safe state checkpoints; optional content excludes thinking, streaming bodies
 and moderation-withheld text.
 
+Each history item includes `replyTo`. For an AI message with a verified link,
+it is the opaque `id` of the player message it answers in the same conversation's
+history. Player messages, openings and messages without a verified link return
+`null`. Older messages and historical copies in a fork can also return `null`.
+Treat that as an unknown relationship; do not infer one from adjacent items.
+These opaque IDs differ from the raw message IDs in `/conversation/messages`.
+
+| Operation | Effect on `replyTo` |
+|---|---|
+| Send | The AI item points to the new player item's `id`. |
+| Regenerate or edit and resend | The replacement AI item points to the replacement player item's new `id`. |
+| Manually edit an AI reply | The existing link stays the same. |
+| Backward or delete | Re-read history after invalidation; retained links require the player item to still exist. |
+| Resume paused agent preparation | The new AI item keeps the original player item's `id`. |
+
+In `history.onChange`, `add` and `update` changes carry the currently verifiable
+`replyTo`; `remove` changes carry `null`. Events invalidate cached history, so
+re-read `history.list` at its current revision. An event's link is not a snapshot
+of its older revision, and it can be `null` if either item has since disappeared.
+
 The local preview injects synthetic messages and has no authenticated Provider
 history. It does not prove complete live membership or cross-device change
 handling; cards must keep a readable fallback when this capability is missing.

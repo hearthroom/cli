@@ -136,9 +136,11 @@ sizes). It spends purchased credits per image, so it requires --allow-spend;
 granted or gift credits cannot pay for it. Refused prompts and failed
 generations are not charged.
 
-Results are kept for 7 days. To keep one, save it to your media library with
---dir <path> (created if missing, e.g. the card's folder name) or --folder
-<name or id> (an existing folder), and/or download it with --out <file>.
+Results are kept for 7 days. To keep them, save them to your media library
+with --dir <path> (created if missing, e.g. the card's folder name) or --folder
+<name or id> (an existing folder), and/or download them with --out <file>.
+To look first and keep only some, leave both out, then use "media generations"
+and "media save --pick".
 A saved image prints its library URL, which a card can use directly, e.g. as
 media.portrait in card.json; a file downloaded into the card's assets/ is
 referenced by its relative path instead.
@@ -200,15 +202,9 @@ being charged twice.`,
 			ctx := cmd.Context()
 			c := a.Client()
 
-			var saveBody map[string]any
-			if dir != "" {
-				saveBody = map[string]any{"directory": strings.Trim(dir, "/")}
-			} else if folder != "" {
-				id, err := folderID(ctx, c, folder)
-				if err != nil {
-					return err
-				}
-				saveBody = map[string]any{"folderIds": []string{id}}
+			saveBody, err := saveTarget(ctx, c, dir, folder)
+			if err != nil {
+				return err
 			}
 
 			body := map[string]any{"model": model, "prompt": prompt, "n": n}
@@ -280,24 +276,21 @@ being charged twice.`,
 				}
 			}
 			if saveBody != nil {
-				var saved struct {
-					AssetIDs []string `json:"asset_ids"`
+				items := make([]map[string]any, len(task.Data))
+				for i := range task.Data {
+					items[i] = map[string]any{"index": i}
 				}
-				if err := c.OpenPost(ctx, "/generations/"+url.PathEscape(task.ID)+"/save", saveBody, &saved); err != nil {
-					return generationError(err)
+				saveBody["items"] = items
+				saved, err := saveItems(ctx, c, task.ID, saveBody)
+				if err != nil {
+					return err
 				}
-				lib := libraryEntries(ctx, c, task)
-				for i, id := range saved.AssetIDs {
-					if i >= len(images) {
-						break
-					}
-					images[i]["assetId"] = id
-					if e, ok := lib[id]; ok {
-						images[i]["url"], images[i]["fileName"] = e.URL, e.FileName
+				for _, s := range saved {
+					if s.Index >= 0 && s.Index < len(images) {
+						images[s.Index]["assetId"], images[s.Index]["url"], images[s.Index]["fileName"] = s.AssetID, s.URL, s.FileName
 					}
 				}
 			}
-
 			if a.Out.JSON {
 				return a.Out.JSONValue(map[string]any{"taskId": task.ID, "model": task.Model, "credits": task.Credit,
 					"idempotencyKey": idemKey, "expiresAt": task.ExpiresAt, "images": images})
@@ -306,9 +299,7 @@ being charged twice.`,
 			for i, img := range images {
 				switch {
 				case img["url"] != nil:
-					a.Out.Line("%d. saved %s → %s", i+1, img["fileName"], img["url"])
-				case img["assetId"] != nil:
-					a.Out.Line("%d. saved as asset %s", i+1, img["assetId"])
+					a.Out.Line("%d. saved → %s", i+1, img["url"])
 				default:
 					a.Out.Line("%d. %s (kept for 7 days)", i+1, img["resultUrl"])
 				}
@@ -381,37 +372,6 @@ func referenceURL(ctx context.Context, c *api.Client, ref string) (string, error
 		}
 	}
 	return "", output.Exitf(2, "--image %s: no image at that path in your media library (see `hearthroom media ls`)", ref)
-}
-
-type libraryEntry struct{ URL, FileName string }
-
-// libraryEntries finds the saved files in the library; the provider names them
-// <model>-<first 8 of the task id>-<n>. A miss only loses the printed URL.
-func libraryEntries(ctx context.Context, c *api.Client, t genTask) map[string]libraryEntry {
-	q := url.Values{"q": {t.Model + "-" + clip8(t.ID)}, "kind": {"image"}, "pageSize": {"100"}}
-	var list struct {
-		Data struct {
-			ImageList []struct {
-				ID       any    `json:"id"`
-				URL      string `json:"imageUrl"`
-				FileName string `json:"fileName"`
-			} `json:"imageList"`
-		} `json:"data"`
-	}
-	out := map[string]libraryEntry{}
-	if c.OpenGet(ctx, "/image/list", q, &list) == nil {
-		for _, it := range list.Data.ImageList {
-			out[fmt.Sprint(it.ID)] = libraryEntry{URL: it.URL, FileName: it.FileName}
-		}
-	}
-	return out
-}
-
-func clip8(s string) string {
-	if len(s) > 8 {
-		return s[:8]
-	}
-	return s
 }
 
 func download(ctx context.Context, c *api.Client, src, target string) error {

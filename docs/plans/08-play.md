@@ -98,3 +98,23 @@ Reading saved recall details does not search again or generate another reply. De
 With `--continue`, recall details cover only this continuation. Entries already available from earlier preparation are marked separately; they were not necessarily read again. Normal continuation billing applies.
 
 An entry being found, read or sent to the model does not mean the model used it in its reply. With --json, recallDebug is kept separate from the answer. Server events are printed one JSON object per line; the final result may span multiple lines. Missing, unsupported and incomplete details are reported separately; the CLI never resubmits a paid turn to collect them.
+
+## Optional Agent cost estimate
+
+Services that expose `costEstimate` on
+`GET /open/v1/player/agent-mode?roleId=…&model=…` provide a read-only estimate for
+the proposed Agent selection. Optional `contextLevel`, `thinkingDepth` and
+`lengthTarget` use the service's supported settings. `typicalCredits` and
+`highCredits` are nullable integer credits: `status=observed` uses a matched
+historical typical/p90, `estimated` uses current-price fallback, and `unknown`
+means no usable estimate. These are not maximum charges or a spending cap;
+work before a stop or failure and continuation can still cost credits.
+
+Clients should honor `presentation=confirm`, retain the choice to enable Agent,
+and refetch expired estimates or 409 `quote_changed` responses. A picker can
+preview `/models?pendingAgent=true` without saving. Only after confirmation should
+it atomically save model/context/thinking and `multiPassEnabled` with the returned
+`agentCostSelectionKey` through `/player/role-settings/save`; cancellation saves
+nothing. Runtime and model support remain separate from estimated cost.
+This documents the optional service contract; the CLI adds no new command and
+its existing explicit `--allow-spend` gate still applies.

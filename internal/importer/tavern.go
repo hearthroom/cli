@@ -941,7 +941,9 @@ type RegexRule struct {
 }
 
 // RulesFromTavern reads message display scripts from extensions.regex_scripts.
-// Missing or empty placement retains legacy all-message behavior.
+// Native targets metadata takes precedence over placement so system-only and empty
+// selections survive a Hearthroom export. Missing or empty placement retains legacy
+// all-message behavior when no metadata is present.
 func RulesFromTavern(scripts any) []RegexRule {
 	arr, ok := scripts.([]any)
 	if !ok {
@@ -957,8 +959,8 @@ func RulesFromTavern(scripts any) []RegexRule {
 		if find == "" {
 			continue
 		}
-		var targets *[]string
-		if pl, ok := m["placement"].([]any); ok && len(pl) > 0 {
+		targets, hasTargets := nativeRuleTargets(m)
+		if pl, ok := m["placement"].([]any); !hasTargets && ok && len(pl) > 0 {
 			selected := []string{}
 			for _, target := range []struct {
 				placement int

@@ -270,6 +270,8 @@ Each rule can set `targets` to any combination of `"ai"`, `"user"` and
 without changing player messages. SillyTavern imports preserve placement 1
 as `"user"` and placement 2 as `"ai"`; scripts with neither are skipped.
 Missing or empty placement and MMD rules without placement keep the legacy behavior.
+Hearthroom exports also carry `targets` metadata; imports prefer it over placement
+so system-only rules and an empty selection survive a round trip.
 
 `sharedState` declares the polls and counters players can write on this card:
 

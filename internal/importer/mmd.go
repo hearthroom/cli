@@ -230,14 +230,7 @@ func RuleSetFromImport(raw any) (*RuleSet, string) {
 				if v, ok := m["enabled"].(bool); ok {
 					enabled = v
 				}
-				var targets *[]string
-				if raw, exists := m["targets"]; exists && raw != nil {
-					encoded, _ := json.Marshal(raw)
-					var selected []string
-					if json.Unmarshal(encoded, &selected) == nil {
-						targets = &selected
-					}
-				}
+				targets, _ := nativeRuleTargets(m)
 				set.Rules = append(set.Rules, RegexRule{Targets: targets, Name: strText(m["name"]), Find: strText(m["find"]), Replace: strText(m["replace"]), Enabled: enabled})
 			}
 			if len(set.Rules) == 0 {
@@ -419,4 +412,22 @@ func MergeMMDFiles(files []*MMDFile, language string) *Result {
 		}
 	}
 	return r
+}
+
+// nativeRuleTargets retains Hearthroom metadata that placement cannot express.
+// The presence flag keeps an explicit empty selection from falling back to placement.
+func nativeRuleTargets(rule map[string]any) (*[]string, bool) {
+	raw, exists := rule["targets"]
+	if !exists || raw == nil {
+		return nil, exists
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil, true
+	}
+	var selected []string
+	if json.Unmarshal(encoded, &selected) != nil {
+		return nil, true
+	}
+	return &selected, true
 }

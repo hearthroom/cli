@@ -66,6 +66,15 @@ hearthroom media generate --model <id> --prompt "…" \
 
 Pass the card's portrait with `--image` for every later image (banner, expressions, scenes) so the face, hair and outfit stay the same; models list how many they take under REFS, and references cost nothing extra.
 
+To look before keeping, generate without `--dir`/`--folder`, then save only the images the author picks, under names that say what they are:
+
+```sh
+hearthroom media generations --json             # last 7 days; data[i].url, and asset_id once saved
+hearthroom media save <id> --pick 2 --name portrait --dir my-card --json   # images[].url for the card
+```
+
+Unsaved results are deleted after 7 days. A name already used in that folder is refused instead of replaced.
+
 Sign-ins from CLI versions before image generation lack its permission; the command then says to run `hearthroom auth login` again.
 
 ## A typical loop

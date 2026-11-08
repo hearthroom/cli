@@ -172,6 +172,9 @@ is refused; export the video as MP4 (H.264) first.
   its URL, which `media.portrait` and the Markdown files can use directly.
   Later images of the same character take the portrait as a reference:
   `--image <library path or URL>` keeps the face, hair and outfit.
+  To choose among several results first, generate without `--dir`, list them
+  with `media generations` and keep the chosen one with
+  `media save <id> --pick <n> --name portrait --dir <folder>`.
 
 ## lorebook.json
 

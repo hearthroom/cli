@@ -50,10 +50,13 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 
 	var b bindingsOutput
 	bookID, bookName := "", ""
+	bookAbsent := false
 	var entries []card.RemoteEntry
 	if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {roleID}}, &b); err != nil {
 		res.Warnings = append(res.Warnings, "Lorebook bindings could not be read: "+err.Error())
-	} else if len(b.Bindings) > 0 {
+	} else if len(b.Bindings) == 0 {
+		bookAbsent = true
+	} else {
 		bookID, bookName = b.Bindings[0].WorldbookID, b.Bindings[0].Name
 		var el entryListOutput
 		if err := c.OpenGet(ctx, "/worldbook/entry/list", url.Values{"worldbookId": {bookID}}, &el); err != nil {
@@ -66,9 +69,11 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		}
 	}
 	var asset *card.RemoteAsset
+	assetRead := true
 	var ra card.RemoteAsset
 	if err := c.OpenGet(ctx, "/role/author-asset", url.Values{"roleId": {roleID}}, &ra); err != nil {
 		if !api.IsStatus(err, 404) {
+			assetRead = false
 			res.Warnings = append(res.Warnings, "display rules could not be read: "+err.Error())
 		}
 	} else if ra.Status != "none" || len(ra.Rules) > 0 {
@@ -77,6 +82,10 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 
 	f := card.FromRemote(dir, d, bookID, bookName, entries, asset)
 	f.State.API = c.API
+	stale, err := stalePullOpenings(f)
+	if err != nil {
+		return nil, err
+	}
 	// Keep the card's media folder: the one this folder already chose, else
 	// the library folder its images are served from.
 	if old, err := card.Load(dir); err == nil {
@@ -136,21 +145,65 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	res.Files = []string{card.ManifestFile, card.DefinitionFile, card.WelcomeFile}
 	if f.Intro != nil {
 		res.Files = append(res.Files, card.IntroFile)
-	} else if err := os.Remove(filepath.Join(dir, card.IntroFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		// The card has no introduction: a file left from an earlier pull
-		// would put it back on the next push.
-		return nil, err
+	} else {
+		stale = append(stale, card.IntroFile)
 	}
 	for _, o := range f.Alternates {
 		res.Files = append(res.Files, o.File)
 	}
 	if f.Lorebook != nil {
 		res.Files = append(res.Files, card.LorebookFile)
+	} else if bookAbsent {
+		stale = append(stale, card.LorebookFile)
 	}
 	if f.Rules != nil {
 		res.Files = append(res.Files, card.RulesFile)
+	} else if assetRead {
+		stale = append(stale, card.RulesFile)
+	}
+	// A successful pull replaces managed content, including sections absent
+	// remotely. Otherwise the next load and push would publish the old files.
+	// Failed optional reads retain their existing warning and do not authorize
+	// deleting a local section whose remote contents are unknown.
+	for _, name := range stale {
+		if err := os.Remove(filepath.Join(dir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("remove obsolete %s: %w", name, err)
+		}
 	}
 	return res, nil
+}
+
+// Only immediate .md files are alternate openings, matching card.Load. Keep
+// unrelated files and subdirectories; never traverse a linked directory to
+// remove files outside the card folder.
+func stalePullOpenings(f *card.Folder) ([]string, error) {
+	dir := filepath.Join(f.Dir, card.OpeningsDir)
+	info, err := os.Lstat(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("%s must be a directory, not a file or symbolic link; pull into a new folder instead", card.OpeningsDir)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	keep := make(map[string]bool, len(f.Alternates))
+	for _, opening := range f.Alternates {
+		keep[opening.File] = true
+	}
+	var stale []string
+	for _, entry := range entries {
+		name := card.OpeningsDir + "/" + entry.Name()
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") && !keep[name] {
+			stale = append(stale, name)
+		}
+	}
+	return stale, nil
 }
 
 func fileNameFor(rawURL, fallback string) string {

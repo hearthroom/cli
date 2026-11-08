@@ -30,6 +30,45 @@ hearthroom card push my-card --create
 - After `--create` the folder is linked to that card; plain `hearthroom card push my-card` keeps updating it.
 - `--to <roleId>` links the folder to a card you already own instead, for example one you pulled with `hearthroom card pull`.
 
+## One source folder, several cards
+
+A folder remembers one default target in `.hearthroom/state.json`. After
+`push --create`, `push --to <id>` or pulling an owned card, a plain `push`
+updates that owned card. It does not switch back to a trial card. Use
+`card status <dir>` to check the current link.
+
+You can use one complete source folder for a private backup and another owned
+card. Set `BACKUP_ID` and `FORMAL_ID` to your own card IDs, then push the same
+files to each:
+
+```sh
+hearthroom card status my-card
+hearthroom card push my-card --to "$BACKUP_ID" --force
+hearthroom card push my-card --to "$FORMAL_ID" --force
+```
+
+Switching from one linked owned card to another requires `--force`; the CLI
+sends the folder's current content to the new target. If edit A remains in the
+folder when you add edit B, both go to the target, even if that target never
+received A before. There is no merge between remote cards. Each push preserves
+the target's visibility and does not submit an update for review. Public-card
+players still receive the approved copy until an update passes review.
+
+Keep the complete working files in version control. To compare another remote
+card, pull it into a new folder, inspect the differences, then apply the wanted
+changes to your source. `pull <id> my-card --force` replaces the local source
+with that remote copy; pushing it elsewhere can overwrite a newer version.
+When optional reads succeed, pull removes obsolete CLI-managed files, including
+`lorebook.json`, `rules.json` and extra immediate `openings/*.md` files. It keeps
+notes, assets, non-Markdown files and nested directories. Older CLI releases
+can leave those optional files behind; a fresh comparison folder avoids mixing
+them. Treat pull warnings as an incomplete read and resolve them before pushing.
+
+For trial testing alongside owned cards, keep a separate trial folder with its
+own sync state and copy the wanted authoring content into it. There is no
+`--trial` switch. Pulling a trial card does not recover its original trial key,
+so the next plain push from that pulled folder creates a new trial slot.
+
 ## Which one when
 
 | Situation | Command |

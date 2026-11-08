@@ -80,3 +80,17 @@ HEARTHROOM_PROVIDER_SOURCE=/path/to/server/provider \
 This source check requires no server process or database. Without the variable,
 that additional cross-repository check is explicitly skipped; HTTP fixtures do
 not prove a deployed Provider's behavior.
+
+## Replacing a folder with pull
+
+Pull regressions exercise existing optional content becoming absent and two
+alternate openings becoming one or none, then run Load → Push to verify that
+old Lorebook entries, rules and openings are not published to the next target.
+Failed optional reads retain warnings and must not authorize removing the
+unknown section's files. Cleanup preserves notes, assets, non-Markdown files
+and nested directories, and refuses to traverse a linked openings directory.
+
+For a receiving-service check, use a dedicated local Provider and account:
+push a full source to trial and owned targets, pull a minimal card over that
+source, push again, and read every target back into fresh folders. Keep these
+persistent readbacks distinct from HTTP-fixture unit-test results.

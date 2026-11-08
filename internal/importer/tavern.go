@@ -933,14 +933,15 @@ func positiveInt(n json.Number) int64 {
 
 // RegexRule is one display rule in the folder's shape.
 type RegexRule struct {
+	Targets *[]string
 	Name    string
 	Find    string
 	Replace string
 	Enabled bool
 }
 
-// RulesFromTavern reads extensions.regex_scripts, keeping only scripts that
-// act on AI output (placement 2, or no placement).
+// RulesFromTavern reads message display scripts from extensions.regex_scripts.
+// Missing or empty placement retains legacy all-message behavior.
 func RulesFromTavern(scripts any) []RegexRule {
 	arr, ok := scripts.([]any)
 	if !ok {
@@ -956,22 +957,30 @@ func RulesFromTavern(scripts any) []RegexRule {
 		if find == "" {
 			continue
 		}
+		var targets *[]string
 		if pl, ok := m["placement"].([]any); ok && len(pl) > 0 {
-			acts := false
-			for _, p := range pl {
-				if numberOr(p, -1) == 2 {
-					acts = true
+			selected := []string{}
+			for _, target := range []struct {
+				placement int
+				name      string
+			}{{1, "user"}, {2, "ai"}} {
+				for _, p := range pl {
+					if numberOr(p, -1) == target.placement {
+						selected = append(selected, target.name)
+						break
+					}
 				}
 			}
-			if !acts {
+			if len(selected) == 0 {
 				continue
 			}
+			targets = &selected
 		}
 		name := strText(m["scriptName"])
 		if name == "" {
 			name = fmt.Sprintf("#%d", i+1)
 		}
-		out = append(out, RegexRule{Name: name, Find: find, Replace: strText(m["replaceString"]), Enabled: !boolOf(m["disabled"])})
+		out = append(out, RegexRule{Targets: targets, Name: name, Find: find, Replace: strText(m["replaceString"]), Enabled: !boolOf(m["disabled"])})
 	}
 	return out
 }

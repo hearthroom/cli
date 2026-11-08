@@ -99,7 +99,7 @@ func TestPNGV3Import(t *testing.T) {
 	if r.CardMeta["creator"] != "someone" || r.CardMeta["creationDate"] != int64(1700000000) {
 		t.Fatalf("cardMeta: %v", r.CardMeta)
 	}
-	if r.Rules == nil || len(r.Rules.Rules) != 1 || r.Rules.Rules[0].Name != "bold" || r.Rules.Format != "tavern" {
+	if r.Rules == nil || len(r.Rules.Rules) != 2 || r.Rules.Rules[0].Name != "bold" || r.Rules.Format != "tavern" {
 		t.Fatalf("rules: %+v", r.Rules)
 	}
 	if r.Lorebook == nil {

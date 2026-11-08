@@ -208,9 +208,13 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 			if id == "" {
 				id = fmt.Sprintf("rule-%02d", i+1)
 			}
-			rules = append(rules, map[string]any{
+			rule := map[string]any{
 				"id": id, "name": r.Name, "find": r.Find, "replace": Rewrite(r.Replace, urls), "enabled": r.Enabled,
-			})
+			}
+			if r.Targets != nil {
+				rule["targets"] = *r.Targets
+			}
+			rules = append(rules, rule)
 		}
 		layer := f.Rules.MountLayer
 		if layer == "" {

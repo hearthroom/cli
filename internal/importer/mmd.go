@@ -230,7 +230,15 @@ func RuleSetFromImport(raw any) (*RuleSet, string) {
 				if v, ok := m["enabled"].(bool); ok {
 					enabled = v
 				}
-				set.Rules = append(set.Rules, RegexRule{Name: strText(m["name"]), Find: strText(m["find"]), Replace: strText(m["replace"]), Enabled: enabled})
+				var targets *[]string
+				if raw, exists := m["targets"]; exists && raw != nil {
+					encoded, _ := json.Marshal(raw)
+					var selected []string
+					if json.Unmarshal(encoded, &selected) == nil {
+						targets = &selected
+					}
+				}
+				set.Rules = append(set.Rules, RegexRule{Targets: targets, Name: strText(m["name"]), Find: strText(m["find"]), Replace: strText(m["replace"]), Enabled: enabled})
 			}
 			if len(set.Rules) == 0 {
 				return nil, ""

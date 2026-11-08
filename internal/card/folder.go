@@ -120,11 +120,13 @@ type Rules struct {
 
 // DisplayRule is one find/replace rule.
 type DisplayRule struct {
-	ID      string `json:"id,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Find    string `json:"find"`
-	Replace string `json:"replace"`
-	Enabled bool   `json:"enabled"`
+	// Nil keeps legacy rules active for all messages; an empty slice opts out of all.
+	Targets *[]string `json:"targets,omitempty"`
+	ID      string    `json:"id,omitempty"`
+	Name    string    `json:"name,omitempty"`
+	Find    string    `json:"find"`
+	Replace string    `json:"replace"`
+	Enabled bool      `json:"enabled"`
 }
 
 // Folder is a loaded card folder.

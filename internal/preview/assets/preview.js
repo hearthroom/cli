@@ -44,7 +44,7 @@
     state.rulesOff = rulesOff
     state.card = {
       format: rules.cardFormat || 'mmd',
-      rules: rulesOff ? [] : (rules.rules || []).map((r, i) => ({ id: r.id ?? i, name: r.name || '', find: r.find, replace: assets(r.replace), enabled: r.enabled !== false })),
+      rules: rulesOff ? [] : (rules.rules || []).map((r, i) => ({ ...r, id: r.id ?? i, name: r.name || '', find: r.find, replace: assets(r.replace), enabled: r.enabled !== false })),
       statusbar: rulesOff ? '' : assets(rules.mountTrigger || ''),
     }
     state.welcome = assets(welcome)

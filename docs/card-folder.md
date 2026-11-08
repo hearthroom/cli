@@ -253,7 +253,7 @@ The allowance follows the selected context tier, measured in tokens, and include
 ```json
 {
   "rules": [
-    {"id": "bold", "name": "bold", "find": "\\*\\*(.+?)\\*\\*", "replace": "<b>$1</b>", "enabled": true}
+    {"id": "bold", "name": "bold", "find": "\\*\\*(.+?)\\*\\*", "replace": "<b>$1</b>", "enabled": true, "targets": ["ai"]}
   ],
   "mountTrigger": "",
   "mountLayer": "under",
@@ -263,6 +263,13 @@ The allowance follows the selected context tier, measured in tokens, and include
 
 `mountLayer` is `under`, `over` or `cover`; `pageMode` is `classic`,
 `immersive` or `sandbox`. `id` defaults to `rule-NN`.
+
+Each rule can set `targets` to any combination of `"ai"`, `"user"` and
+`"system"`. Omit it to keep the legacy behavior of applying to all three;
+`[]` applies to no messages. For new rules, use `["ai"]` to style AI replies
+without changing player messages. SillyTavern imports preserve placement 1
+as `"user"` and placement 2 as `"ai"`; scripts with neither are skipped.
+Missing or empty placement and MMD rules without placement keep the legacy behavior.
 
 `sharedState` declares the polls and counters players can write on this card:
 

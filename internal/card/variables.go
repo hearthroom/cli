@@ -191,7 +191,15 @@ type NormalizedVariables struct {
 
 const mvuExtensibleMarker = "$__META_EXTENSIBLE__$"
 
+// variableKeyPath matches the provider's Path.String: keys joined with ".", and a
+// key that would read as path syntax (empty, or holding . [ ] ") written as
+// ["key"] with no dot before it, e.g. a["x.y"], ["HP.max"]. Open, required and
+// rule paths come back from the provider in that form, so lookups must build it
+// exactly the same way.
 func variableKeyPath(p, key string) string {
+	if key == "" || strings.ContainsAny(key, `.[]"`) {
+		return p + `["` + key + `"]`
+	}
 	if p == "" {
 		return key
 	}
@@ -291,9 +299,10 @@ func NormalizeVariables(convention string, data *JSONNode, pathRules map[string]
 		}
 		list = func(n *JSONNode, p string, inherited bool) *JSONNode {
 			arr := &JSONNode{Kind: JSONArray, Arr: []*JSONNode{}}
-			for i, v := range n.Arr {
+			for _, v := range n.Arr {
+				// The index is the item's place after markers are dropped, as the provider counts it.
 				if !isMarker(v) {
-					arr.Arr = append(arr.Arr, value(v, variableIndexPath(p, i), inherited))
+					arr.Arr = append(arr.Arr, value(v, variableIndexPath(p, len(arr.Arr)), inherited))
 				}
 			}
 			return arr
@@ -373,20 +382,18 @@ func RebuildVariables(r RemoteVariables) (*Variables, error) {
 		v.Data = json.RawMessage(data.Compact())
 		return v, nil
 	}
-	requiredUnder := func(p string) []string {
-		prefix := ""
-		if p != "" {
-			prefix = p + "."
+	// Each required path names a key under its parent object: group the keys by
+	// the parent's path so the parent's $meta.required can list them.
+	requiredByParent := map[string][]string{}
+	for _, req := range r.Required {
+		parts, ok := parseVariablePath(req)
+		if !ok || parts[len(parts)-1].isIdx {
+			continue
 		}
-		var out []string
-		for _, req := range r.Required {
-			rest := strings.TrimPrefix(req, prefix)
-			if strings.HasPrefix(req, prefix) && rest != "" && !strings.ContainsAny(rest, ".[") {
-				out = append(out, rest)
-			}
-		}
-		return out
+		parent := formatVariablePath(parts[:len(parts)-1])
+		requiredByParent[parent] = append(requiredByParent[parent], parts[len(parts)-1].key)
 	}
+	requiredUnder := func(p string) []string { return requiredByParent[p] }
 	var build func(n *JSONNode, p string) *JSONNode
 	build = func(n *JSONNode, p string) *JSONNode {
 		switch n.Kind {
@@ -553,17 +560,20 @@ func quotePath(p string) string {
 	return strconv.Quote(p)
 }
 
-// variablePathExists resolves a.b, a[0].c, a["key.with.dots"] and /a/0/c the way
-// the provider does.
-func variablePathExists(root *JSONNode, s string) bool {
-	type part struct {
-		key   string
-		index int
-		isIdx bool
-	}
+// variablePathPart is one step of a variable path: an object key or a list index.
+type variablePathPart struct {
+	key   string
+	index int
+	isIdx bool
+}
+
+// parseVariablePath reads a.b, a[0].c, a["key.with.dots"] and /a/0/c the way the
+// provider's ParsePath does.
+func parseVariablePath(s string) ([]variablePathPart, bool) {
+	type part = variablePathPart
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return false
+		return nil, false
 	}
 	var parts []part
 	if strings.HasPrefix(s, "/") {
@@ -583,7 +593,7 @@ func variablePathExists(root *JSONNode, s string) bool {
 			case '[':
 				end := strings.IndexByte(s[i:], ']')
 				if end < 0 {
-					return false
+					return nil, false
 				}
 				inner := strings.TrimSpace(s[i+1 : i+end])
 				i += end + 1
@@ -593,7 +603,7 @@ func variablePathExists(root *JSONNode, s string) bool {
 				}
 				n, err := strconv.Atoi(inner)
 				if err != nil || n < 0 {
-					return false
+					return nil, false
 				}
 				parts = append(parts, part{key: inner, index: n, isIdx: true})
 			default:
@@ -605,6 +615,29 @@ func variablePathExists(root *JSONNode, s string) bool {
 				i = j
 			}
 		}
+	}
+	return parts, len(parts) > 0
+}
+
+// formatVariablePath writes parts in the provider's canonical form.
+func formatVariablePath(parts []variablePathPart) string {
+	p := ""
+	for _, pt := range parts {
+		if pt.isIdx {
+			p = variableIndexPath(p, pt.index)
+		} else {
+			p = variableKeyPath(p, pt.key)
+		}
+	}
+	return p
+}
+
+// variablePathExists resolves a variable path against the values the way the
+// provider does.
+func variablePathExists(root *JSONNode, s string) bool {
+	parts, ok := parseVariablePath(s)
+	if !ok {
+		return false
 	}
 	cur := root
 	for _, pt := range parts {

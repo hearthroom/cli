@@ -127,6 +127,53 @@ func TestRebuildVariablesRoundTrip(t *testing.T) {
 	}
 }
 
+// Keys that read as path syntax (a dot, a bracket, a quote, or empty) are written
+// ["key"] the way the provider's Path.String does, so open, required and rules on
+// them match what pull reads back and survive pull then push.
+func TestVariablesBracketKeyPaths(t *testing.T) {
+	data := mustNode(t, `{
+	  "$meta": {"required": ["HP.max"]},
+	  "HP.max": [100, "cap"],
+	  "任務.a": {"$meta": {"extensible": true, "required": ["x.y"]}, "x.y": [1, "inner"]},
+	  "背包": ["$__META_EXTENSIBLE__$", {"名.稱": ["短刀", "item"]}]
+	}`)
+	n, reason := NormalizeVariables("mvu", data, nil)
+	if reason != "" {
+		t.Fatal(reason)
+	}
+	wantPaths := map[string]string{`["HP.max"]`: "cap", `["任務.a"]["x.y"]`: "inner", `背包[0]["名.稱"]`: "item"}
+	if !reflect.DeepEqual(n.Paths, wantPaths) {
+		t.Fatalf("paths = %v", n.Paths)
+	}
+	if !reflect.DeepEqual(n.Open, []string{`["任務.a"]`}) || !reflect.DeepEqual(n.Required, []string{`["HP.max"]`, `["任務.a"]["x.y"]`}) {
+		t.Fatalf("open = %v required = %v", n.Open, n.Required)
+	}
+
+	stored := RemoteVariables{
+		Data:     json.RawMessage(`{"HP.max":100,"任務.a":{"x.y":1},"空":{},"背包":["短刀"]}`),
+		Open:     []string{`["任務.a"]`, "空"},
+		Required: []string{`["HP.max"]`, `["任務.a"]["x.y"]`},
+	}
+	stored.Rules.Paths = map[string]string{`["HP.max"]`: "cap", "背包[0]": "first item"}
+	v, err := RebuildVariables(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(v.PathRules, map[string]string{"背包[0]": "first item"}) {
+		t.Fatalf("pathRules = %v", v.PathRules)
+	}
+	again, reason := NormalizeVariables(v.Convention, mustNode(t, string(v.Data)), v.PathRules)
+	if reason != "" {
+		t.Fatal(reason)
+	}
+	if !reflect.DeepEqual(again.Paths, stored.Rules.Paths) || !reflect.DeepEqual(again.Open, stored.Open) || !reflect.DeepEqual(again.Required, stored.Required) {
+		t.Fatalf("after push: data %s paths %v open %v required %v", again.Data.Compact(), again.Paths, again.Open, again.Required)
+	}
+	if again.Data.Compact() != mustNode(t, string(stored.Data)).Compact() {
+		t.Fatalf("data after push = %s", again.Data.Compact())
+	}
+}
+
 // Only empty objects open and no rules: the plain form is enough.
 func TestRebuildVariablesPlain(t *testing.T) {
 	v, err := RebuildVariables(RemoteVariables{Data: json.RawMessage(`{"b":1,"a":{}}`), Open: []string{"a"}})

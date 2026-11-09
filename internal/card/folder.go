@@ -150,7 +150,10 @@ type Folder struct {
 	Alternates  []Opening
 	Lorebook    *Lorebook
 	Rules       *Rules
-	State       State
+	// Variables is variables.json (with variables.md and panel.hbs); nil when
+	// the file does not exist.
+	Variables *Variables
+	State     State
 }
 
 // Opening is one alternate opening file.
@@ -324,6 +327,9 @@ func Load(dir string) (*Folder, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	if f.Variables, err = LoadVariables(dir); err != nil {
+		return nil, err
+	}
 	if b, err := os.ReadFile(filepath.Join(dir, StateDir, StateFile)); err == nil {
 		if err := json.Unmarshal(b, &f.State); err != nil {
 			return nil, fmt.Errorf("%s: %w", StateFile, err)
@@ -383,6 +389,11 @@ func (f *Folder) Save() error {
 	}
 	if f.Rules != nil {
 		if err := writeJSONFile(filepath.Join(f.Dir, RulesFile), f.Rules); err != nil {
+			return err
+		}
+	}
+	if f.Variables != nil {
+		if err := f.Variables.save(f.Dir); err != nil {
 			return err
 		}
 	}
@@ -668,6 +679,10 @@ func (f *Folder) scanRefs(add func(string)) {
 		for _, r := range f.Rules.Rules {
 			scan(r.Replace)
 		}
+	}
+	if f.Variables != nil && !f.Variables.Empty {
+		scan(f.Variables.Rules)
+		scan(f.Variables.Panel)
 	}
 }
 

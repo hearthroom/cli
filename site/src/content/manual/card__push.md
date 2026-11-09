@@ -66,7 +66,7 @@ hearthroom card push [dir] [flags]
 ```
       --concurrency int   files uploaded at once, 1 to 16; HEARTHROOM_UPLOAD_CONCURRENCY changes the default (default 6)
       --create            create a new owned card (unlisted by default) and write to it
-      --dry-run           show what would be sent without sending
+      --dry-run           check limits and show planned changes without uploading media or writing card content or local state
       --evict             free the least recently used trial slot when all are in use
       --force             send every section even if unchanged; also skips the readiness check
       --prune             delete CLI-managed Lorebook entries removed from the local file

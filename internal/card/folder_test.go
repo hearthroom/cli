@@ -25,6 +25,7 @@ func sample(t *testing.T) *Folder {
 	f.Alternates = []Opening{{Text: "Rain again."}}
 	f.Lorebook = &Lorebook{Name: "Island", Entries: []LorebookEntry{{Name: "Lamp", Content: "Whale oil.", Keywords: []string{"lamp"}}}}
 	f.Rules = &Rules{Rules: []DisplayRule{{Find: "a", Replace: "b", Enabled: true}}, MountLayer: "under"}
+	f.Variables = &Variables{Convention: "mvu", Data: []byte(`{"oil":[3,"one per night"]}`), Rules: "Oil runs out.", Panel: "<b>{{oil}}</b>"}
 	if err := f.Save(); err != nil {
 		t.Fatal(err)
 	}

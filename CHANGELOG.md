@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Card variables: `variables.json` (starting values, in the MagVarUpdate `[value, "rule"]` form or as plain values), `variables.md` (rules for the model) and `panel.hbs` (panel skin) are pushed as the card's variables and written by `card pull`. A trial card without `variables.json` has none; an owned card keeps its variables until the file is emptied. `card check` and `card push` check the limits before uploading. `card import` turns SillyTavern `[InitVar]` Lorebook entries (JSON or JSON5) and an AI Fengyue variable panel into these files.
+- `card push` accepts `cardFormat: fengyue`, which `card import` writes for AI Fengyue cards.
 - `opening.html`: an opening page shown above the opening of every new chat (never sent to the model), pushed with `rules.json` and written by `card pull`. `card import` writes it from an AI Fengyue card's detailed introduction, and `cardFormat` accepts `fengyue`. A card with opening choices or an opening page may push an empty `welcome.md`.
 - `card import` reads AI Fengyue exports (the JSON from the editor's export button), whatever key names that export used: prompt, prefix and suffix text, summary, opening choices, Lorebook, regex rules and built-in CSS land in the folder, and every Fengyue feature without a destination is listed in the report.
 - Display rules keep their message targets (AI, user, system) through `card pull` and `card push`.

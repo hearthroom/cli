@@ -39,6 +39,8 @@ type Result struct {
 	CreatorNotes   string
 	// OpeningPage is written to opening.html (an AI Fengyue card's detailed introduction).
 	OpeningPage string
+	// Variables is written to variables.json (with variables.md and panel.hbs).
+	Variables *card.Variables
 	// Portrait/Background bytes and extensions, when the source bundled them.
 	Portrait      []byte
 	PortraitExt   string
@@ -126,13 +128,21 @@ func FromTavern(p *Parsed, language string) *Result {
 			r.Notes = append(r.Notes, fmt.Sprintf("%d extension keys other than regex_scripts were not imported", rest))
 		}
 	}
-	if book := d.CharacterBook; book != nil && len(book.Entries) > 0 {
+	// MagVarUpdate initial variables become the card variables, not Lorebook entries.
+	var bookEntries []BookEntry
+	if d.CharacterBook != nil {
+		greetings := append(append([]string{d.FirstMes}, d.AlternateGreetings...), d.GroupOnlyGreetings...)
+		var notes []string
+		bookEntries, r.Variables, notes = SplitStateEntries(d.CharacterBook.Entries, greetings)
+		r.Notes = append(r.Notes, notes...)
+	}
+	if book := d.CharacterBook; book != nil && len(bookEntries) > 0 {
 		name := book.Name
 		if name == "" {
 			name = r.Name
 		}
-		r.Lorebook = &LorebookDraft{Name: name, Description: book.Description, Entries: BookEntriesToDrafts(book.Entries, language)}
-		r.Notes = append(r.Notes, BookEntryNotes(book.Entries, language)...)
+		r.Lorebook = &LorebookDraft{Name: name, Description: book.Description, Entries: BookEntriesToDrafts(bookEntries, language)}
+		r.Notes = append(r.Notes, BookEntryNotes(bookEntries, language)...)
 		if book.ScanDepth != 0 && book.ScanDepth != 2 || book.TokenBudget > 0 || book.RecursiveScanning {
 			r.Notes = append(r.Notes, "Lorebook scan depth, token budget and recursive scanning are provider settings and were not imported")
 		}
@@ -270,6 +280,7 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 		f.Rules = rules
 		rep.Rules = len(rules.Rules)
 	}
+	f.Variables = r.Variables
 	if err := f.Save(); err != nil {
 		return nil, err
 	}
@@ -285,6 +296,15 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 	}
 	if f.OpeningPage != nil {
 		rep.Files = append(rep.Files, card.OpeningFile)
+	}
+	if v := f.Variables; v != nil {
+		rep.Files = append(rep.Files, card.VariablesFile)
+		if v.Rules != "" {
+			rep.Files = append(rep.Files, card.VariableRulesFile)
+		}
+		if v.Panel != "" {
+			rep.Files = append(rep.Files, card.PanelFile)
+		}
 	}
 	if wrote, err := card.WriteAgentsGuide(dir, name); err != nil {
 		return nil, err

@@ -27,7 +27,10 @@ ids, never player text.
   state clear-draft [dir]     drop everything written while you playtested the draft
 
 Your own playtests (Play draft on the card page, private cards) write to the draft data and
-never mix into what players see.`}
+never mix into what players see.
+
+Card variables (values the story keeps per conversation) are a different feature: they live in
+variables.json and are sent by card push.`}
 	show := &cobra.Command{Use: "show [dir]", Short: "Show live and draft totals and the switches", Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error { return a.runStateShow(cmd, args) }}
 	off := &cobra.Command{Use: "off [dir]", Short: "Stop player reads and writes (data is kept)", Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error { return a.runStateToggle(cmd, args, false) }}
 	on := &cobra.Command{Use: "on [dir]", Short: "Resume player reads and writes", Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error { return a.runStateToggle(cmd, args, true) }}

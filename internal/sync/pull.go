@@ -166,6 +166,23 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	} else if assetRead {
 		stale = append(stale, card.RulesFile)
 	}
+	// Variables come with the card detail. variables.md and panel.hbs belong to
+	// variables.json: whatever the card does not have is removed with it.
+	switch v := f.Variables; {
+	case v != nil:
+		res.Files = append(res.Files, card.VariablesFile)
+		for _, side := range []struct{ name, text string }{{card.VariableRulesFile, v.Rules}, {card.PanelFile, v.Panel}} {
+			if side.text != "" {
+				res.Files = append(res.Files, side.name)
+			} else {
+				stale = append(stale, side.name)
+			}
+		}
+	case d.State != nil:
+		res.Warnings = append(res.Warnings, "the card's variables could not be read; "+card.VariablesFile+" was left as it was")
+	default:
+		stale = append(stale, card.VariablesFile, card.VariableRulesFile, card.PanelFile)
+	}
 	// A successful pull replaces managed content, including sections absent
 	// remotely. Otherwise the next load and push would publish the old files.
 	// Failed optional reads retain their existing warning and do not authorize

@@ -88,7 +88,7 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 			}
 			add("rules.json: %s has an unsupported value %q. Use %s.", key, value, strings.Join(values, ", "))
 		}
-		allowed("cardFormat", "", "mmd", "tavern")
+		allowed("cardFormat", "", "mmd", "tavern", "fengyue")
 		allowed("mountLayer", "", "under", "over", "cover")
 		allowed("pageMode", "", "classic", "immersive", "sandbox")
 		problems = append(problems, card.CheckSharedState(f.Rules.SharedState)...)
@@ -113,6 +113,7 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 			add("Display rules total %d bytes (find + replacement + name); the limit is %d bytes (%d %s over). Reduce the rules before pushing.", total, rulesTotalMax, total-rulesTotalMax, unit(total-rulesTotalMax, "byte"))
 		}
 	}
+	problems = append(problems, card.CheckVariables(f.Variables, p.State)...)
 	if p.Worldbook != nil {
 		name, _ := p.Worldbook["name"].(string)
 		if name == "" {

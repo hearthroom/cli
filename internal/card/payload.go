@@ -12,10 +12,12 @@ const (
 	SectionWelcome     = "welcome"
 	SectionWorldbook   = "worldbook"
 	SectionAuthorAsset = "authorAsset"
+	// SectionState is the card's variables (variables.json).
+	SectionState = "state"
 )
 
 // Sections is the stable order of sections.
-var Sections = []string{SectionCard, SectionWelcome, SectionWorldbook, SectionAuthorAsset}
+var Sections = []string{SectionCard, SectionWelcome, SectionWorldbook, SectionAuthorAsset, SectionState}
 
 // Payload is the trial-card document built from a folder. Each section is
 // nil when the folder has nothing for it.
@@ -25,7 +27,13 @@ type Payload struct {
 	Welcome     map[string]any
 	Worldbook   map[string]any
 	AuthorAsset map[string]any
+	State       map[string]any
+	// StateRemoved: variables.json is empty, so the card's variables are removed.
+	StateRemoved bool
 }
+
+// stateRemovedDigest stands for "no variables" so a removal counts as a change once.
+var stateRemovedDigest = Digest(map[string]any{"removed": true})
 
 // Section returns the section body by name (nil when absent).
 func (p Payload) Section(name string) map[string]any {
@@ -38,6 +46,8 @@ func (p Payload) Section(name string) map[string]any {
 		return p.Worldbook
 	case SectionAuthorAsset:
 		return p.AuthorAsset
+	case SectionState:
+		return p.State
 	}
 	return nil
 }
@@ -49,6 +59,9 @@ func (p Payload) Digests() map[string]string {
 		if body := p.Section(s); body != nil {
 			out[s] = Digest(body)
 		}
+	}
+	if p.StateRemoved {
+		out[SectionState] = stateRemovedDigest
 	}
 	return out
 }
@@ -239,6 +252,16 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 		}
 		p.AuthorAsset = aa
 	}
+
+	if v := f.Variables; v != nil {
+		if v.Empty {
+			p.StateRemoved = true
+		} else if body, ok := v.Body(urls); ok {
+			p.State = body
+		} else {
+			return Payload{}, fmt.Errorf("%s: data is missing; add the starting values as a JSON object", VariablesFile)
+		}
+	}
 	return p, nil
 }
 
@@ -291,6 +314,7 @@ type RemoteDetail struct {
 	Visibility              string            `json:"roleVisibility"`
 	ReviewStatus            string            `json:"reviewStatus"`
 	CreationMethod          string            `json:"creationMethod"`
+	State                   *RemoteVariables  `json:"state"`
 }
 
 // RemoteEntry is one Lorebook entry from GET /open/v1/worldbook/entry/list.
@@ -383,6 +407,12 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 			f.OpeningPage = &page
 		}
 		f.State.AuthorAssetVersion = asset.Version
+	}
+	if d.State != nil {
+		// A state the CLI cannot read back is left out rather than written wrong.
+		if v, err := RebuildVariables(*d.State); err == nil {
+			f.Variables = v
+		}
 	}
 	f.State.RoleID = d.RoleID
 	f.State.LorebookID = lorebookID

@@ -50,7 +50,7 @@ func TestPullReplacesOptionalContentBeforeNextPush(t *testing.T) {
 			if _, err := Push(context.Background(), c, loaded, PushOptions{SkipMedia: true}); err != nil {
 				t.Fatal(err)
 			}
-			for _, section := range []string{"worldbook", "authorAsset"} {
+			for _, section := range []string{"worldbook", "authorAsset", "state"} {
 				if _, exists := pushed[section]; exists {
 					t.Errorf("next push republished old %s: %v", section, pushed[section])
 				}
@@ -64,7 +64,7 @@ func TestPullReplacesOptionalContentBeforeNextPush(t *testing.T) {
 			if len(got) != len(want) || len(want) > 0 && !reflect.DeepEqual(got, want) {
 				t.Errorf("next push alternatives = %v, want %v", got, want)
 			}
-			for _, stale := range []string{card.LorebookFile, card.RulesFile, card.IntroFile, "openings/old-one.md", "openings/old-two.md"} {
+			for _, stale := range []string{card.LorebookFile, card.RulesFile, card.IntroFile, card.VariablesFile, card.VariableRulesFile, card.PanelFile, "openings/old-one.md", "openings/old-two.md"} {
 				if _, err := os.Lstat(filepath.Join(f.Dir, stale)); !os.IsNotExist(err) {
 					t.Errorf("obsolete managed file %s still exists: %v", stale, err)
 				}
@@ -90,6 +90,7 @@ func pullReplacementFixture(t *testing.T) *card.Folder {
 	f.Lorebook = &card.Lorebook{Name: "Old book", Entries: []card.LorebookEntry{{Name: "Old entry", Content: "Old lore."}}}
 	f.Rules = &card.Rules{Rules: []card.DisplayRule{{ID: "old", Find: "/old/", Replace: "Old rule.", Enabled: true}}}
 	f.Alternates = []card.Opening{{File: "openings/old-one.md", Text: "Old alternate one."}, {File: "openings/old-two.md", Text: "Old alternate two."}}
+	f.Variables = &card.Variables{Convention: "plain", Data: []byte(`{"old":1}`), Rules: "Old rules.", Panel: "<b>{{old}}</b>"}
 	if err := f.Save(); err != nil {
 		t.Fatal(err)
 	}

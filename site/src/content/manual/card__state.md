@@ -20,6 +20,9 @@ ids, never player text.
 Your own playtests (Play draft on the card page, private cards) write to the draft data and
 never mix into what players see.
 
+Card variables (values the story keeps per conversation) are a different feature: they live in
+variables.json and are sent by card push.
+
 ## Commands
 
 - [`hearthroom card state clear-draft`](/manual/card/state/clear-draft/) — Drop the data written while you playtested the draft

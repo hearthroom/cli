@@ -177,6 +177,7 @@ func Card(dir string) (*Result, error) {
 			checkRules(dir, &rules, modelText, playerText, r)
 		}
 	}
+	checkVariables(dir, r)
 	scanHTML(playerText, card.WelcomeFile, r, false)
 	checkRating(read(card.RatingFile), r)
 	res.Findings = r.findings
@@ -498,4 +499,28 @@ func hasCJK(s string) bool {
 		}
 	}
 	return false
+}
+
+// checkVariables runs the provider's limits on variables.json and its companion files.
+func checkVariables(dir string, r *report) {
+	v, err := card.LoadVariables(dir)
+	if err != nil {
+		r.errorf(card.VariablesFile, "%s", strings.TrimPrefix(err.Error(), card.VariablesFile+": "))
+		return
+	}
+	for _, p := range card.CheckVariables(v, nil) {
+		where := card.VariablesFile
+		for _, name := range []string{card.VariableRulesFile, card.PanelFile} {
+			if strings.HasPrefix(p, name+" ") {
+				where = name
+			}
+		}
+		r.errorf(where, "%s", strings.TrimPrefix(p, card.VariablesFile+": "))
+	}
+	for _, p := range card.OrphanVariableFiles(dir, v) {
+		r.warnf(strings.Fields(p)[0], "%s", p)
+	}
+	if v != nil && v.Empty {
+		r.infof(card.VariablesFile, "the file is empty: pushing removes the card's variables")
+	}
 }

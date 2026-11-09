@@ -14,6 +14,8 @@ run "hearthroom card push --create". The new card defaults to unlisted:
 anyone with its link can play the latest saved content before review.
 Local edits that were not pushed are not part of the submission.
 
+Review uses the last pushed version. The combined character count for the character definition and enabled always-on Lorebook entries must reach 3001; content in either section counts toward the minimum. Opening messages and example conversations do not count.
+
 Each submission carries an operation id kept in .hearthroom/state.json until
 the site accepts it, so running submit again after a lost reply does not submit
 twice. --fandom names the work the card is based on, if any.

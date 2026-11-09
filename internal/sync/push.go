@@ -343,6 +343,9 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 				res.Unchanged = append(res.Unchanged, s)
 			}
 		}
+		if p.StateRemoved && (opts.Force || f.State.LocalHashes[card.SectionState] != digests[card.SectionState]) {
+			res.Changed = append(res.Changed, card.SectionState)
+		}
 		res.RoleID = f.State.RoleID
 		return res, nil
 	}
@@ -351,7 +354,7 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		if api.IsStatus(err, 409) {
 			return nil, fmt.Errorf("%w\nAll trial slots are in use; pass --evict to free the least recently used one", err)
 		}
-		return nil, err
+		return nil, stateRejected(err, true)
 	}
 	f.State.Target = "trial"
 	f.State.RoleID = tr.RoleID
@@ -429,6 +432,9 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			if p.Section(s) != nil {
 				res.Changed = append(res.Changed, s)
 			}
+		}
+		if p.StateRemoved {
+			res.Changed = append(res.Changed, card.SectionState)
 		}
 		res.RoleID = roleID
 		newTarget := roleID != f.State.RoleID || f.State.Target != "owned" || (opts.Create && !f.State.OwnedPushPending)
@@ -595,6 +601,25 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			res.Unchanged = append(res.Unchanged, card.SectionWelcome)
 		}
 	}
+	// variables: the whole definition is replaced; an empty variables.json removes it
+	switch {
+	case p.State != nil || p.StateRemoved:
+		if !changed(card.SectionState) {
+			res.Unchanged = append(res.Unchanged, card.SectionState)
+			break
+		}
+		var err error
+		if p.StateRemoved {
+			err = c.OpenDelete(ctx, "/role/"+roleID+"/state", nil)
+		} else {
+			err = c.OpenPut(ctx, "/role/"+roleID+"/state", p.State, nil)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("write variables: %w", stateRejected(err, false))
+		}
+		f.State.LocalHashes[card.SectionState] = digests[card.SectionState]
+		res.Changed = append(res.Changed, card.SectionState)
+	}
 	// lorebook
 	if p.Worldbook != nil {
 		if changed(card.SectionWorldbook) {
@@ -682,4 +707,36 @@ func playerSpeaksFirst(f *card.Folder, welcome map[string]any) bool {
 		}
 	}
 	return false
+}
+
+// stateReasons says, per provider rejection reason, which file to fix.
+var stateReasons = map[string]string{
+	"convention":      card.VariablesFile + ": convention must be \"mvu\" or \"plain\"",
+	"data":            card.VariablesFile + ": data must be a JSON object holding the starting values",
+	"data_size":       card.VariablesFile + ": the values are larger than 16 KiB",
+	"depth":           card.VariablesFile + ": the values are nested deeper than 8 levels",
+	"keys":            card.VariablesFile + ": the values hold more than 400 keys",
+	"string_size":     card.VariablesFile + ": a text value is larger than 2 KiB",
+	"rules_text_size": card.VariableRulesFile + " is larger than 8 KiB",
+	"rule_paths_size": card.VariablesFile + ": the rules attached to values are larger than 8 KiB",
+	"rule_path":       card.VariablesFile + ": a rule does not match any value in data",
+	"template_size":   card.PanelFile + " is larger than 32 KiB",
+}
+
+// stateRejected explains a provider rejection of the variables. A trial card
+// names the section in the detail; the owned-card route rejects only variables.
+func stateRejected(err error, trial bool) error {
+	var ae *api.Error
+	if !errors.As(err, &ae) || ae.Status != 400 {
+		return err
+	}
+	detail, _ := ae.Detail.(map[string]any)
+	if trial && detail["section"] != card.SectionState {
+		return err
+	}
+	reason, _ := detail["reason"].(string)
+	if hint, ok := stateReasons[reason]; ok {
+		return fmt.Errorf("%w\nThe provider refused the card variables: %s. Run `hearthroom card check` to see the details.", err, hint)
+	}
+	return err
 }

@@ -95,6 +95,8 @@ func LocalCheck(f *card.Folder) []string {
 		}
 		problems = append(problems, card.CheckSharedState(f.Rules.SharedState)...)
 	}
+	problems = append(problems, card.CheckVariables(f.Variables, nil)...)
+	problems = append(problems, card.OrphanVariableFiles(f.Dir, f.Variables)...)
 	return problems
 }
 

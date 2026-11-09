@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/hearthroom/cli/internal/card"
 )
 
 // AI Fengyue (fyue.app) "export config" files.
@@ -371,8 +373,55 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 		r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox", Format: "fengyue"}
 	}
 
+	r.Variables = fengyueVariables(raw, add)
 	fengyueUnmapped(raw, add)
 	return r, notes
+}
+
+// fengyueVariables maps the variable panel to card variables. Fengyue's data
+// skeleton is a JSON string of bare values (no per-value rules), so it becomes
+// convention plain; the variable prompt tells the model how values change and
+// becomes variables.md; the panel skin (Handlebars) becomes panel.hbs. An empty
+// skeleton means the panel is not used: a prompt alone does not turn variables
+// on and is kept in the report instead. A skeleton that is not valid JSON is
+// kept as text in data, so card check points at it and push waits for a fix.
+func fengyueVariables(raw map[string]any, add func(code, format string, args ...any)) *card.Variables {
+	skeleton := ""
+	var parsed *card.JSONNode
+	switch v := fengyuePick(raw, "variableSkeleton").(type) {
+	case map[string]any:
+		parsed = card.JSONFromAny(v)
+		skeleton = parsed.Compact()
+	case string:
+		skeleton = strings.TrimSpace(v)
+	}
+	prompt := fyStr(fengyuePick(raw, "variablePrompt"))
+	template, _ := fengyuePick(raw, "variableTemplate").(string)
+	template = strings.TrimSpace(template)
+	if skeleton == "" {
+		if prompt != "" {
+			add("variablesPromptOnly", "the variable panel had a variable prompt but no data skeleton, so variables were not turned on; prompt text: %s", prompt)
+		}
+		if template != "" {
+			add("variablesTemplateOnly", "the variable panel had a panel skin but no data skeleton, so variables were not turned on")
+		}
+		return nil
+	}
+	v := &card.Variables{Convention: "plain", Rules: prompt, Panel: template}
+	if parsed == nil {
+		if n, err := card.ParseJSON([]byte(skeleton)); err == nil && n.Kind == card.JSONObject {
+			parsed = n
+		}
+	}
+	if parsed != nil {
+		v.Data = json.RawMessage(parsed.Compact())
+		add("variablesConverted", "the variable panel became card variables (%s); review them before pushing", card.VariablesFile)
+	} else {
+		text, _ := json.Marshal(skeleton)
+		v.Data = text
+		add("variablesPartial", "the variable panel's data skeleton is not valid JSON; it was kept as text in %s and must be fixed before pushing", card.VariablesFile)
+	}
+	return v
 }
 
 // fengyueFieldLimit mirrors the site's fallback limits for a new card (web role-draft fallbackLimits).
@@ -526,14 +575,13 @@ func fengyueUnmapped(raw map[string]any, add func(code, format string, args ...a
 	if banned > 0 {
 		add("bannedWords", "%d blocked words have no destination", banned)
 	}
-	variables := fyStr(fengyuePick(raw, "variablePrompt")) != ""
+	// The skeleton, prompt and skin are mapped by fengyueVariables; this is only
+	// for variable-panel keys the alias table does not know.
 	for k, v := range raw {
 		if _, alias := fengyueAliasOf[k]; fengyueSignalKey(k) && !alias && fyStr(v) != "" {
-			variables = true
+			add("variablesUnknown", "the variable panel has a field this importer does not recognise; it was not imported")
+			break
 		}
-	}
-	if variables {
-		add("variables", "the variable panel (data skeleton, panel skin and variable prompt) has no destination")
 	}
 	// The export writes every field's key, empty ones too; a field with none of its aliases
 	// present means Fengyue used a name we have not collected.

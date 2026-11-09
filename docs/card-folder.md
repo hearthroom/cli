@@ -16,6 +16,9 @@ my-card/
     alt-01.md
   lorebook.json      optional Lorebook
   rules.json         optional display rules ("author asset")
+  variables.json     optional card variables: values the story keeps exact from turn to turn
+  variables.md       optional rules for those values, for the model
+  panel.hbs          optional panel skin that shows the values in the chat
   assets/            media referenced by relative path
   AGENTS.md          written by init and import for coding agents; never sent to the provider
   README.md          optional notes; never sent to the provider
@@ -321,6 +324,76 @@ Share responses build on share links. `sdk.share.tallyLink(code, pollKey)` creat
 
 Both page modes use the same uppercase error codes: `SHARED_DISABLED` (the platform or the author paused it), `NOT_DECLARED`, `OPTION_INVALID`, `NOT_ELIGIBLE` (not played yet, or answering your own link), `UNAUTHORIZED` (signed out), `RATE_LIMITED` (wait and retry), `LIMIT_REACHED` (`err.data.reason` is `goal` or `limit`) and `HOST_DENIED` (an older player page; while viewing a past conversation or a review playtest, only reads work; `tallyLink` on a card that was never submitted or given a visibility, such as a trial card, because nobody else can open it). Author playtests (`?mode=source`) and test accounts write to their own numbers, kept apart from the players'; `hearthroom card state` shows, pauses and resets them.
 
+## variables.json
+
+Card variables are values the story keeps exact from turn to turn: affection,
+money, an inventory, the current place, open quests. Every turn the model sees
+their current values and your rules for them, and records what the story
+changed; the chat page can draw them in a panel. Three files hold them:
+
+| File | Holds |
+|---|---|
+| `variables.json` | how the values are written (`convention`) and their starting values (`data`) |
+| `variables.md` | optional rules for the model: what each value means and what usually changes it |
+| `panel.hbs` | optional panel skin: HTML and CSS written in Handlebars, drawn above the chat with the current values; leave it out for no panel |
+
+```json
+{
+  "convention": "mvu",
+  "data": {
+    "affection": [50, "+1 to +3 when she is treated kindly, -5 when lied to"],
+    "money": [120, "spent when buying, earned from quests"],
+    "inventory": {"$meta": {"extensible": true}, "rope": 1},
+    "place": "harbor"
+  }
+}
+```
+
+`convention` says how `data` is written:
+
+- `mvu` (the SillyTavern MagVarUpdate form): a value may be written as
+  `[value, "rule"]`, and the rule tells the model when and how that value
+  changes. An object with `"$meta": {"extensible": true}` can gain and lose
+  keys during the chat (`recursiveExtensible` opens every object below it
+  too); `"$meta": {"required": ["key"]}` keeps those keys from being removed.
+  A plain list is a list. To keep a two-item list whose second item is text
+  from being read as `[value, "rule"]`, write it as `[["a", "b"], ""]`.
+- `plain` (the default): `data` holds values only and every rule lives in
+  `variables.md`. An empty object `{}` can gain keys during the chat; nothing
+  else changes shape.
+
+`pathRules` (optional) attaches a rule to a value by its path, such as
+`"quests[0]": "done when the letter is delivered"`, where `data` cannot carry
+it: a value inside a list, or any value on a `plain` card. `card pull` writes
+it only for such rules.
+
+Limits: `data` up to 16 KiB once normalized, nested at most 8 levels, at most
+400 keys and 2 KiB per text value; `variables.md` up to 8 KiB; the rules
+attached to values up to 8 KiB in total, each naming a value that exists;
+`panel.hbs` up to 32 KiB. `card check` and `card push` check all of them
+before anything is uploaded. The values travel with every turn, so keep them
+to what the story needs to stay exact.
+
+`assets/…` references in `variables.md` and `panel.hbs` are uploaded and
+rewritten like those in other files.
+
+The three files are pushed together as one section, replacing the card's
+variables. `variables.md` and `panel.hbs` are not sent without
+`variables.json`.
+
+- A trial card has no variables unless the folder has `variables.json`.
+- An owned card keeps its variables when the folder has no `variables.json`,
+  like `lorebook.json` and `rules.json`. To remove them, empty the file
+  (leave it with no content) and push.
+- `card pull` writes the files when the card has variables, in the form above
+  (`mvu` when any value has its own rule, an object was opened with `$meta`
+  or a key is required; otherwise `plain`), and removes them when it has none.
+
+`card import` creates the files from a SillyTavern card's MagVarUpdate
+initial variables (Lorebook entries marked `[InitVar]`, which then leave the
+Lorebook) and from an AI Fengyue card's variable panel (data skeleton, panel
+skin and variable prompt).
+
 ## rating.json
 
 Submitting a card for review on the community site needs a content rating.
@@ -366,7 +439,7 @@ and the rating is attached to each review submission instead.
 
 ## Sections and sync
 
-The provider stores a trial card in four sections. The CLI hashes the payload
+The provider stores a trial card in five sections. The CLI hashes the payload
 it would send for each section and compares it with the hashes it stored after
 the last push, so only changed sections are sent.
 
@@ -376,6 +449,7 @@ the last push, so only changed sections are sent.
 | `welcome` | `welcome.md`, `openings/*.md`, `card.json.prologue` |
 | `worldbook` | `lorebook.json` |
 | `authorAsset` | `rules.json` |
+| `state` | `variables.json` + `variables.md` + `panel.hbs` |
 
 ## Push preflight and partial updates
 

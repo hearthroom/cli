@@ -39,6 +39,7 @@ type fengyueContract struct {
 		DefaultProbability int               `json:"defaultProbability"`
 	} `json:"worldbook"`
 	OpeningMode struct {
+		Openings    int `json:"openings"`
 		PresetChats int `json:"presetChats"`
 	} `json:"openingMode"`
 	Limits struct {
@@ -267,9 +268,24 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 	// inside each preset, which also plays a scripted question and answer first.
 	presets := fyObjects(fengyuePick(raw, "presetChats"))
 	choices := fyStrings(fyList(fengyuePick(raw, "openings")))
-	mode, _ := fyNum(fengyuePick(raw, "openingMode"))
+	// When the mode key uses an alias we have not seen, go by which list has content; with
+	// both filled, do not guess which one players see.
+	modeValue, _ := fyNum(fengyuePick(raw, "openingMode"))
+	mode := "openings"
+	switch {
+	case int(modeValue) == fengyueFormat.OpeningMode.PresetChats:
+		mode = "presets"
+	case int(modeValue) == fengyueFormat.OpeningMode.Openings:
+		mode = "openings"
+	case len(presets) > 0 && len(choices) == 0:
+		mode = "presets"
+	case len(choices) > 0 && len(presets) == 0:
+		mode = "openings"
+	case len(presets) > 0:
+		mode = "unknown"
+	}
 	var openings []string
-	if int(mode) == fengyueFormat.OpeningMode.PresetChats {
+	if mode == "presets" {
 		for _, p := range presets {
 			openings = append(openings, fyStrings(fyList(p["suggested_questions"]))...)
 		}
@@ -279,12 +295,16 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 		if len(choices) > 0 {
 			add("unusedOpenings", "%d opening lines are hidden on Fengyue (the card uses preset chats) and were not imported", len(choices))
 		}
+	} else if mode == "unknown" {
+		openings = choices
+		add("openingModeUnknown", "could not tell whether the card uses opening lines or preset chats on Fengyue; the opening lines were imported and %d preset chats were not", len(presets))
 	} else {
 		openings = choices
 		if len(presets) > 0 {
 			add("unusedPresets", "%d preset chats are hidden on Fengyue (the card uses opening lines) and were not imported", len(presets))
 		}
 	}
+	add("noWelcome", "Fengyue cards have no opening message (the player speaks first); write welcome.md before pushing, or the opening choices are not saved either")
 	max := fengyueFormat.Limits.Openings
 	if len(openings) > max {
 		add("prologueLimit", "%d opening choices beyond the limit of %d were dropped", len(openings)-max, max)
@@ -511,6 +531,24 @@ func fengyueUnmapped(raw map[string]any, add func(code, format string, args ...a
 	if variables {
 		add("variables", "the variable panel (data skeleton, panel skin and variable prompt) has no destination")
 	}
+	// The export writes every field's key, empty ones too; a field with none of its aliases
+	// present means Fengyue used a name we have not collected.
+	missing := 0
+	for _, aliases := range fengyueFormat.Fields {
+		found := false
+		for _, a := range aliases {
+			if _, ok := raw[a]; ok {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing++
+		}
+	}
+	if missing > 0 {
+		add("missingFields", "%d fields were not found in the file (Fengyue may have renamed them); check the folder against the card on Fengyue", missing)
+	}
 	// Remaining keys have unmeasured aliases; recognise them by shape.
 	other := 0
 	for k, v := range raw {
@@ -530,7 +568,7 @@ func fengyueUnmapped(raw map[string]any, add func(code, format string, args ...a
 		}
 	}
 	if other > 0 {
-		add("otherFields", "%d other fields (such as background images, covers and CG swaps) were not imported; upload images again", other)
+		add("otherFields", "%d other items have no destination (such as background images, covers, CG swaps or unrecognised fields); upload images again", other)
 	}
 }
 

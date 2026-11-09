@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `opening.html`: an opening page shown above the opening of every new chat (never sent to the model), pushed with `rules.json` and written by `card pull`. `card import` writes it from an AI Fengyue card's detailed introduction, and `cardFormat` accepts `fengyue`. A card with opening choices or an opening page may push an empty `welcome.md`.
 - `card import` reads AI Fengyue exports (the JSON from the editor's export button), whatever key names that export used: prompt, prefix and suffix text, summary, opening choices, Lorebook, regex rules and built-in CSS land in the folder, and every Fengyue feature without a destination is listed in the report.
 - Display rules keep their message targets (AI, user, system) through `card pull` and `card push`.
 - `media generate --image <library URL or path>` sends reference images so a character keeps the same face, hair and outfit across images; `media models` lists how many each model takes (REFS). References cost nothing extra.

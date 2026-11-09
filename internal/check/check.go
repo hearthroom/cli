@@ -227,7 +227,7 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 		r.errorf(where, "mountLayer %q is not one of %s", rules.MountLayer, strings.Join(contract.Provider.MountLayer, ", "))
 	}
 	if rules.CardFormat != "" && !contains(contract.Provider.CardFormat, rules.CardFormat) {
-		r.errorf(where, "cardFormat %q is not one of mmd, tavern", rules.CardFormat)
+		r.errorf(where, "cardFormat %q is not one of %s", rules.CardFormat, strings.Join(contract.Provider.CardFormat[1:], ", "))
 	}
 	// The same declaration rules the push validates (and the provider enforces), so check catches them first.
 	for _, p := range card.CheckSharedState(rules.SharedState) {

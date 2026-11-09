@@ -304,7 +304,6 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 			add("unusedPresets", "%d preset chats are hidden on Fengyue (the card uses opening lines) and were not imported", len(presets))
 		}
 	}
-	add("noWelcome", "Fengyue cards have no opening message (the player speaks first); write welcome.md before pushing, or the opening choices are not saved either")
 	max := fengyueFormat.Limits.Openings
 	if len(openings) > max {
 		add("prologueLimit", "%d opening choices beyond the limit of %d were dropped", len(openings)-max, max)
@@ -322,8 +321,13 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 		}
 	}
 
-	if intro, _ := fengyuePick(raw, "intro").(string); strings.TrimSpace(intro) != "" {
-		add("intro", "the detailed introduction (%d characters, an HTML page shown before the chat) has no destination yet and was not imported", utf8.RuneCountInString(strings.TrimSpace(intro)))
+	// The detailed introduction becomes the opening page (opening.html): shown at the top of every
+	// new chat, never sent to the model.
+	intro, _ := fengyuePick(raw, "intro").(string)
+	r.OpeningPage = strings.TrimSpace(intro)
+	// No AI opening on Fengyue: with an opening page or opening choices the player speaks first here too.
+	if r.OpeningPage == "" && len(r.Prologue) == 0 {
+		add("noWelcome", "Fengyue cards have no opening message (the player speaks first) and this one has no opening choices or detailed introduction; write welcome.md before pushing")
 	}
 
 	if rows := fyObjects(fengyuePick(raw, "worldbook")); len(rows) > 0 {
@@ -363,8 +367,8 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 	if css, _ := fengyuePick(raw, "css").(string); strings.TrimSpace(css) != "" {
 		rules = append(rules, RegexRule{Name: FengyueCSSRuleName, Find: fengyueCSSFind, Replace: "$1<style>" + strings.TrimSpace(css) + "</style>", Enabled: true})
 	}
-	if len(rules) > 0 {
-		r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox"}
+	if len(rules) > 0 || r.OpeningPage != "" {
+		r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox", Format: "fengyue"}
 	}
 
 	fengyueUnmapped(raw, add)

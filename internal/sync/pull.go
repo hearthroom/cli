@@ -148,6 +148,11 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	} else {
 		stale = append(stale, card.IntroFile)
 	}
+	if f.OpeningPage != nil {
+		res.Files = append(res.Files, card.OpeningFile)
+	} else {
+		stale = append(stale, card.OpeningFile)
+	}
 	for _, o := range f.Alternates {
 		res.Files = append(res.Files, o.File)
 	}

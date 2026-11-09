@@ -27,7 +27,12 @@ const (
 	// IntroFile is the public card-page introduction (roleReadme). It is shown
 	// on the card page and never sent to the model. It is not named readme.md:
 	// on case-insensitive file systems that is README.md, the private notes.
-	IntroFile    = "intro.md"
+	IntroFile = "intro.md"
+	// OpeningFile is the opening page: author HTML shown at the top of every new
+	// chat, above the opening message (an AI Fengyue card's detailed introduction).
+	// Players see it; the model never does. It belongs to the author asset, so it
+	// is pushed together with rules.json.
+	OpeningFile  = "opening.html"
 	OpeningsDir  = "openings"
 	LorebookFile = "lorebook.json"
 	RulesFile    = "rules.json"
@@ -112,7 +117,7 @@ type Rules struct {
 	MountTrigger string        `json:"mountTrigger,omitempty"`
 	MountLayer   string        `json:"mountLayer,omitempty"` // under | over | cover (default over)
 	PageMode     string        `json:"pageMode,omitempty"`   // classic | immersive | sandbox
-	CardFormat   string        `json:"cardFormat,omitempty"` // "" (MMD-style) | tavern: how <style> in rules is scoped
+	CardFormat   string        `json:"cardFormat,omitempty"` // "" (MMD-style) | tavern | fengyue: how <style> in rules is scoped
 	// SharedState declares the polls and counters players may write (sdk.shared). A push without it
 	// leaves the server's declaration alone; "sharedState": {} clears it.
 	SharedState json.RawMessage `json:"sharedState,omitempty"`
@@ -137,12 +142,15 @@ type Folder struct {
 	Definition string
 	// Intro is intro.md; nil when the file does not exist, so the field is
 	// left alone on push. An existing empty file clears it.
-	Intro      *string
-	Welcome    string
-	Alternates []Opening
-	Lorebook   *Lorebook
-	Rules      *Rules
-	State      State
+	Intro *string
+	// OpeningPage is opening.html; nil when the file does not exist, so the
+	// stored page is left alone on push. An existing empty file clears it.
+	OpeningPage *string
+	Welcome     string
+	Alternates  []Opening
+	Lorebook    *Lorebook
+	Rules       *Rules
+	State       State
 }
 
 // Opening is one alternate opening file.
@@ -285,6 +293,15 @@ func Load(dir string) (*Folder, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	if _, err := os.Stat(filepath.Join(dir, OpeningFile)); err == nil {
+		text, err := readText(filepath.Join(dir, OpeningFile))
+		if err != nil {
+			return nil, err
+		}
+		f.OpeningPage = &text
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
 	f.Alternates, err = readOpenings(dir)
 	if err != nil {
 		return nil, err
@@ -338,6 +355,11 @@ func (f *Folder) Save() error {
 	}
 	if f.Intro != nil {
 		if err := writeText(filepath.Join(f.Dir, IntroFile), *f.Intro); err != nil {
+			return err
+		}
+	}
+	if f.OpeningPage != nil {
+		if err := writeText(filepath.Join(f.Dir, OpeningFile), *f.OpeningPage); err != nil {
 			return err
 		}
 	}
@@ -629,6 +651,9 @@ func (f *Folder) scanRefs(add func(string)) {
 	scan(f.Definition)
 	if f.Intro != nil {
 		scan(*f.Intro)
+	}
+	if f.OpeningPage != nil {
+		scan(*f.OpeningPage)
 	}
 	scan(f.Welcome)
 	for _, o := range f.Alternates {

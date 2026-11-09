@@ -699,6 +699,36 @@
     "prologue": {
       "scope": ".prologue-scope[data-lt=\"prologue\"]",
       "item": ".prologue-content"
+    },
+    "standardComposer": {
+      "mmdSandboxSelectors": [
+        ".composer-shortcut-wrap",
+        "[data-chat=\"shortcut\"]",
+        ".composer-row",
+        "[data-chat=\"assistant\"][data-action=\"assistant\"]",
+        ".chat-input-scope.composer-field",
+        ".composer-field [data-chat=\"input\"]",
+        ".composer-field [data-chat=\"model-chip\"][data-action=\"model\"]",
+        ".composer-field [data-chat=\"send\"]",
+        ".composer-tools",
+        ".composer-row > .more-options-scope [data-action=\"more\"]",
+        ".composer-row > .assistant-anchor > [data-chat=\"assistant\"]",
+        "[data-chat=\"more-panel\"]"
+      ],
+      "absent": [
+        "[data-chat=instruction-bar]",
+        "[data-chat=instruction-chip]",
+        "[data-chat=instruction-back]",
+        "[data-chat=assistant-tip]"
+      ],
+      "differences": [
+        "shortcut, assistant, send, model-chip and more are div[role=button], not <button>: button[...] and :disabled do not match",
+        "shortcut buttons carry the platform feature key in data-shortcut, so [data-action=model] is only the model chip",
+        ".composer-field sits inside .uni-textarea, the textarea two levels below .composer-field, more inside .more-options-scope: child and sibling combinators from MMD miss",
+        "model-chip and send exist twice (collapsed and expanded rows); querySelector returns the collapsed one",
+        ".assistant-anchor is display: contents until the card gives it a display",
+        "in the sandbox shell the assistant node stays mounted; while read-only or without assist it has .is-off (display: none)"
+      ]
     }
   },
   "nativeBlocks": {
@@ -828,7 +858,25 @@
       "theme": "host",
       "fencedDocument": "iframe",
       "note": "<style> selectors are prefixed with \".mes_text \""
+    },
+    "fengyue": {
+      "styleScope": null,
+      "theme": "host",
+      "fencedDocument": "inline",
+      "note": "imported from AI Fengyue: page-wide styles that follow the host theme; tapping an opening choice sends it"
     }
+  },
+  "openingPage": {
+    "source": "author asset openingPage (display only, never sent to the model)",
+    "position": "above the message list at the start of a conversation, in both the classic page and the sandbox shell",
+    "frameSandbox": "allow-scripts allow-forms allow-pointer-lock",
+    "paper": "light (#fff background, #1f1f1f text) regardless of the host theme",
+    "api": {
+      "hearthroom.fill(text)": "puts text into the player input",
+      "hearthroom.send(text)": "sends text as the player message right after the player clicked the page; otherwise fills"
+    },
+    "clipboardCopyFills": true,
+    "textMaxChars": 8000
   },
   "rules": {
     "findForms": [
@@ -1204,8 +1252,10 @@
     "cardFormat": [
       "",
       "mmd",
-      "tavern"
+      "tavern",
+      "fengyue"
     ],
+    "openingPageMaxBytes": 524288,
     "render": {
       "endpoint": "GET /open/v1/role/render",
       "executesScripts": false,

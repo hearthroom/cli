@@ -11,6 +11,7 @@ my-card/
   definition.md      the private definition of the character (roleDetailDesc)
   welcome.md         the opening message (roleWelcome)
   intro.md           optional card page introduction in Markdown (roleReadme); not sent to the model
+  opening.html       optional opening page: HTML shown above the opening message of every new chat; not sent to the model
   openings/          optional alternate openings, one Markdown file each, in file-name order
     alt-01.md
   lorebook.json      optional Lorebook
@@ -163,6 +164,18 @@ checks the values before a push.
   `readme.md` because on macOS and Windows that is the same file as
   `README.md`, the private notes.
 - `openings/*.md` → alternate openings, sorted by file name.
+- `opening.html` → the author asset's `openingPage`: an HTML page (styles,
+  scripts and handlers allowed) shown at the top of every new chat, above the
+  opening message, in its own sandboxed frame on a light background. Players
+  see it; the model never does. Buttons in it can call `hearthroom.fill(text)`
+  to put a line in the player's input or `hearthroom.send(text)` to send it as
+  the player's first message (sent only right after the player clicks; otherwise
+  filled), and text the page copies to the clipboard is filled too. It is
+  pushed with `rules.json` (no `rules.json`, nothing is sent); without the file
+  the stored page is left alone, an empty file clears it, and `card pull`
+  writes it when the card has one. A card with opening choices or an opening
+  page may leave `welcome.md` empty: the player speaks first. `card import`
+  writes it from an AI Fengyue card's detailed introduction.
 - A file whose only content is an HTML comment (`<!-- … -->`) counts as empty.
 - Text is trimmed. Line endings are normalised to `\n`.
 - Any `assets/…` reference inside these files, Lorebook entries or rule
@@ -263,6 +276,10 @@ The allowance follows the selected context tier, measured in tokens, and include
 
 `mountLayer` is `under`, `over` or `cover`; `pageMode` is `classic`,
 `immersive` or `sandbox`. `id` defaults to `rule-NN`.
+
+`cardFormat` is empty (MMD-style), `tavern` (styles scoped to messages) or
+`fengyue` (imported from AI Fengyue: page-wide styles that follow the light or
+dark theme, and tapping an opening choice sends it instead of filling the input).
 
 `sharedState` declares the polls and counters players can write on this card:
 

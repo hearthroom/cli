@@ -37,6 +37,8 @@ type Result struct {
 	Lorebook       *LorebookDraft
 	Rules          *RuleSet
 	CreatorNotes   string
+	// OpeningPage is written to opening.html (an AI Fengyue card's detailed introduction).
+	OpeningPage string
 	// Portrait/Background bytes and extensions, when the source bundled them.
 	Portrait      []byte
 	PortraitExt   string
@@ -253,7 +255,11 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 		f.Lorebook = lb
 		rep.Lorebook = len(lb.Entries)
 	}
-	if r.Rules != nil && len(r.Rules.Rules) > 0 {
+	if r.OpeningPage != "" {
+		page := r.OpeningPage
+		f.OpeningPage = &page
+	}
+	if r.Rules != nil && (len(r.Rules.Rules) > 0 || r.OpeningPage != "") {
 		rules := &card.Rules{MountTrigger: r.Rules.Statusbar, MountLayer: "over", PageMode: r.Rules.PageMode, CardFormat: r.Rules.Format}
 		if r.Rules.Lowered {
 			rules.MountLayer = "under"
@@ -276,6 +282,9 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 	}
 	if f.Rules != nil {
 		rep.Files = append(rep.Files, card.RulesFile)
+	}
+	if f.OpeningPage != nil {
+		rep.Files = append(rep.Files, card.OpeningFile)
 	}
 	if wrote, err := card.WriteAgentsGuide(dir, name); err != nil {
 		return nil, err

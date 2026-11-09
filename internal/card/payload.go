@@ -232,6 +232,11 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 		if len(f.Rules.SharedState) > 0 {
 			aa["sharedState"] = f.Rules.SharedState
 		}
+		// Same rule as sharedState: sent only when opening.html exists (an empty file clears the page),
+		// so folders without one keep their digests and the stored page.
+		if f.OpeningPage != nil {
+			aa["openingPage"] = Rewrite(*f.OpeningPage, urls)
+		}
 		p.AuthorAsset = aa
 	}
 	return p, nil
@@ -313,6 +318,7 @@ type RemoteAsset struct {
 	PageMode     string          `json:"pageMode"`
 	CardFormat   string          `json:"cardFormat"`
 	SharedState  json.RawMessage `json:"sharedState"`
+	OpeningPage  string          `json:"openingPage"`
 	Status       string          `json:"status"`
 	Version      int64           `json:"version"`
 }
@@ -370,8 +376,12 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		}
 	}
 	shared := declaredSharedState(asset)
-	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil) {
+	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil || strings.TrimSpace(asset.OpeningPage) != "") {
 		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat, SharedState: shared}
+		if strings.TrimSpace(asset.OpeningPage) != "" {
+			page := asset.OpeningPage
+			f.OpeningPage = &page
+		}
 		f.State.AuthorAssetVersion = asset.Version
 	}
 	f.State.RoleID = d.RoleID

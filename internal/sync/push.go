@@ -582,8 +582,8 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	// welcome
 	if p.Welcome != nil {
 		if changed(card.SectionWelcome) {
-			if p.Welcome["roleWelcome"] == "" {
-				res.Skipped = append(res.Skipped, card.SectionWelcome+" (welcome.md is empty; owned cards require an opening)")
+			if p.Welcome["roleWelcome"] == "" && !playerSpeaksFirst(f, p.Welcome) {
+				res.Skipped = append(res.Skipped, card.SectionWelcome+" (welcome.md is empty; owned cards need an opening, opening choices or opening.html)")
 			} else {
 				if err := c.OpenPatch(ctx, "/role/"+roleID+"/welcome", p.Welcome, nil); err != nil {
 					return nil, fmt.Errorf("write opening: %w", err)
@@ -666,4 +666,20 @@ func OwnedDigest(f *card.Folder, digests map[string]string, section string) stri
 		d += "|language=" + lang
 	}
 	return d
+}
+
+// playerSpeaksFirst: a card with opening choices or an opening page lets the player
+// speak first (AI Fengyue cards work this way), so its opening may be empty. The
+// provider applies the same rule; the author asset is pushed before the welcome.
+func playerSpeaksFirst(f *card.Folder, welcome map[string]any) bool {
+	if f.OpeningPage != nil && strings.TrimSpace(*f.OpeningPage) != "" && f.Rules != nil {
+		return true
+	}
+	prologue, _ := welcome["prologue"].([]string)
+	for _, p := range prologue {
+		if strings.TrimSpace(p) != "" {
+			return true
+		}
+	}
+	return false
 }

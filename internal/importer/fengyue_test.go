@@ -74,7 +74,7 @@ func fengyueProjection(r *Result, notes []fengyueNote) map[string]any {
 	}
 	out := map[string]any{
 		"fengyue": true, "name": r.Name, "summary": r.Summary, "definition": r.Definition,
-		"outputContract": r.OutputContract, "custom": r.Custom, "prologue": prologue, "css": css,
+		"outputContract": r.OutputContract, "custom": r.Custom, "prologue": prologue, "css": css, "intro": r.OpeningPage,
 		"lorebook": lore, "rules": rules, "notes": codes,
 	}
 	return out
@@ -110,15 +110,10 @@ func TestFengyueSharedCases(t *testing.T) {
 			}
 			r, notes := convertFengyue(raw, "zh-Hans")
 			got := fengyueProjection(r, notes)
-			intro, _ := expect["intro"].(string)
-			delete(expect, "intro") // the folder has no place for it yet; checked through the note
 			if !reflect.DeepEqual(normalise(t, got), normalise(t, expect)) {
 				gb, _ := json.MarshalIndent(got, "", " ")
 				eb, _ := json.MarshalIndent(expect, "", " ")
 				t.Fatalf("got\n%s\nwant\n%s", gb, eb)
-			}
-			if intro == "" {
-				t.Fatal("fixture should carry an intro")
 			}
 		})
 	}
@@ -162,6 +157,9 @@ func TestFengyueWritesFolder(t *testing.T) {
 	}
 	if f.Intro != nil {
 		t.Fatal("the detailed introduction is HTML and must not land in intro.md (Markdown)")
+	}
+	if f.OpeningPage == nil || !strings.Contains(*f.OpeningPage, "TEST-DETAIL-INTRO") || f.Rules == nil || f.Rules.CardFormat != "fengyue" {
+		t.Fatalf("opening page / card format: %v %+v", f.OpeningPage, f.Rules)
 	}
 	if f.Lorebook == nil || f.Lorebook.Entries[0].TriggerRegion != "user_only" {
 		t.Fatalf("lorebook: %+v", f.Lorebook)

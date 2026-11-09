@@ -405,10 +405,18 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		}
 	}
 	shared := declaredSharedState(asset)
-	// Only the page presentation is written: greeting is the default, so other folders stay as they were.
+	// The opening mode is written only when it differs from the card format's default (AI Fengyue cards
+	// open on the page, others on the message): other folders stay as they were, and pushing this one
+	// to a new card, where the site picks the default from the format, keeps the author's choice.
 	openingMode := ""
-	if asset != nil && asset.OpeningMode == "page" {
-		openingMode = "page"
+	if asset != nil && (asset.OpeningMode == "page" || asset.OpeningMode == "greeting") {
+		def := "greeting"
+		if asset.CardFormat == "fengyue" {
+			def = "page"
+		}
+		if asset.OpeningMode != def {
+			openingMode = asset.OpeningMode
+		}
 	}
 	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil || strings.TrimSpace(asset.OpeningPage) != "" || openingMode != "") {
 		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat, OpeningMode: openingMode, SharedState: shared}

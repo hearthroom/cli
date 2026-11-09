@@ -80,16 +80,20 @@ func TestOpeningModeTravelsWithTheAuthorAsset(t *testing.T) {
 		t.Fatalf("openingMode = %v", payload.AuthorAsset["openingMode"])
 	}
 
-	for remote, want := range map[string]string{"page": "page", "greeting": ""} {
+	// Pull writes the mode only when it differs from the format's default (fengyue opens on the page,
+	// other cards on the message), so pushing the folder to a new card keeps the author's choice.
+	for _, c := range []struct{ format, remote, want string }{
+		{"", "page", "page"}, {"", "greeting", ""}, {"fengyue", "greeting", "greeting"}, {"fengyue", "page", ""},
+	} {
 		var asset RemoteAsset
-		json.Unmarshal([]byte(`{"rules":[],"pageMode":"classic","openingMode":"`+remote+`"}`), &asset)
+		json.Unmarshal([]byte(`{"rules":[],"pageMode":"classic","cardFormat":"`+c.format+`","openingMode":"`+c.remote+`"}`), &asset)
 		pulled := FromRemote(t.TempDir(), RemoteDetail{RoleName: "Mira"}, "", "", nil, &asset)
 		got := ""
 		if pulled.Rules != nil {
 			got = pulled.Rules.OpeningMode
 		}
-		if got != want || (want == "page") != (pulled.Rules != nil) {
-			t.Fatalf("pull %s: rules %+v", remote, pulled.Rules)
+		if got != c.want {
+			t.Fatalf("pull %s/%s: rules %+v", c.format, c.remote, pulled.Rules)
 		}
 	}
 }

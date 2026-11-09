@@ -289,8 +289,9 @@ dark theme).
 `page` (the player starts from `opening.html` and the opening choices; tapping a
 choice sends it as the player's first message, and `welcome.md` may be empty).
 Without the key the site keeps the card's current choice; a new card opens with
-`greeting`, and `card import` writes `page` for AI Fengyue cards. `card pull`
-writes the key only for `page`.
+`page` when `cardFormat` is `fengyue` and with `greeting` otherwise. `card import`
+writes `page` for AI Fengyue cards, and `card pull` writes the key only when it
+differs from that default.
 
 `sharedState` declares the polls and counters players can write on this card:
 

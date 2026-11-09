@@ -715,6 +715,8 @@ type EntryDraft struct {
 	Enabled           bool
 	Constant          bool
 	MatchOptions      map[string]any
+	// TriggerRegion is both (""), user_only or ai_only.
+	TriggerRegion string
 }
 
 func entryKeywords(e BookEntry, raw []string) []string {
@@ -937,6 +939,8 @@ type RegexRule struct {
 	Find    string
 	Replace string
 	Enabled bool
+	// Targets limits the rule to these message kinds (ai, user, system); nil means every message.
+	Targets *[]string
 }
 
 // RulesFromTavern reads extensions.regex_scripts, keeping only scripts that

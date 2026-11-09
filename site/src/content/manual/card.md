@@ -15,7 +15,7 @@ card-writing skills are: https://github.com/hearthroom/skills.
 ## Commands
 
 - [`hearthroom card check`](/manual/card/check/) — Local checks of the folder before a push: rules, markers, sandbox API use, protocol health
-- [`hearthroom card import`](/manual/card/import/) — Convert a SillyTavern PNG/JSON/CHARX card or an MMD file set into a card folder
+- [`hearthroom card import`](/manual/card/import/) — Convert a SillyTavern PNG/JSON/CHARX card, an AI Fengyue export or an MMD file set into a card folder
 - [`hearthroom card init`](/manual/card/init/) — Create a new card folder
 - [`hearthroom card list`](/manual/card/list/) — List your cards on the provider
 - [`hearthroom card preview`](/manual/card/preview/) — Open the folder in the real sandbox chat shell with a fake host, offline

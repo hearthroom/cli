@@ -125,6 +125,9 @@ type DisplayRule struct {
 	Find    string `json:"find"`
 	Replace string `json:"replace"`
 	Enabled bool   `json:"enabled"`
+	// Targets limits the rule to ai, user and/or system messages. Absent means every message;
+	// an empty list means none, so the pointer keeps the two apart (same shape as the provider).
+	Targets *[]string `json:"targets,omitempty"`
 }
 
 // Folder is a loaded card folder.

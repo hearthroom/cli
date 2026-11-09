@@ -66,7 +66,7 @@
   {
     "slug": "card/import",
     "command": "hearthroom card import",
-    "short": "Convert a SillyTavern PNG/JSON/CHARX card or an MMD file set into a card folder",
+    "short": "Convert a SillyTavern PNG/JSON/CHARX card, an AI Fengyue export or an MMD file set into a card folder",
     "parent": "card"
   },
   {

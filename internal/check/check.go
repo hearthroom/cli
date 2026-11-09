@@ -230,6 +230,9 @@ func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *
 	if rules.CardFormat != "" && !contains(contract.Provider.CardFormat, rules.CardFormat) {
 		r.errorf(where, "cardFormat %q is not one of %s", rules.CardFormat, strings.Join(contract.Provider.CardFormat[1:], ", "))
 	}
+	if rules.OpeningMode != "" && rules.OpeningMode != "greeting" && rules.OpeningMode != "page" {
+		r.errorf(where, "openingMode %q is not one of greeting, page", rules.OpeningMode)
+	}
 	// The same declaration rules the push validates (and the provider enforces), so check catches them first.
 	for _, p := range card.CheckSharedState(rules.SharedState) {
 		r.errorf(where, "%s", strings.TrimPrefix(p, card.RulesFile+": "))

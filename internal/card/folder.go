@@ -118,6 +118,10 @@ type Rules struct {
 	MountLayer   string        `json:"mountLayer,omitempty"` // under | over | cover (default over)
 	PageMode     string        `json:"pageMode,omitempty"`   // classic | immersive | sandbox
 	CardFormat   string        `json:"cardFormat,omitempty"` // "" (MMD-style) | tavern | fengyue: how <style> in rules is scoped
+	// OpeningMode is the opening presentation: greeting (the opening message starts the chat; a tapped
+	// opening choice fills the input) or page (the player starts from opening.html and the choices; a
+	// tapped choice is sent). Omitted keeps what the site has; a new card defaults to greeting.
+	OpeningMode string `json:"openingMode,omitempty"`
 	// SharedState declares the polls and counters players may write (sdk.shared). A push without it
 	// leaves the server's declaration alone; "sharedState": {} clears it.
 	SharedState json.RawMessage `json:"sharedState,omitempty"`

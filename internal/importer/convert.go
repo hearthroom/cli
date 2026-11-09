@@ -269,8 +269,12 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 		page := r.OpeningPage
 		f.OpeningPage = &page
 	}
-	if r.Rules != nil && (len(r.Rules.Rules) > 0 || r.OpeningPage != "") {
+	if r.Rules != nil && (len(r.Rules.Rules) > 0 || r.OpeningPage != "" || r.Rules.Format == "fengyue") {
 		rules := &card.Rules{MountTrigger: r.Rules.Statusbar, MountLayer: "over", PageMode: r.Rules.PageMode, CardFormat: r.Rules.Format}
+		// AI Fengyue cards open on the detailed introduction and the choices; a tapped choice is sent.
+		if r.Rules.Format == "fengyue" {
+			rules.OpeningMode = "page"
+		}
 		if r.Rules.Lowered {
 			rules.MountLayer = "under"
 		}

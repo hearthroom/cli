@@ -158,7 +158,7 @@ func TestFengyueWritesFolder(t *testing.T) {
 	if f.Intro != nil {
 		t.Fatal("the detailed introduction is HTML and must not land in intro.md (Markdown)")
 	}
-	if f.OpeningPage == nil || !strings.Contains(*f.OpeningPage, "TEST-DETAIL-INTRO") || f.Rules == nil || f.Rules.CardFormat != "fengyue" {
+	if f.OpeningPage == nil || !strings.Contains(*f.OpeningPage, "TEST-DETAIL-INTRO") || f.Rules == nil || f.Rules.CardFormat != "fengyue" || f.Rules.OpeningMode != "page" {
 		t.Fatalf("opening page / card format: %v %+v", f.OpeningPage, f.Rules)
 	}
 	if f.Lorebook == nil || f.Lorebook.Entries[0].TriggerRegion != "user_only" {

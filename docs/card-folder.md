@@ -282,7 +282,15 @@ The allowance follows the selected context tier, measured in tokens, and include
 
 `cardFormat` is empty (MMD-style), `tavern` (styles scoped to messages) or
 `fengyue` (imported from AI Fengyue: page-wide styles that follow the light or
-dark theme, and tapping an opening choice sends it instead of filling the input).
+dark theme).
+
+`openingMode` is how a new chat opens: `greeting` (the opening message in
+`welcome.md` starts it; tapping an opening choice fills the player's input) or
+`page` (the player starts from `opening.html` and the opening choices; tapping a
+choice sends it as the player's first message, and `welcome.md` may be empty).
+Without the key the site keeps the card's current choice; a new card opens with
+`greeting`, and `card import` writes `page` for AI Fengyue cards. `card pull`
+writes the key only for `page`.
 
 `sharedState` declares the polls and counters players can write on this card:
 

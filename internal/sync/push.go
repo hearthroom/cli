@@ -693,10 +693,13 @@ func OwnedDigest(f *card.Folder, digests map[string]string, section string) stri
 	return d
 }
 
-// playerSpeaksFirst: a card with opening choices or an opening page lets the player
-// speak first (AI Fengyue cards work this way), so its opening may be empty. The
-// provider applies the same rule; the author asset is pushed before the welcome.
+// playerSpeaksFirst: a card whose opening presentation is page, or that has opening
+// choices or an opening page, lets the player speak first, so its opening may be empty.
+// The provider applies the same rule; the author asset is pushed before the welcome.
 func playerSpeaksFirst(f *card.Folder, welcome map[string]any) bool {
+	if f.Rules != nil && f.Rules.OpeningMode == "page" {
+		return true
+	}
 	if f.OpeningPage != nil && strings.TrimSpace(*f.OpeningPage) != "" && f.Rules != nil {
 		return true
 	}

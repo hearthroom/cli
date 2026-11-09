@@ -240,6 +240,10 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 		if f.Rules.CardFormat != "" {
 			aa["cardFormat"] = f.Rules.CardFormat
 		}
+		// Sent only when written, so folders without it keep their digests and the site's choice.
+		if f.Rules.OpeningMode != "" {
+			aa["openingMode"] = f.Rules.OpeningMode
+		}
 		// Sent only when the file has one, so cards without a declaration keep their digests; the
 		// server keeps an omitted declaration, so clearing it means writing "sharedState": {}.
 		if len(f.Rules.SharedState) > 0 {
@@ -343,6 +347,7 @@ type RemoteAsset struct {
 	CardFormat   string          `json:"cardFormat"`
 	SharedState  json.RawMessage `json:"sharedState"`
 	OpeningPage  string          `json:"openingPage"`
+	OpeningMode  string          `json:"openingMode"`
 	Status       string          `json:"status"`
 	Version      int64           `json:"version"`
 }
@@ -400,8 +405,13 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		}
 	}
 	shared := declaredSharedState(asset)
-	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil || strings.TrimSpace(asset.OpeningPage) != "") {
-		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat, SharedState: shared}
+	// Only the page presentation is written: greeting is the default, so other folders stay as they were.
+	openingMode := ""
+	if asset != nil && asset.OpeningMode == "page" {
+		openingMode = "page"
+	}
+	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil || strings.TrimSpace(asset.OpeningPage) != "" || openingMode != "") {
+		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat, OpeningMode: openingMode, SharedState: shared}
 		if strings.TrimSpace(asset.OpeningPage) != "" {
 			page := asset.OpeningPage
 			f.OpeningPage = &page

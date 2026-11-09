@@ -23,6 +23,8 @@ func TestPlayerSpeaksFirst(t *testing.T) {
 		{"opening page with rules.json", card.Folder{OpeningPage: &page, Rules: &card.Rules{}}, map[string]any{}, true},
 		{"opening page without rules.json is not pushed", card.Folder{OpeningPage: &page}, map[string]any{}, false},
 		{"empty opening page", card.Folder{OpeningPage: &empty, Rules: &card.Rules{}}, map[string]any{}, false},
+		{"page presentation without choices", card.Folder{Rules: &card.Rules{OpeningMode: "page"}}, map[string]any{"prologue": []string{}}, true},
+		{"greeting presentation without choices", card.Folder{Rules: &card.Rules{OpeningMode: "greeting"}}, map[string]any{}, false},
 	}
 	for _, c := range cases {
 		if got := playerSpeaksFirst(&c.folder, c.welcome); got != c.want {

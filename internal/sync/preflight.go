@@ -89,6 +89,7 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 			add("rules.json: %s has an unsupported value %q. Use %s.", key, value, strings.Join(values, ", "))
 		}
 		allowed("cardFormat", "", "mmd", "tavern", "fengyue")
+		allowed("openingMode", "", "greeting", "page")
 		allowed("mountLayer", "", "under", "over", "cover")
 		allowed("pageMode", "", "classic", "immersive", "sandbox")
 		problems = append(problems, card.CheckSharedState(f.Rules.SharedState)...)

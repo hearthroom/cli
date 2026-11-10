@@ -48,7 +48,10 @@ sending your message again. It requires --allow-spend: only new model usage is
 charged, earlier charges stay unchanged, and continuation may still incur charges
 if it fails.
 
-Use --model <model> to switch models, or omit it to keep the previous model.
+--model applies to that turn only. Without it, a turn uses the model saved for this
+card on your account (set on the play page, or your default model when you first
+opened the card), else the provider's default; a --model from an earlier turn does not
+carry over, so name the model on every turn of a test.
 
 With --json, every server event is printed as one JSON object per line.` + "\n\n" + recallLabel("help.details") + "\n\n" + recallLabel("help.readback") + "\n\n" + recallLabel("help.continue") + "\n\n" + recallLabel("help.interpretation"),
 		Args: cobra.MaximumNArgs(1),
@@ -283,7 +286,7 @@ With --json, every server event is printed as one JSON object per line.` + "\n\n
 	c.Flags().BoolVar(&newSession, "new-session", false, "archive the current conversation with this card and start a fresh one")
 	c.Flags().StringVarP(&message, "message", "m", "", "message to send (spends credits; requires --allow-spend)")
 	c.Flags().BoolVar(&allowSpend, "allow-spend", false, "confirm that this turn may spend credits")
-	c.Flags().StringVar(&model, "model", "", "model value from `hearthroom models` (default: provider default)")
+	c.Flags().StringVar(&model, "model", "", "model value from `hearthroom models` for this turn (default: the card's saved model, else the provider default)")
 	c.Flags().StringVar(&thinking, "thinking", "", "thinking depth override for models that support it")
 	c.Flags().StringVar(&agent, "agent", "", "agent mode for this turn: on or off (default: saved preference)")
 	c.Flags().IntVar(&greeting, "greeting", 0, "opening for a new conversation (0 = main, 1.. = alternates); an existing conversation is resumed as is, so pair it with --new-session")

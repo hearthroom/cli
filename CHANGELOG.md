@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `play --help` describes `--model` the way the provider applies it: the flag sets the model for that turn only; without it a turn uses the card's saved model for the account, else the provider default. The earlier sentence said an omitted `--model` kept the previous model.
 - `card preview` runs a rule's `<script src="assets/…">` (classic or module) instead of skipping it: the preview inlines the file after every inline script, in rule order, as the play page runs it. On the play page it still loads asynchronously from the media library. `--check` lists these files in findings.json as `externalScriptsInlined`.
 - `card preview` uses the newest cached sandbox shell when the site cannot be reached, and prints the date of that copy; an HTTP answer that is not the shell is still an error. `--check` writes the shell's source (fetched, cache, offline-cache, local) to findings.json, and `--json` prints it as `shellSource`.
 - `lorebook build` and `lorebook check` stop on a second frontmatter block in one file (naming the file and line) instead of merging it into the first entry's content. Subfolders under `worldbook/` are read; files and folders starting with `_` are skipped. Quotes around `name`, `id` and `category` are dropped, and an entry built earlier with a quoted name keeps its Lorebook entry.

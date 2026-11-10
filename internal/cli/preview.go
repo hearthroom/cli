@@ -60,14 +60,17 @@ and sdk.share.context is null. Test a share context on the deployed draft with
 /play/<id>?mode=source&share=<code>.
 
 The shell is fetched once from the card's sandbox origin on the configured site
-(c<roleId>.<site host>/sandbox/) and cached by content hash; --shell <dir> uses a
-local build of the shell instead. Nothing is sent anywhere else.`,
+(c<roleId>.<site host>/sandbox/) and cached by content hash; when the site cannot be
+reached, the newest cached copy is used and its date is printed (findings.json records
+the shell's source). --shell <dir> uses a local build of the shell instead. Nothing is
+sent anywhere else.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f, err := loadFolder(args)
 			if err != nil {
 				return err
 			}
+			shell := preview.Shell{Dir: shellDir, Source: preview.SourceLocal}
 			if shellDir == "" {
 				origin, err := preview.SandboxOrigin(a.Site, f.State.RoleID)
 				if err != nil {
@@ -78,14 +81,17 @@ local build of the shell instead. Nothing is sent anywhere else.`,
 					cacheRoot = os.TempDir()
 				}
 				cacheRoot = filepath.Join(cacheRoot, "hearthroom", "sandbox")
-				dir, fetched, err := preview.Fetch(&http.Client{Timeout: 30 * time.Second}, origin, cacheRoot)
+				shell, err = preview.Resolve(&http.Client{Timeout: 30 * time.Second}, origin, cacheRoot)
 				if err != nil {
 					return output.Exitf(2, "could not fetch the sandbox shell from %s: %v (pass --shell <dist-sandbox dir>)", origin, err)
 				}
-				if fetched {
+				switch shell.Source {
+				case preview.SourceFetched:
 					a.Out.Note("fetched the sandbox shell from %s", origin)
+				case preview.SourceOfflineCache:
+					a.Out.Note("%s is unreachable; using the sandbox shell cached on %s (%s), which may be older than the site's", origin, shell.CachedAt.Format("2006-01-02"), shell.Dir)
 				}
-				shellDir = dir
+				shellDir = shell.Dir
 			} else if _, err := os.Stat(filepath.Join(shellDir, "sandbox.js")); err != nil {
 				return output.Exitf(2, "%s does not contain sandbox.js", shellDir)
 			}
@@ -93,11 +99,11 @@ local build of the shell instead. Nothing is sent anywhere else.`,
 				a.Out.Note("%s has no rules.json; the preview shows plain text", f.Dir)
 			}
 			if runCheck {
-				return a.previewCheck(f, shellDir, port, fromHistory, sizes)
+				return a.previewCheck(f, shell, port, fromHistory, sizes)
 			}
 			return preview.Serve(shellDir, f.Dir, port, func(url string) {
 				if a.Out.JSON {
-					_ = a.Out.JSONValue(map[string]any{"url": url, "shell": shellDir, "card": f.Dir})
+					_ = a.Out.JSONValue(map[string]any{"url": url, "shell": shellDir, "shellSource": shell.Source, "card": f.Dir})
 				} else {
 					a.Out.Line("card:    %s", f.Dir)
 					a.Out.Line("preview: %s", url)
@@ -119,7 +125,8 @@ local build of the shell instead. Nothing is sent anywhere else.`,
 }
 
 // previewCheck is --check: serve, drive, derive, report.
-func (a *App) previewCheck(f *card.Folder, shellDir string, port int, fromHistory []string, sizesSpec string) error {
+func (a *App) previewCheck(f *card.Folder, shell preview.Shell, port int, fromHistory []string, sizesSpec string) error {
+	shellDir := shell.Dir
 	chrome, err := preview.FindChrome()
 	if err != nil {
 		return output.Exitf(2, "%v; install Chrome, Chromium or Edge, set HEARTHROOM_CHROME to its executable, or use \"card preview --open\" and \"card render --json\" instead", err)
@@ -128,7 +135,10 @@ func (a *App) previewCheck(f *card.Folder, shellDir string, port int, fromHistor
 	if err != nil {
 		return output.Exit(2, err)
 	}
-	report := &preview.Report{Card: f.Dir, ShotsDir: filepath.Join(f.Dir, "preview", "shots")}
+	report := &preview.Report{Card: f.Dir, ShotsDir: filepath.Join(f.Dir, "preview", "shots"), Shell: &shell}
+	if shell.Source == preview.SourceOfflineCache {
+		report.Notes = append(report.Notes, "the site was unreachable; the shell is the copy cached on "+shell.CachedAt.Format("2006-01-02"))
+	}
 	var samples []string
 	if len(fromHistory) > 0 {
 		for _, path := range fromHistory {

@@ -204,6 +204,7 @@ type Report struct {
 	Card     string        `json:"card"`
 	ShotsDir string        `json:"shotsDir"`
 	Contact  string        `json:"contact,omitempty"`
+	Shell    *Shell        `json:"shell,omitempty"`
 	Notes    []string      `json:"notes,omitempty"`
 	States   []StateResult `json:"states"`
 	Findings []Finding     `json:"findings"`

@@ -57,7 +57,7 @@ func Fetch(client *http.Client, origin, cacheRoot string) (string, bool, error) 
 		}
 		res, err := client.Get(target)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %v", errUnreachable, err)
 		}
 		defer res.Body.Close()
 		if res.StatusCode != http.StatusOK {
@@ -65,7 +65,7 @@ func Fetch(client *http.Client, origin, cacheRoot string) (string, bool, error) 
 		}
 		b, err := io.ReadAll(res.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %v", errUnreachable, err)
 		}
 		if name == "index.html" && !strings.Contains(string(b), "sandbox.js") {
 			return nil, errors.New(target + " is not the sandbox shell (the site's fallback page came back)")
@@ -98,6 +98,63 @@ func Fetch(client *http.Client, origin, cacheRoot string) (string, bool, error) 
 		}
 	}
 	return dir, true, nil
+}
+
+// errUnreachable marks a fetch that never got an answer (no network, DNS, proxy, timeout).
+var errUnreachable = errors.New("site unreachable")
+
+// Where a preview's shell came from.
+const (
+	SourceFetched      = "fetched"       // downloaded now
+	SourceCache        = "cache"         // the site's current shell, already cached
+	SourceOfflineCache = "offline-cache" // the site was unreachable; newest cached copy
+	SourceLocal        = "local"         // --shell
+)
+
+// Shell is the shell directory a preview serves and where it came from.
+type Shell struct {
+	Dir      string    `json:"dir"`
+	Source   string    `json:"source"`
+	CachedAt time.Time `json:"cachedAt,omitzero"`
+}
+
+// Resolve fetches the shell like Fetch. Only when the site cannot be reached at all
+// does it fall back to the newest complete copy in the cache; an HTTP answer that is
+// not the shell is still an error.
+func Resolve(client *http.Client, origin, cacheRoot string) (Shell, error) {
+	dir, fetched, err := Fetch(client, origin, cacheRoot)
+	if err == nil {
+		src := SourceCache
+		if fetched {
+			src = SourceFetched
+		}
+		return Shell{Dir: dir, Source: src}, nil
+	}
+	if !errors.Is(err, errUnreachable) {
+		return Shell{}, err
+	}
+	dir, at := newest(cacheRoot)
+	if dir == "" {
+		return Shell{}, err
+	}
+	return Shell{Dir: dir, Source: SourceOfflineCache, CachedAt: at}, nil
+}
+
+// newest is the complete cached shell whose sandbox.js was written last.
+func newest(cacheRoot string) (string, time.Time) {
+	entries, _ := os.ReadDir(cacheRoot)
+	var best string
+	var at time.Time
+	for _, e := range entries {
+		dir := filepath.Join(cacheRoot, e.Name())
+		if !e.IsDir() || !complete(dir) {
+			continue
+		}
+		if st, err := os.Stat(filepath.Join(dir, "sandbox.js")); err == nil && st.ModTime().After(at) {
+			best, at = dir, st.ModTime()
+		}
+	}
+	return best, at
 }
 
 func complete(dir string) bool {

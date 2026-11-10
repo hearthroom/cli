@@ -40,8 +40,10 @@ and sdk.share.context is null. Test a share context on the deployed draft with
 /play/<id>?mode=source&share=<code>.
 
 The shell is fetched once from the card's sandbox origin on the configured site
-(c<roleId>.<site host>/sandbox/) and cached by content hash; --shell <dir> uses a
-local build of the shell instead. Nothing is sent anywhere else.
+(c<roleId>.<site host>/sandbox/) and cached by content hash; when the site cannot be
+reached, the newest cached copy is used and its date is printed (findings.json records
+the shell's source). --shell <dir> uses a local build of the shell instead. Nothing is
+sent anywhere else.
 
 ## Usage
 

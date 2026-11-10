@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `card preview` uses the newest cached sandbox shell when the site cannot be reached, and prints the date of that copy; an HTTP answer that is not the shell is still an error. `--check` writes the shell's source (fetched, cache, offline-cache, local) to findings.json, and `--json` prints it as `shellSource`.
 - `lorebook build` and `lorebook check` stop on a second frontmatter block in one file (naming the file and line) instead of merging it into the first entry's content. Subfolders under `worldbook/` are read; files and folders starting with `_` are skipped. Quotes around `name`, `id` and `category` are dropped, and an entry built earlier with a quoted name keeps its Lorebook entry.
 - Card variables: `variables.json` (starting values, in the MagVarUpdate `[value, "rule"]` form or as plain values), `variables.md` (rules for the model) and `panel.hbs` (panel skin) are pushed as the card's variables and written by `card pull`. A trial card without `variables.json` has none; an owned card keeps its variables until the file is emptied. `card check` and `card push` check the limits before uploading. `card import` turns SillyTavern `[InitVar]` Lorebook entries (JSON or JSON5) and an AI Fengyue variable panel into these files.
 - `card push` accepts `cardFormat: fengyue`, which `card import` writes for AI Fengyue cards.

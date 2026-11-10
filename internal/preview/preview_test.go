@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func fakeShell(t *testing.T) string {
@@ -104,5 +105,41 @@ func TestFetchCachesByHash(t *testing.T) {
 	defer fallback.Close()
 	if _, _, err := Fetch(fallback.Client(), fallback.URL, t.TempDir()); err == nil || !strings.Contains(err.Error(), "not the sandbox shell") {
 		t.Fatalf("fallback should be rejected: %v", err)
+	}
+}
+
+func TestResolveFallsBackToTheCacheOnlyWhenOffline(t *testing.T) {
+	shell := fakeShell(t)
+	origin := httptest.NewServer(http.StripPrefix("/sandbox/", http.FileServer(http.Dir(shell))))
+	cache := t.TempDir()
+	got, err := Resolve(origin.Client(), origin.URL, cache)
+	if err != nil || got.Source != SourceFetched {
+		t.Fatalf("online: %+v %v", got, err)
+	}
+	// An older complete copy and a newer incomplete one must not win.
+	old := filepath.Join(cache, "0000000000000000")
+	os.MkdirAll(old, 0o755)
+	for _, name := range ShellFiles {
+		os.WriteFile(filepath.Join(old, name), []byte("x"), 0o644)
+		os.Chtimes(filepath.Join(old, name), time.Now().Add(-48*time.Hour), time.Now().Add(-48*time.Hour))
+	}
+	os.MkdirAll(filepath.Join(cache, "ffffffffffffffff"), 0o755)
+	os.WriteFile(filepath.Join(cache, "ffffffffffffffff", "sandbox.js"), []byte("x"), 0o644)
+	origin.Close()
+
+	got2, err := Resolve(&http.Client{Timeout: time.Second}, origin.URL, cache)
+	if err != nil || got2.Source != SourceOfflineCache || got2.Dir != got.Dir || got2.CachedAt.IsZero() {
+		t.Fatalf("offline: %+v %v", got2, err)
+	}
+	if _, err := Resolve(&http.Client{Timeout: time.Second}, origin.URL, t.TempDir()); err == nil {
+		t.Fatalf("offline with an empty cache must fail")
+	}
+	// A reachable site that answers with something else is not "offline": no fallback.
+	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "<!doctype html><title>Hearthroom</title>")
+	}))
+	defer fallback.Close()
+	if _, err := Resolve(fallback.Client(), fallback.URL, cache); err == nil {
+		t.Fatalf("an HTTP answer must not fall back to the cache")
 	}
 }

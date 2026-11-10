@@ -20,7 +20,9 @@ func (a *App) lorebookCommand() *cobra.Command {
 under <dir>/worldbook/, one Markdown file each: a frontmatter block (name, keywords,
 secondaryKeywords, constant, disabled, order, scanDepth, matchWholeWords,
 caseSensitive, selective, selectiveLogic; an optional stable id) followed by the
-content. Files starting with "_" are notes and are skipped. "build" writes
+content. One file holds one entry: a second frontmatter block is an error. Subfolders
+are read; files and folders starting with "_" are notes and are skipped. "order" sets
+the entry's position in lorebook.json and is not stored as a field. "build" writes
 lorebook.json from them (never the other way round); "check" compares the two and
 looks for keywords that fire several entries at once, entries nothing can reach, and
 too many constant entries.`,

@@ -113,3 +113,75 @@ func TestCheck(t *testing.T) {
 		t.Fatalf("warnings only: %s", res.Status)
 	}
 }
+
+func TestSecondFrontmatterIsAnError(t *testing.T) {
+	text := "---\nname: A\nkeywords: a1\n---\nA body.\n---\nname: B\nkeywords: [\"b1\"]\n---\nB body.\n"
+	_, err := ParseSource("a.md", text)
+	if err == nil || !strings.Contains(err.Error(), "line 6") || !strings.Contains(err.Error(), "one file holds one entry") {
+		t.Fatalf("want a line-6 error, got %v", err)
+	}
+	// A Markdown rule inside the content is not a frontmatter block.
+	s, err := ParseSource("rule.md", "---\nname: R\n---\nAbove.\n\n---\n\nBelow: not a key.\n")
+	if err != nil || !strings.Contains(s.Entry.Content, "Below") {
+		t.Fatalf("rule: %v %+v", err, s.Entry)
+	}
+}
+
+func TestScalarQuotesAreStripped(t *testing.T) {
+	s, err := ParseSource("q.md", "---\nid: 'q-1'\nname: \"甲条\"\ncategory: \"scene\"\n---\nBody.\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.ID != "q-1" || s.Entry.Name != "甲条" || s.Entry.Category != "scene" {
+		t.Fatalf("quotes kept: %q %q %q", s.ID, s.Entry.Name, s.Entry.Category)
+	}
+}
+
+func TestSubfoldersAreRead(t *testing.T) {
+	dir := t.TempDir()
+	wb := filepath.Join(dir, SourceDir)
+	for name, body := range map[string]string{
+		"top.md":           "---\nname: Top\nkeywords: top\n---\nTop.\n",
+		"门派/少林.md":         "---\nkeywords: 少林\n---\nShaolin.\n",
+		"门派/_note.md":      "notes\n",
+		"_drafts/draft.md": "---\nname: Draft\n---\nDraft.\n",
+	} {
+		os.MkdirAll(filepath.Dir(filepath.Join(wb, name)), 0o755)
+		os.WriteFile(filepath.Join(wb, name), []byte(body), 0o644)
+	}
+	sources, err := ReadSources(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sources) != 2 {
+		t.Fatalf("sources: %+v", sources)
+	}
+	var sub Source
+	for _, s := range sources {
+		if s.Entry.Name == "少林" {
+			sub = s
+		}
+	}
+	if sub.File != "门派/少林.md" || sub.ID != "门派/少林" {
+		t.Fatalf("subfolder entry: %+v", sub)
+	}
+}
+
+func TestQuotedNameKeepsRemoteID(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, SourceDir), 0o755)
+	os.WriteFile(filepath.Join(dir, SourceDir, "q.md"), []byte("---\nname: \"甲条\"\nkeywords: 甲\n---\nBody.\n"), 0o644)
+	// Built by an older CLI that kept the quotes in the name.
+	os.WriteFile(filepath.Join(dir, card.LorebookFile), []byte(`{"name":"Q","entries":[{"id":"remote-q","name":"\"甲条\"","content":"Body.","keywords":["甲"]}]}`), 0o644)
+	sources, err := ReadSources(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	book, err := Build(dir, sources)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if book.Entries[0].Name != "甲条" || book.Entries[0].ID != "remote-q" {
+		t.Fatalf("entry: %+v", book.Entries[0])
+	}
+}

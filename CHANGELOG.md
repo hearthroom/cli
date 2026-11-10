@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `lorebook build` and `lorebook check` stop on a second frontmatter block in one file (naming the file and line) instead of merging it into the first entry's content. Subfolders under `worldbook/` are read; files and folders starting with `_` are skipped. Quotes around `name`, `id` and `category` are dropped, and an entry built earlier with a quoted name keeps its Lorebook entry.
 - Card variables: `variables.json` (starting values, in the MagVarUpdate `[value, "rule"]` form or as plain values), `variables.md` (rules for the model) and `panel.hbs` (panel skin) are pushed as the card's variables and written by `card pull`. A trial card without `variables.json` has none; an owned card keeps its variables until the file is emptied. `card check` and `card push` check the limits before uploading. `card import` turns SillyTavern `[InitVar]` Lorebook entries (JSON or JSON5) and an AI Fengyue variable panel into these files.
 - `card push` accepts `cardFormat: fengyue`, which `card import` writes for AI Fengyue cards.
 - `rules.json` `openingMode`: `greeting` (the opening message starts the chat; a tapped opening choice fills the input) or `page` (the player starts from `opening.html` and the choices; a tapped choice is sent, and `welcome.md` may be empty). `card import` writes `page` for AI Fengyue cards; `card pull` writes it when it differs from the default for the card's format. What a tapped choice does no longer depends on `cardFormat`.

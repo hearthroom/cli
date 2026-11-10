@@ -18,14 +18,18 @@
 // outputs, never hand-edited. A file whose first line is a Markdown heading and whose
 // second line is a `> key: value · key: value` blockquote is read the same way (the
 // convention of some authors' worldbook notes), so existing folders need no rewrite.
-// Files whose name starts with `_` (a manifest, notes) are skipped.
+// Subfolders are read too (an entry's default id is then its relative path, `sect/shaolin`).
+// One file holds one entry: a second frontmatter block in the content is an error.
+// Files and folders whose name starts with `_` (a manifest, notes, drafts) are skipped.
 package lorebook
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -52,35 +56,50 @@ type Source struct {
 
 var (
 	frontmatterRe = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n?`)
-	headingRe     = regexp.MustCompile(`^#\s+(.+?)\s*$`)
-	metaLineRe    = regexp.MustCompile(`^>\s*(.+)$`)
+	// A `---` line, then only `key: value` lines, then `---`: a frontmatter block, not a Markdown rule.
+	secondFrontmatterRe = regexp.MustCompile(`(?m)^---[ \t]*\n(?:[A-Za-z][A-Za-z0-9_]*[ \t]*:.*\n)+---[ \t]*$`)
+	headingRe           = regexp.MustCompile(`^#\s+(.+?)\s*$`)
+	metaLineRe          = regexp.MustCompile(`^>\s*(.+)$`)
 )
 
-// ReadSources parses every entry file under <dir>/worldbook.
+// ReadSources parses every entry file under <dir>/worldbook, subfolders included.
 func ReadSources(dir string) ([]Source, error) {
 	root := filepath.Join(dir, SourceDir)
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("%s has no %s/ folder", dir, SourceDir)
-		}
-		return nil, err
+	if _, err := os.Stat(root); errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("%s has no %s/ folder", dir, SourceDir)
 	}
 	var out []Source
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".md") || strings.HasPrefix(name, "_") {
-			continue
-		}
-		b, err := os.ReadFile(filepath.Join(root, name))
+	err := filepath.WalkDir(root, func(p string, e fs.DirEntry, err error) error {
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if strings.HasPrefix(e.Name(), "_") && p != root {
+			if e.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			return nil
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return err
+		}
+		name := filepath.ToSlash(rel)
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
 		}
 		s, err := ParseSource(name, strings.ReplaceAll(string(b), "\r\n", "\n"))
 		if err != nil {
-			return nil, fmt.Errorf("%s/%s: %w", SourceDir, name, err)
+			return fmt.Errorf("%s/%s: %w", SourceDir, name, err)
 		}
 		out = append(out, s)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Order != out[j].Order {
@@ -106,6 +125,10 @@ func ParseSource(fileName, text string) (Source, error) {
 			fields[strings.TrimSpace(k)] = strings.TrimSpace(v)
 		}
 		body = text[len(m[0]):]
+		if loc := secondFrontmatterRe.FindStringIndex(body); loc != nil {
+			line := strings.Count(text[:len(m[0])+loc[0]], "\n") + 1
+			return s, fmt.Errorf("line %d starts a second frontmatter block; one file holds one entry, so move it to its own file", line)
+		}
 	} else {
 		// Heading + `> key: value · key: value` meta line.
 		lines := strings.SplitN(text, "\n", 3)
@@ -144,12 +167,15 @@ func ParseSource(fileName, text string) (Source, error) {
 			}
 		}
 	}
+	for _, k := range []string{"id", "name", "category"} {
+		fields[k] = unquote(fields[k])
+	}
 	if v := fields["id"]; v != "" {
 		s.ID = v
 	}
 	s.Entry.Name = fields["name"]
 	if s.Entry.Name == "" {
-		s.Entry.Name = stem
+		s.Entry.Name = path.Base(stem)
 	}
 	s.Entry.Content = strings.TrimSpace(body)
 	s.Entry.Keywords = list(fields["keywords"])
@@ -214,6 +240,14 @@ func list(v string) []string {
 	return out
 }
 
+// unquote drops one pair of matching quotes around a scalar value, as list does for items.
+func unquote(v string) string {
+	if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') && v[len(v)-1] == v[0] {
+		return v[1 : len(v)-1]
+	}
+	return v
+}
+
 func truthy(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "true", "yes", "1", "on", "是":
@@ -233,6 +267,14 @@ func Build(dir string, sources []Source) (*card.Lorebook, error) {
 			book.ID, book.Name, book.Description, book.Format = old.ID, old.Name, old.Description, old.Format
 			for _, e := range old.Entries {
 				existing[e.Name] = e
+			}
+			// Older builds kept the quotes around a name; match those by the unquoted name.
+			for _, e := range old.Entries {
+				if n := unquote(e.Name); n != e.Name {
+					if _, taken := existing[n]; !taken {
+						existing[n] = e
+					}
+				}
 			}
 		}
 	}

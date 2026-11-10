@@ -26,6 +26,30 @@
     if (!r.ok) return null
     return await r.text()
   }
+  // 規則裡的外鏈 <script src="assets/…">：上線後是素材庫的 https 網址，殼照跑；本機只能是 http，殼只認 https，會靜默跳過。
+  // 這裡把它們讀出來內聯，放進最後一條永不命中的合成規則：殼「不論規則有沒有命中」都抽出腳本，所以照樣執行，
+  // 順序也同線上（所有內聯傳統腳本之後、按規則順序）。差別是線上從素材庫非同步載入、可能晚到或載入失敗。
+  // 與 internal/preview/check.go 的 assetScriptRe 同一條規則。
+  const ASSET_SCRIPT_RE = /<script\b([^>]*?)\bsrc\s*=\s*(["'])assets\/([^"']+)\2([^>]*)>\s*<\/script\s*>/gi
+  async function inlineAssetScripts(rules) {
+    const out = []
+    const seen = new Set()
+    for (const r of rules) {
+      if (!r.enabled) continue
+      const found = []
+      r.replace = r.replace.replace(ASSET_SCRIPT_RE, (_m, pre, _q, rel, post) => { found.push({ rel, module: /\btype\s*=\s*["']?module\b/i.test(pre + post) }); return '' })
+      for (const f of found) {
+        if (seen.has(f.rel)) continue
+        seen.add(f.rel)
+        const code = await fetchText('assets/' + f.rel)
+        if (code == null) { log(`預覽：讀不到外部腳本 assets/${f.rel}`, 'warn'); continue }
+        if (code.includes('```')) log(`預覽：assets/${f.rel} 含 \`\`\`，內聯後可能被當成程式碼圍欄而不執行`, 'warn')
+        out.push(`<script${f.module ? ' type="module"' : ''}>${code.replace(/<\/script/gi, '<\\/script')}</script>`)
+        log(`預覽：外部腳本 assets/${f.rel} 已內聯執行（線上由素材庫非同步載入）`)
+      }
+    }
+    return out
+  }
   async function loadCard() {
     const rulesText = await fetchText('rules.json')
     const rules = rulesText ? JSON.parse(rulesText) : { rules: [] }
@@ -42,11 +66,14 @@
     // ?rules=off：規則全停（text-only）——劇情為核的卡在這個狀態也要讀得順；綁定型的卡要看機制在文字裡是否可讀。
     const rulesOff = params.get('rules') === 'off'
     state.rulesOff = rulesOff
+    const raw = rulesOff ? [] : (rules.rules || []).map((r, i) => ({ id: r.id ?? i, name: r.name || '', find: r.find, replace: String(r.replace ?? ''), enabled: r.enabled !== false }))
+    const inlined = await inlineAssetScripts(raw)
     state.card = {
       format: rules.cardFormat || 'mmd',
-      rules: rulesOff ? [] : (rules.rules || []).map((r, i) => ({ id: r.id ?? i, name: r.name || '', find: r.find, replace: assets(r.replace), enabled: r.enabled !== false })),
+      rules: raw.map((r) => ({ ...r, replace: assets(r.replace) })),
       statusbar: rulesOff ? '' : assets(rules.mountTrigger || ''),
     }
+    if (inlined.length) state.card.rules.push({ id: '__preview_external__', name: 'preview: external scripts from assets/', find: '\u0000__never__', replace: inlined.join(''), enabled: true })
     state.welcome = assets(welcome)
     // 替代開場 openings/alt-01.md、alt-02.md…（讀到第一個沒有的為止）：sdk.archive.start(n) 用，0＝主開場、1 起＝替代開場
     state.openings = [state.welcome]

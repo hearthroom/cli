@@ -243,3 +243,61 @@ func TestDriveIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestDriveRunsAssetScripts: a rule's <script src="assets/…"> runs in the preview, after
+// every inline classic script, as on the play page (where assets/ becomes an https URL).
+// Same switches as TestDriveIntegration.
+func TestDriveRunsAssetScripts(t *testing.T) {
+	if os.Getenv("HEARTHROOM_TEST_CHROME") != "1" || os.Getenv("HEARTHROOM_TEST_SHELL") == "" {
+		t.Skip("set HEARTHROOM_TEST_CHROME=1 and HEARTHROOM_TEST_SHELL to run")
+	}
+	chrome, err := FindChrome()
+	if err != nil {
+		t.Skip(err)
+	}
+	card := t.TempDir()
+	must := func(name, body string) {
+		os.MkdirAll(filepath.Dir(filepath.Join(card, name)), 0o755)
+		if err := os.WriteFile(filepath.Join(card, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	must("card.json", `{"name":"T"}`)
+	must("welcome.md", "开场。")
+	must("rules.json", `{"pageMode":"sandbox","rules":[
+		{"name":"boot","find":"NEVER-A","replace":"<script>window.__order = ['inline']</script>"},
+		{"name":"ext","find":"NEVER-B","replace":"<script src=\"assets/ui/x.js\"></script><script type=\"module\" src='assets/m.js'></script>"},
+		{"name":"later","find":"NEVER-C","replace":"<script>window.__order.push('inline2')</script>"}
+	]}`)
+	must("assets/ui/x.js", "window.__order.push('ext'); console.error('EXT-RAN ' + window.__order.join(','))")
+	must("assets/m.js", "console.error('MOD-RAN')")
+	srv, err := Listen(os.Getenv("HEARTHROOM_TEST_SHELL"), card, 0, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	results, err := Run(ctx, DriveOptions{Chrome: chrome, Origin: srv.Origin, States: Plan([]Size{{"phone", 390, 844}}, []string{"回覆。"})[:1], ShotsDir: filepath.Join(card, "shots")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(results[0].ConsoleErrors, "\n")
+	for _, want := range []string{"EXT-RAN inline,inline2,ext", "MOD-RAN"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in console: %s (drive error: %s)", want, got, results[0].Error)
+		}
+	}
+}
+
+func TestAssetScripts(t *testing.T) {
+	got := AssetScripts([]byte(`{"rules":[
+		{"replace":"<script src=\"assets/ui/x.js\"></script><script type=\"module\" src='assets/m.js'></script>"},
+		{"replace":"<script src=\"assets/ui/x.js\"></script>","enabled":true},
+		{"replace":"<script src=\"assets/off.js\"></script>","enabled":false},
+		{"replace":"<script src=\"https://cdn.example/x.js\"></script><img src=\"assets/a.png\">"}
+	]}`))
+	if strings.Join(got, ",") != "ui/x.js,m.js" {
+		t.Fatalf("%q", got)
+	}
+}

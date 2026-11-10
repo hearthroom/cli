@@ -200,14 +200,47 @@ type Finding struct {
 
 // Report is the --check document.
 type Report struct {
-	Status   string        `json:"status"` // ok | error
-	Card     string        `json:"card"`
-	ShotsDir string        `json:"shotsDir"`
-	Contact  string        `json:"contact,omitempty"`
-	Shell    *Shell        `json:"shell,omitempty"`
-	Notes    []string      `json:"notes,omitempty"`
-	States   []StateResult `json:"states"`
-	Findings []Finding     `json:"findings"`
+	Status   string `json:"status"` // ok | error
+	Card     string `json:"card"`
+	ShotsDir string `json:"shotsDir"`
+	Contact  string `json:"contact,omitempty"`
+	Shell    *Shell `json:"shell,omitempty"`
+	// ExternalScriptsInlined are the rules' assets/ scripts the preview ran inline.
+	ExternalScriptsInlined []string      `json:"externalScriptsInlined,omitempty"`
+	Notes                  []string      `json:"notes,omitempty"`
+	States                 []StateResult `json:"states"`
+	Findings               []Finding     `json:"findings"`
+}
+
+// assetScriptRe mirrors ASSET_SCRIPT_RE in assets/preview.js.
+var assetScriptRe = regexp.MustCompile(`(?is)<script\b[^>]*?\bsrc\s*=\s*["']assets/([^"']+)["'][^>]*>\s*</script\s*>`)
+
+// AssetScripts lists the assets/ paths of external scripts in rules.json's enabled
+// rules, in rule order without repeats: the scripts the preview inlines.
+func AssetScripts(rulesJSON []byte) []string {
+	var doc struct {
+		Rules []struct {
+			Replace string `json:"replace"`
+			Enabled *bool  `json:"enabled"`
+		} `json:"rules"`
+	}
+	if json.Unmarshal(rulesJSON, &doc) != nil {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, r := range doc.Rules {
+		if r.Enabled != nil && !*r.Enabled {
+			continue
+		}
+		for _, m := range assetScriptRe.FindAllStringSubmatch(r.Replace, -1) {
+			if !seen[m[1]] {
+				seen[m[1]] = true
+				out = append(out, m[1])
+			}
+		}
+	}
+	return out
 }
 
 // Errors counts the blocking findings.

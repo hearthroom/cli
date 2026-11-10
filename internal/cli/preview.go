@@ -34,6 +34,9 @@ and without credits. The page streams sample replies from preview/replies.md (on
 "## " heading), switches conversation, re-runs scripts, offers phone, landscape,
 unfolded, tablet and desktop sizes, both themes, and "rules off" (?rules=off) to read
 the card as plain text. It is not the host's own render path, the model or a device.
+A rule's <script src="assets/…"> runs inline after the inline scripts, in rule order,
+as on the play page; there it loads asynchronously from the media library, so a fallback
+for a script that arrives late or never cannot be seen here.
 
 --check gives an agent without a browser the same evidence: it drives headless Chrome
 through the harness, streams the sample replies, and for a fixed set of states (phone
@@ -136,6 +139,10 @@ func (a *App) previewCheck(f *card.Folder, shell preview.Shell, port int, fromHi
 		return output.Exit(2, err)
 	}
 	report := &preview.Report{Card: f.Dir, ShotsDir: filepath.Join(f.Dir, "preview", "shots"), Shell: &shell}
+	if paths := preview.AssetScripts([]byte(readFileOr(filepath.Join(f.Dir, card.RulesFile)))); len(paths) > 0 {
+		report.ExternalScriptsInlined = paths
+		report.Notes = append(report.Notes, "external scripts from assets/ ran inline, after the inline scripts as on the play page (which loads them asynchronously from the media library): "+strings.Join(paths, ", "))
+	}
 	if shell.Source == preview.SourceOfflineCache {
 		report.Notes = append(report.Notes, "the site was unreachable; the shell is the copy cached on "+shell.CachedAt.Format("2006-01-02"))
 	}

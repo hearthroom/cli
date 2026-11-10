@@ -279,7 +279,7 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 			rules.MountLayer = "under"
 		}
 		for i, rr := range r.Rules.Rules {
-			rules.Rules = append(rules.Rules, card.DisplayRule{ID: fmt.Sprintf("rule-%02d", i+1), Name: rr.Name, Find: rr.Find, Replace: rr.Replace, Enabled: rr.Enabled, Targets: rr.Targets})
+			rules.Rules = append(rules.Rules, card.DisplayRule{ID: fmt.Sprintf("rule-%02d", i+1), Name: rr.Name, Find: rr.Find, Replace: rr.Replace, Enabled: rr.Enabled, Targets: rr.Targets, CSSDialect: rr.CSSDialect})
 		}
 		f.Rules = rules
 		rep.Rules = len(rules.Rules)

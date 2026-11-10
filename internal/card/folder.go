@@ -138,6 +138,9 @@ type DisplayRule struct {
 	// Targets limits the rule to ai, user and/or system messages. Absent means every message;
 	// an empty list means none, so the pointer keeps the two apart (same shape as the provider).
 	Targets *[]string `json:"targets,omitempty"`
+	// CSSDialect says how the <style> in this rule is written: fengyue, tavern or mmd.
+	// Empty follows the card format; the play page reads each rule's CSS its own way.
+	CSSDialect string `json:"cssDialect,omitempty"`
 }
 
 // Folder is a loaded card folder.

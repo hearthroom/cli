@@ -941,6 +941,8 @@ type RegexRule struct {
 	Enabled bool
 	// Targets limits the rule to these message kinds (ai, user, system); nil means every message.
 	Targets *[]string
+	// CSSDialect is how the rule's <style> is written (fengyue, tavern, mmd); empty follows the card format.
+	CSSDialect string
 }
 
 // RulesFromTavern reads extensions.regex_scripts, keeping only scripts that

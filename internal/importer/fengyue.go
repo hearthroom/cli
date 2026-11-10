@@ -368,7 +368,8 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 
 	rules := fengyueRegex(fyObjects(fengyuePick(raw, "regex")), add)
 	if css, _ := fengyuePick(raw, "css").(string); strings.TrimSpace(css) != "" {
-		rules = append(rules, RegexRule{Name: FengyueCSSRuleName, Find: fengyueCSSFind, Replace: "$1<style>" + strings.TrimSpace(css) + "</style>", Enabled: true})
+		// Marked as Fengyue CSS: the play page maps its Fengyue chat-element ids onto ours.
+		rules = append(rules, RegexRule{Name: FengyueCSSRuleName, Find: fengyueCSSFind, Replace: "$1<style>" + strings.TrimSpace(css) + "</style>", Enabled: true, CSSDialect: "fengyue"})
 	}
 	if len(rules) > 0 || r.OpeningPage != "" {
 		r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox", Format: "fengyue"}

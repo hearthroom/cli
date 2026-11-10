@@ -227,6 +227,9 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 			if r.Targets != nil {
 				rule["targets"] = *r.Targets
 			}
+			if r.CSSDialect != "" {
+				rule["cssDialect"] = r.CSSDialect
+			}
 			rules = append(rules, rule)
 		}
 		layer := f.Rules.MountLayer

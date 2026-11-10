@@ -228,6 +228,30 @@ provider's ids and let later pushes update instead of duplicate. `disabled: true
 `fengyue` (imported from AI Fengyue: page-wide styles that follow the light or
 dark theme, and tapping an opening choice sends it instead of filling the input).
 
+Each rule may set `cssDialect` to say how the `<style>` in its `replace` is
+written: `fengyue` (CSS written for the AI Fengyue chat page: its chat-element
+ids such as `#customized-answer-content`, `#ai-chat-input` and `#ai-send-button`
+map onto the bubbles, input box and send button; rules starting with `.dark`
+apply in dark mode; `body`, `html` and `:root` rules do nothing, as on Fengyue;
+buttons keep colour, border and shadow only; `!important` is removed), `tavern`
+(every selector prefixed with `.mes_text `) or `mmd` (applied as written).
+Without the key the rule follows `cardFormat`. `card import` sets `fengyue` on
+the built-in CSS from AI Fengyue.
+
+One card can mix rules with different values. When styles meet on the same
+element, the higher level wins:
+
+1. platform defaults;
+2. the site's light or dark theme and colours (MMD cards stay dark);
+3. `--chat-*` variables, which only change the colours the defaults use;
+4. `fengyue` CSS;
+5. every other rule's `<style>`: above level 4 whatever the selector weight;
+   among themselves normal CSS applies (heavier selector first, then the later
+   rule).
+
+To override Fengyue CSS, write a normal `<style>` in another rule; `!important`
+is not needed.
+
 `sharedState` declares the polls and counters players can write on this card:
 
 ```json

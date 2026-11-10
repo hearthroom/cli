@@ -233,7 +233,8 @@ written: `fengyue` (CSS written for the AI Fengyue chat page: its chat-element
 ids such as `#customized-answer-content`, `#ai-chat-input` and `#ai-send-button`
 map onto the bubbles, input box and send button; rules starting with `.dark`
 apply in dark mode; `body`, `html` and `:root` rules do nothing, as on Fengyue;
-buttons keep colour, border and shadow only; `!important` is removed), `tavern`
+buttons drop position, size, display,
+transform and margin; `!important` is removed), `tavern`
 (every selector prefixed with `.mes_text `) or `mmd` (applied as written).
 Without the key the rule follows `cardFormat`. `card import` sets `fengyue` on
 the built-in CSS from AI Fengyue.

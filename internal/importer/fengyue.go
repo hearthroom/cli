@@ -36,6 +36,7 @@ type fengyueContract struct {
 	} `json:"detect"`
 	Worldbook struct {
 		KeyPrefix          string            `json:"keyPrefix"`
+		KeySeparator       string            `json:"keySeparator"`
 		TriggerRegion      map[string]string `json:"triggerRegion"`
 		DefaultValueRegion int               `json:"defaultValueRegion"`
 		DefaultProbability int               `json:"defaultProbability"`
@@ -473,21 +474,25 @@ func fengyueBook(rows []map[string]any, add func(code, format string, args ...an
 		}
 		matchType, hasType := row["match_type"]
 		mt, _ := fyNum(matchType)
-		if !strings.HasPrefix(key, w.KeyPrefix) || hasType && mt != 2 {
+		isOr := strings.HasPrefix(key, w.KeyPrefix) && (!hasType || mt == 2)
+		if !isOr {
 			keyFormat++
 		}
 		if fyStr(row["group"]) != "" {
 			group++
 		}
-		// Only the _or_ prefix (any keyword) is verified; other prefixes stay visible for the author to fix.
-		if strings.HasPrefix(key, w.KeyPrefix) {
-			key = key[len(w.KeyPrefix):]
-		}
+		// Only the _or_ prefix (any keyword, separated by @wb@) can be split into OR keywords; other prefixes stay as written for the author to fix.
 		var keys []string
-		for _, k := range fengyueKeySplit.Split(key, -1) {
-			if k = strings.TrimSpace(k); k != "" {
-				keys = append(keys, k)
+		if isOr {
+			for _, part := range strings.Split(key[len(w.KeyPrefix):], w.KeySeparator) {
+				for _, k := range fengyueKeySplit.Split(part, -1) {
+					if k = strings.TrimSpace(k); k != "" {
+						keys = append(keys, k)
+					}
+				}
 			}
+		} else if key != "" {
+			keys = []string{key}
 		}
 		e := BookEntry{
 			Keys:       keys,

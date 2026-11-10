@@ -66,7 +66,8 @@
     // ?rules=off：規則全停（text-only）——劇情為核的卡在這個狀態也要讀得順；綁定型的卡要看機制在文字裡是否可讀。
     const rulesOff = params.get('rules') === 'off'
     state.rulesOff = rulesOff
-    const raw = rulesOff ? [] : (rules.rules || []).map((r, i) => ({ id: r.id ?? i, name: r.name || '', find: r.find, replace: String(r.replace ?? ''), enabled: r.enabled !== false }))
+    // targets（ai／user／system）限定規則作用的訊息；沒有就是每一則，玩家的句子也算。
+    const raw = rulesOff ? [] : (rules.rules || []).map((r, i) => ({ id: r.id ?? i, name: r.name || '', find: r.find, replace: String(r.replace ?? ''), enabled: r.enabled !== false, ...(Array.isArray(r.targets) ? { targets: r.targets } : {}) }))
     const inlined = await inlineAssetScripts(raw)
     state.card = {
       format: rules.cardFormat || 'mmd',

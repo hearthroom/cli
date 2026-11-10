@@ -301,3 +301,40 @@ func TestAssetScripts(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
+
+// TestDriveKeepsRuleTargets: a rule limited to the player's messages leaves an AI reply
+// alone, as on the play page. Same switches as TestDriveIntegration.
+func TestDriveKeepsRuleTargets(t *testing.T) {
+	if os.Getenv("HEARTHROOM_TEST_CHROME") != "1" || os.Getenv("HEARTHROOM_TEST_SHELL") == "" {
+		t.Skip("set HEARTHROOM_TEST_CHROME=1 and HEARTHROOM_TEST_SHELL to run")
+	}
+	chrome, err := FindChrome()
+	if err != nil {
+		t.Skip(err)
+	}
+	card := t.TempDir()
+	for name, body := range map[string]string{
+		"card.json":  `{"name":"T"}`,
+		"welcome.md": "开场。",
+		"rules.json": `{"pageMode":"sandbox","rules":[{"name":"user-only","find":"TAG-U","replace":"<b>USER-RULE</b>","targets":["user"]},{"name":"ai-only","find":"TAG-A","replace":"<b>AI-RULE</b>","targets":["ai"]}]}`,
+	} {
+		if err := os.WriteFile(filepath.Join(card, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv, err := Listen(os.Getenv("HEARTHROOM_TEST_SHELL"), card, 0, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	results, err := Run(ctx, DriveOptions{Chrome: chrome, Origin: srv.Origin, States: Plan([]Size{{"phone", 390, 844}}, []string{"回覆 TAG-U TAG-A"})[:1], ShotsDir: filepath.Join(card, "shots")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := results[0].Snapshot.LastBody
+	if !strings.Contains(body, "TAG-U") || strings.Contains(body, "USER-RULE") || !strings.Contains(body, "AI-RULE") {
+		t.Fatalf("AI reply body: %q (drive error: %s)", body, results[0].Error)
+	}
+}

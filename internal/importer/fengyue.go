@@ -362,7 +362,7 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 	rules := fengyueRegex(fyObjects(fengyuePick(raw, "regex")), add)
 	if css, _ := fengyuePick(raw, "css").(string); css != "" {
 		// Page-wide CSS is emitted once, independently of message replacement rules.
-		r.CardCSS, r.CardCSSDialect = css, "fengyue"
+		r.CardCSS, r.CardCSSDialect = css, "fengyue-v2"
 	}
 	if len(rules) > 0 || r.OpeningPage != "" || r.CardCSS != "" {
 		r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox", Format: "fengyue"}

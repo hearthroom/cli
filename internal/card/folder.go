@@ -154,10 +154,12 @@ type Folder struct {
 	// OpeningPage is opening.html; nil when the file does not exist, so the
 	// stored page is left alone on push. An existing empty file clears it.
 	OpeningPage *string
-	Welcome     string
-	Alternates  []Opening
-	Lorebook    *Lorebook
-	Rules       *Rules
+	// WelcomePresent distinguishes an empty welcome.md from a missing file.
+	WelcomePresent bool
+	Welcome        string
+	Alternates     []Opening
+	Lorebook       *Lorebook
+	Rules          *Rules
 	// Variables is variables.json (with variables.md and panel.hbs); nil when
 	// the file does not exist.
 	Variables *Variables
@@ -291,6 +293,11 @@ func Load(dir string) (*Folder, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err := os.Stat(filepath.Join(dir, WelcomeFile)); err == nil {
+		f.WelcomePresent = true
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
 	f.Welcome, err = readText(filepath.Join(dir, WelcomeFile))
 	if err != nil {
 		return nil, err
@@ -364,8 +371,10 @@ func (f *Folder) Save() error {
 	if err := writeText(filepath.Join(f.Dir, DefinitionFile), f.Definition); err != nil {
 		return err
 	}
-	if err := writeText(filepath.Join(f.Dir, WelcomeFile), f.Welcome); err != nil {
-		return err
+	if f.WelcomePresent || f.Welcome != "" {
+		if err := writeText(filepath.Join(f.Dir, WelcomeFile), f.Welcome); err != nil {
+			return err
+		}
 	}
 	if f.Intro != nil {
 		if err := writeText(filepath.Join(f.Dir, IntroFile), *f.Intro); err != nil {
@@ -377,7 +386,7 @@ func (f *Folder) Save() error {
 			return err
 		}
 	}
-	if len(f.Alternates) > 0 {
+	if f.Alternates != nil {
 		if err := os.MkdirAll(filepath.Join(f.Dir, OpeningsDir), 0o755); err != nil {
 			return err
 		}
@@ -431,6 +440,10 @@ func (m Manifest) MarshalJSON() ([]byte, error) {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &obj); err != nil {
 		return nil, err
+	}
+	// Preserve an explicit empty array through Save; nil means the key is absent.
+	if m.Prologue != nil {
+		obj["prologue"], _ = json.Marshal(m.Prologue)
 	}
 	for k, v := range m.Extra {
 		if _, taken := obj[k]; taken {
@@ -602,7 +615,7 @@ func readOpenings(dir string) ([]Opening, error) {
 		}
 		return nil, err
 	}
-	var out []Opening
+	out := []Opening{}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue

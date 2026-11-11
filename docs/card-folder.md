@@ -122,6 +122,28 @@ so the next plain push from that pulled folder creates a new trial slot.
 
 Unknown keys are preserved on load and save and never sent to the provider.
 
+### Clearing opening content
+
+Opening fields are independent on push:
+
+| Local source | Explicitly clear | Leave the remote field alone |
+|---|---|---|
+| `welcome.md` | Keep the file empty (or only its placeholder comment) | Omit the file |
+| `openings/*.md` | Keep an empty `openings/` directory | Omit the directory |
+| `card.json.prologue` | Set `"prologue": []` | Omit the key |
+
+For a page opening, set `"openingMode": "page"` in `rules.json`, empty
+`welcome.md`, remove the alternate Markdown files while keeping `openings/`,
+and set `"prologue": []` to clear all three. Only clear the opening choices if
+you also intend to remove them. `welcome` in `card.json` is not the opening
+message; the message lives in `welcome.md`.
+
+Owned cards still skip an empty opening message unless the card uses the page
+presentation, has an opening page, or supplies opening choices. The author
+asset is saved before the opening message. Trial updates read the existing
+opening fields and carry forward those absent locally, because their API
+replaces the whole opening section.
+
 ### Response defaults
 
 Players can tune each conversation under **Response preferences**: who may

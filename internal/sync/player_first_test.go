@@ -32,3 +32,26 @@ func TestPlayerSpeaksFirst(t *testing.T) {
 		}
 	}
 }
+
+func TestLocalCheckAllowsPageOpeningWithoutGreeting(t *testing.T) {
+	for _, tc := range []struct {
+		mode        string
+		wantProblem bool
+	}{{"page", false}, {"greeting", true}} {
+		f, err := card.Init(t.TempDir(), "Synthetic opening", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Definition = "Synthetic definition."
+		f.Rules = &card.Rules{OpeningMode: tc.mode}
+		found := false
+		for _, problem := range LocalCheck(f) {
+			if problem == card.WelcomeFile+": opening message is empty" {
+				found = true
+			}
+		}
+		if found != tc.wantProblem {
+			t.Errorf("%s empty greeting problem=%v want=%v", tc.mode, found, tc.wantProblem)
+		}
+	}
+}

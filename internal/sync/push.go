@@ -124,8 +124,23 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 	if target == "" && (!opts.Create || f.State.OwnedPushPending) {
 		target = f.State.RoleID
 	}
+	// A lost first PUT reply leaves only the trial key in local state. Resolve
+	// it before replacing the document so omitted fields can still be preserved.
+	if !owned && target == "" && f.State.TrialKey != "" {
+		var trial trialResponse
+		err := c.OpenGet(ctx, "/trial-cards/"+url.PathEscape(f.State.TrialKey), nil, &trial)
+		if err != nil && !api.IsStatus(err, 404) {
+			return nil, fmt.Errorf("read trial card before push: %w", err)
+		}
+		if err == nil {
+			if trial.RoleID == "" {
+				return nil, errors.New("The provider did not identify the existing trial card. Push stopped; retry after checking the provider response.")
+			}
+			target = trial.RoleID
+		}
+	}
+	var remote card.RemoteDetail
 	if target != "" {
-		var remote card.RemoteDetail
 		if err := c.OpenGet(ctx, "/role/detail", url.Values{"roleId": {target}}, &remote); err != nil && (owned || !api.IsStatus(err, 404)) {
 			return nil, err
 		}
@@ -285,7 +300,16 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 		}
 	}
 	if owned {
-		return pushOwned(ctx, c, f, payload, digests, opts, res)
+		return pushOwned(ctx, c, f, payload, digests, opts, res, remote)
+	}
+	// Trial PUT replaces the entire welcome. Carry forward fields absent locally,
+	// without including remote values in local change-detection hashes.
+	if target != "" {
+		welcome := map[string]any{"roleWelcome": remote.RoleWelcome, "alternates": append([]string{}, remote.RoleWelcomeAlts...), "prologue": append([]string{}, remote.RolePrologue...)}
+		for k, v := range payload.Welcome {
+			welcome[k] = v
+		}
+		payload.Welcome = welcome
 	}
 	return pushTrial(ctx, c, f, payload, digests, opts, res)
 }
@@ -415,7 +439,7 @@ type roleOutput struct {
 	RoleID     string `json:"roleId"`
 }
 
-func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payload, digests map[string]string, opts PushOptions, res *PushResult) (result *PushResult, pushErr error) {
+func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payload, digests map[string]string, opts PushOptions, res *PushResult, remote card.RemoteDetail) (result *PushResult, pushErr error) {
 	rulesSaved := false
 	defer func() {
 		if rulesSaved && pushErr != nil {
@@ -588,10 +612,38 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	// welcome
 	if p.Welcome != nil {
 		if changed(card.SectionWelcome) {
-			if p.Welcome["roleWelcome"] == "" && !playerSpeaksFirst(f, p.Welcome) {
+			welcome := map[string]any{"roleWelcome": remote.RoleWelcome}
+			for k, v := range p.Welcome {
+				welcome[k] = v
+			}
+			blankOK := playerSpeaksFirst(f, welcome)
+			if welcome["roleWelcome"] == "" && !blankOK {
+				// Missing local choices/page settings preserve the stored values.
+				// Read the asset after any local asset write, just as the Provider
+				// evaluates the effective saved settings before accepting a blank.
+				choices, supplied := welcome["prologue"].([]string)
+				if !supplied {
+					choices = remote.RolePrologue
+				}
+				for _, choice := range choices {
+					if strings.TrimSpace(choice) != "" {
+						blankOK = true
+						break
+					}
+				}
+				if !blankOK {
+					var asset card.RemoteAsset
+					err := c.OpenGet(ctx, "/role/author-asset", url.Values{"roleId": {roleID}}, &asset)
+					if err != nil && !api.IsStatus(err, 404) {
+						return nil, fmt.Errorf("read opening settings before push: %w", err)
+					}
+					blankOK = err == nil && (asset.OpeningMode == "page" || strings.TrimSpace(asset.OpeningPage) != "")
+				}
+			}
+			if welcome["roleWelcome"] == "" && !blankOK {
 				res.Skipped = append(res.Skipped, card.SectionWelcome+" (welcome.md is empty; owned cards need an opening, opening choices or opening.html)")
 			} else {
-				if err := c.OpenPatch(ctx, "/role/"+roleID+"/welcome", p.Welcome, nil); err != nil {
+				if err := c.OpenPatch(ctx, "/role/"+roleID+"/welcome", welcome, nil); err != nil {
 					return nil, fmt.Errorf("write opening: %w", err)
 				}
 				f.State.LocalHashes[card.SectionWelcome] = digests[card.SectionWelcome]

@@ -64,7 +64,7 @@ func TestAuthorAssetFailureDoesNotWriteContent(t *testing.T) {
 		if r.Method != "GET" {
 			writes = append(writes, r.URL.Path)
 		}
-		if strings.HasSuffix(r.URL.Path, "/author-asset") {
+		if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/author-asset") {
 			w.WriteHeader(413)
 			w.Write([]byte(`{"error":"validate_reject"}`))
 			return
@@ -132,7 +132,7 @@ func TestRuleReportMatchesWireAndBoundary(t *testing.T) {
 				if r.Method != "GET" {
 					writes++
 				}
-				if strings.HasSuffix(r.URL.Path, "/author-asset") {
+				if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/author-asset") {
 					var in struct{ Rules []card.DisplayRule }
 					json.NewDecoder(r.Body).Decode(&in)
 					actual = len(in.Rules[0].Replace)

@@ -63,7 +63,7 @@ func LocalCheck(f *card.Folder) []string {
 	if f.Manifest.Name == "" {
 		problems = append(problems, card.ManifestFile+": name is empty")
 	}
-	if card.Body(f.Welcome) == "" {
+	if card.Body(f.Welcome) == "" && !playerSpeaksFirst(f, map[string]any{"prologue": f.Manifest.Prologue}) {
 		problems = append(problems, card.WelcomeFile+": opening message is empty")
 	}
 	if card.Body(f.Definition) == "" {

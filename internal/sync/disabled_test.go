@@ -33,6 +33,8 @@ func TestOwnedPushPreservesDisabledAndRequiresExplicitDeletion(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reply := func(v any) { json.NewEncoder(w).Encode(v) }
 		switch r.URL.Path {
+		case "/open/v1/role/author-asset":
+			reply(map[string]any{"status": "none"})
 		case "/open/v1/worldbook/limits":
 			reply(map[string]any{"maxOpsPerCall": 2, "entryContentMaxByLanguage": map[string]int{"en": 20}})
 		case "/open/v1/role/detail":
@@ -183,6 +185,8 @@ func TestUpgradeReconcilesLegacyInFlightBeforeNewPlan(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				reply := func(v any) { json.NewEncoder(w).Encode(v) }
 				switch r.URL.Path {
+				case "/open/v1/role/author-asset":
+					reply(map[string]any{"status": "none"})
 				case "/open/v1/worldbook/entry/list":
 					reply(map[string]any{"entries": remote})
 				case "/open/v1/worldbook/b/document":

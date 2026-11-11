@@ -19,6 +19,8 @@ func TestLostReplyCanonicalDefaults(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reply := func(v any) { json.NewEncoder(w).Encode(v) }
 		switch r.URL.Path {
+		case "/open/v1/role/author-asset":
+			reply(map[string]any{"status": "none"})
 		case "/open/v1/worldbook/limits":
 			reply(map[string]any{"maxOpsPerCall": 200, "entryContentMaxByLanguage": map[string]int{"en": 12000}, "trialMaxEntries": 1000})
 		case "/open/v1/role":
@@ -89,6 +91,8 @@ func TestCreateResumeKeepsOldBookUntouched(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reply := func(v any) { json.NewEncoder(w).Encode(v) }
 		switch r.URL.Path {
+		case "/open/v1/role/author-asset":
+			reply(map[string]any{"status": "none"})
 		case "/open/v1/worldbook/limits":
 			reply(map[string]any{"maxOpsPerCall": 200, "entryContentMaxByLanguage": map[string]int{"en": 12000}, "trialMaxEntries": 1000})
 		case "/open/v1/role":

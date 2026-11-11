@@ -149,8 +149,11 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 	}
 	p.Card = fields
 
-	if w := Body(f.Welcome); w != "" || len(f.Alternates) > 0 || len(m.Prologue) > 0 {
-		welcome := map[string]any{"roleWelcome": Rewrite(w, urls)}
+	welcome := map[string]any{}
+	if f.WelcomePresent || f.Welcome != "" {
+		welcome["roleWelcome"] = Rewrite(Body(f.Welcome), urls)
+	}
+	if f.Alternates != nil {
 		alts := make([]string, 0, len(f.Alternates))
 		for _, o := range f.Alternates {
 			if t := Body(o.Text); t != "" {
@@ -158,6 +161,8 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 			}
 		}
 		welcome["alternates"] = alts
+	}
+	if m.Prologue != nil {
 		pro := make([]string, 0, len(m.Prologue))
 		for _, s := range m.Prologue {
 			if strings.TrimSpace(s) != "" {
@@ -165,6 +170,8 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 			}
 		}
 		welcome["prologue"] = pro
+	}
+	if len(welcome) > 0 {
 		p.Welcome = welcome
 	}
 
@@ -389,6 +396,9 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		f.Intro = &readme
 	}
 	f.Welcome = d.RoleWelcome
+	f.WelcomePresent = true
+	f.Alternates = []Opening{}
+	f.Manifest.Prologue = nonNil(d.RolePrologue)
 	for i, a := range d.RoleWelcomeAlts {
 		f.Alternates = append(f.Alternates, Opening{File: fmt.Sprintf("%s/alt-%02d.md", OpeningsDir, i+1), Text: a})
 	}

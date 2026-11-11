@@ -269,8 +269,10 @@ The allowance follows the selected context tier, measured in tokens, and include
 
 `card.css` contains plain CSS for the whole card, without `<style>` tags or a
 find pattern. It applies once per play page, below styles in display rules, and
-never enters the model prompt. The play page maps known AI Fengyue chat-element
-selectors automatically; authors do not choose a style source.
+never enters the model prompt. Only this stylesheet automatically maps known
+AI Fengyue chat-element selectors; other selectors apply as written, and
+authors do not choose a style source. Put new Fengyue CSS here rather than in
+display rules.
 
 The file is optional: absence preserves the stored CSS, and an existing empty
 file clears it. Its limit is 524288 UTF-8 bytes after relative asset URLs are
@@ -302,9 +304,11 @@ string to clear a stored hint. Omitting the key preserves the stored hint.
 `fengyue` (imported from AI Fengyue: page-wide styles that follow the light or
 dark theme).
 
-Older rules may retain `cssDialect` (`fengyue`, `tavern`, or `mmd`). The CLI
-preserves those values; new handwritten styles do not need a source selection.
-Without a hint, display-rule styles follow `cardFormat`. AI Fengyue imports put
+Display-rule styles keep their original policy: existing `cssDialect` values
+(`fengyue`, `tavern`, or `mmd`) and compiled style markers remain in effect;
+otherwise styles follow `cardFormat`. The CLI preserves saved hints on
+round-trip. Display rules do not gain automatic Fengyue selector mapping.
+AI Fengyue imports put
 page-wide styles in `card.css`, rather than adding a rule that matches the last
 character of each message. Ordinary display rules still require a non-blank
 `find`; use `card.css` for styles that do not replace message text.

@@ -371,16 +371,31 @@ func TestMMDImportRulesArrayPayload(t *testing.T) {
 }
 
 func TestMMDImportFullRuleCapacity(t *testing.T) {
-	rules := make([]RegexRule, 500)
+	rules := make([]RegexRule, 1000)
 	for i := range rules {
 		rules[i] = RegexRule{Name: "author", Find: "token", Replace: "text", Enabled: true}
 	}
 	file := &MMDFile{Part: PartRules, Set: &RuleSet{Rules: rules}, DockOffByDefault: true}
 	got := MergeMMDFiles([]*MMDFile{file}, "en")
-	if len(got.Rules.Rules) != 500 {
+	if len(got.Rules.Rules) != 1000 {
 		t.Fatal("valid full-capacity import became oversized")
 	}
 	if !strings.Contains(strings.Join(got.Notes, "\n"), "side spacing") {
 		t.Fatal("capacity fallback not explained")
+	}
+}
+
+func TestMMDImportExpandedRuleCapacity(t *testing.T) {
+	rules := make([]RegexRule, 999)
+	for i := range rules {
+		rules[i] = RegexRule{Name: "author", Find: "token", Replace: "text", Enabled: true}
+	}
+	file := &MMDFile{Part: PartRules, Set: &RuleSet{Rules: rules}, DockOffByDefault: true}
+	got := MergeMMDFiles([]*MMDFile{file}, "en")
+	if len(got.Rules.Rules) != 1000 || !strings.Contains(got.Rules.Rules[999].Replace, "--lt-dock: none !important") {
+		t.Fatal("999 author rules should still receive the default dock rule")
+	}
+	if len(file.Set.Rules) != 999 {
+		t.Fatal("import mutated source rules")
 	}
 }

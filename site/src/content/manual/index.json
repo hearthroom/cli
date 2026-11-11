@@ -49,6 +49,7 @@
       "card/push",
       "card/rate",
       "card/render",
+      "card/revert",
       "card/state",
       "card/status",
       "card/submit",
@@ -109,6 +110,12 @@
     "slug": "card/render",
     "command": "hearthroom card render",
     "short": "Show an opening after the card's display rules, as the player's renderer receives it",
+    "parent": "card"
+  },
+  {
+    "slug": "card/revert",
+    "command": "hearthroom card revert",
+    "short": "Revert a card's draft to its published version",
     "parent": "card"
   },
   {

@@ -13,6 +13,7 @@
  */
 (function () {
   const params = new URLSearchParams(location.search)
+  const locale = params.get('locale') || 'zh-Hant'
   const PROTOCOL = 1
   const frame = document.getElementById('frame')
   const logEl = document.getElementById('log')
@@ -117,22 +118,53 @@
     'pill-bg': 'var(--chat-shortcut-bg)', 'pill-fg': 'var(--chat-shortcut-text)',
     'stop-bg': 'var(--chat-modal-bg)', 'stop-fg': 'var(--chat-modal-text)', 'stop-border': 'var(--chat-border)',
   }).map(([key, value]) => [`--lt-canvas-${key}`, value]))
-  const chromeState = () => ({
-    header: {
-      roleName: state.name, avatar: '', badge: '', backLabel: '', showBack: false,
-      fullscreenSupported: false, favoriteSupported: false, commentsSupported: false,
+  // 沿 Stage src/locale 的標準輸入區詞彙；語系選擇與 sandbox/strings.ts 一致。
+  const COMPOSER_STRINGS = {
+    'zh-Hant': {
+      placeholder: '說點什麼⋯', stop: '停止', more: '更多', send: '送出', paste: '貼上', clear: '清空',
+      model: '模型設定', assist: '不知道怎麼回？讓 AI 幫你起個頭', perTurn: '每輪點數',
     },
-    composer: {
-      placeholder: 'Write a message', sendState: state.busy ? 'pending' : state.inputValue.trim() ? 'send' : 'send-disabled',
-      generating: state.busy, enterSends: true, shortcuts: [], moreOpen: false, moreItems: [],
-      modelScore: '', assistEnabled: false, assistBusy: false, assistCost: '',
-      labels: { stop: 'Stop', more: 'More', send: 'Send', paste: 'Paste', clear: 'Clear', model: 'Model', assist: 'Let AI draft a reply', perTurn: 'Credits per turn' },
+    'zh-Hans': {
+      placeholder: '说点什么⋯', stop: '停止', more: '更多', send: '发送', paste: '粘贴', clear: '清空',
+      model: '模型设置', assist: '不知道怎么回？让 AI 帮你起个头', perTurn: '每轮点数',
     },
-  })
+    en: {
+      placeholder: 'Say something…', stop: 'Stop', more: 'More', send: 'Send', paste: 'Paste', clear: 'Clear',
+      model: 'Model', assist: 'Stuck? Let AI draft a reply', perTurn: 'Credits per turn',
+    },
+    ja: {
+      placeholder: '何か話しかけて⋯', stop: '停止', more: 'その他', send: '送信', paste: '貼り付け', clear: 'クリア',
+      model: 'モデル設定', assist: '返事に迷ったら AI に下書きしてもらう', perTurn: '1 ターンあたりのポイント',
+    },
+    ko: {
+      placeholder: '무엇이든 말해 보세요⋯', stop: '중지', more: '더보기', send: '보내기', paste: '붙여넣기', clear: '지우기',
+      model: '모델 설정', assist: '뭐라고 답할지 막히면 AI에게 초안을 맡기세요', perTurn: '1턴당 포인트',
+    },
+  }
+  function composerStrings(key) {
+    if (Object.hasOwn(COMPOSER_STRINGS, key)) return COMPOSER_STRINGS[key]
+    const base = key.split(/[-_]/)[0]
+    if (base === 'zh') return /hans|cn|sg/i.test(key) ? COMPOSER_STRINGS['zh-Hans'] : COMPOSER_STRINGS['zh-Hant']
+    return Object.hasOwn(COMPOSER_STRINGS, base) ? COMPOSER_STRINGS[base] : COMPOSER_STRINGS.en
+  }
+  const chromeState = () => {
+    const { placeholder, ...labels } = composerStrings(locale)
+    return {
+      header: {
+        roleName: state.name, avatar: '', badge: '', backLabel: '', showBack: false,
+        fullscreenSupported: false, favoriteSupported: false, commentsSupported: false,
+      },
+      composer: {
+        placeholder, labels, sendState: state.busy ? 'pending' : state.inputValue.trim() ? 'send' : 'send-disabled',
+        generating: state.busy, enterSends: true, shortcuts: [], moreOpen: false, moreItems: [],
+        modelScore: '', assistEnabled: false, assistBusy: false, assistCost: '',
+      },
+    }
+  }
   const syncChrome = () => { if (standardChrome()) post({ type: 'chrome', state: chromeState() }) }
   const hello = () => ({
     theme: document.getElementById('theme').value,
-    locale: params.get('locale') || 'zh-Hant',
+    locale,
     role: { name: state.name, avatarUrl: '' },
     user: { nickname: state.playerName, avatarUrl: '' },
     card: state.card,

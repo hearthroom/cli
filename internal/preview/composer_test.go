@@ -33,6 +33,19 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("owned Chrome pid=%d profile=%s", chromedp.FromContext(browser).Browser.Process().Pid, profile)
+	// Existing Stage composer vocabulary, including accessible names. The query
+	// uses the shell's existing locale selection; no CLI language flag is added.
+	localized := map[string][]string{
+		"zh-Hant": {"說點什麼⋯", "停止", "更多", "送出", "貼上", "清空", "每輪點數 · 模型設定", "不知道怎麼回？讓 AI 幫你起個頭"},
+		"zh-Hans": {"说点什么⋯", "停止", "更多", "发送", "粘贴", "清空", "每轮点数 · 模型设置", "不知道怎么回？让 AI 帮你起个头"},
+		"en":      {"Say something…", "Stop", "More", "Send", "Paste", "Clear", "Credits per turn · Model", "Stuck? Let AI draft a reply"},
+		"ja":      {"何か話しかけて⋯", "停止", "その他", "送信", "貼り付け", "クリア", "1 ターンあたりのポイント · モデル設定", "返事に迷ったら AI に下書きしてもらう"},
+		"ko":      {"무엇이든 말해 보세요⋯", "중지", "더보기", "보내기", "붙여넣기", "지우기", "1턴당 포인트 · 모델 설정", "뭐라고 답할지 막히면 AI에게 초안을 맡기세요"},
+	}
+	localeCases := map[string]string{
+		"locale-zh-Hant": "zh-Hant", "locale-zh-Hans": "zh-Hans", "locale-en": "en", "locale-ja": "ja", "locale-ko": "ko",
+		"locale-zh-TW": "zh-Hant", "locale-zh_CN": "zh-Hans", "locale-ja-JP": "ja", "locale-ko_KR": "ko", "locale-unknown": "en",
+	}
 
 	for _, tc := range []struct {
 		name, css, query, mode string
@@ -47,6 +60,16 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 		{"hint-phone", "#ai-chat-input{background:rgb(40,90,130)}", "", "standard", true, true, 390, 844},
 		{"hint-desktop-light", "#ai-chat-input{background:rgb(40,90,130)}", "", "standard", true, true, 1280, 800},
 		{"hint-phone-light", "#ai-chat-input{background:rgb(40,90,130)}", "", "standard", true, true, 390, 844},
+		{"locale-zh-Hant", "", "&locale=zh-Hant", "standard", true, false, 390, 844},
+		{"locale-zh-Hans", "", "&locale=zh-Hans", "standard", true, false, 390, 844},
+		{"locale-en", "", "&locale=en", "standard", true, false, 390, 844},
+		{"locale-ja", "", "&locale=ja", "standard", true, false, 390, 844},
+		{"locale-ko", "", "&locale=ko", "standard", true, false, 390, 844},
+		{"locale-zh-TW", "", "&locale=zh-TW", "standard", true, false, 390, 844},
+		{"locale-zh_CN", "", "&locale=zh_CN", "standard", true, false, 390, 844},
+		{"locale-ja-JP", "", "&locale=ja-JP", "standard", true, false, 390, 844},
+		{"locale-ko_KR", "", "&locale=ko_KR", "standard", true, false, 390, 844},
+		{"locale-unknown", "", "&locale=xx-YY", "standard", true, false, 390, 844},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			card := t.TempDir()
@@ -113,6 +136,14 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 				click(`#send_but`)
 				mustWait(`__preview.sent.some(m=>m.type==='request'&&m.op==='message.send'&&m.args[0]==='Legacy turn') && !__preview.state.busy && __preview.state.messages.some(m=>m.content==='OK.')`)
 				return
+			}
+			lang := localeCases[tc.name]
+			if lang == "" {
+				lang = "zh-Hant"
+			}
+			labels, err := chromedp.Run(ctx, chromedp.Evaluate[[]string](`(()=>{const d=`+doc+`;const q=s=>d.querySelector(s);return [q('.chat-input-collapsed-placeholder').textContent,q('#mes_stop').getAttribute('aria-label'),q('#options_button').getAttribute('aria-label'),q('.lt-send').getAttribute('aria-label'),q('[data-chat="paste"]').textContent.trim(),q('[data-chat="clear"]').textContent.trim(),q('.mind-type').getAttribute('aria-label'),q('.ai-assistant').getAttribute('aria-label')]})()`))
+			if err != nil || strings.Join(labels, "\x00") != strings.Join(localized[lang], "\x00") {
+				t.Fatalf("composer locale %s: got %q want %q: %v", lang, labels, localized[lang], err)
 			}
 			if !tc.interact {
 				return

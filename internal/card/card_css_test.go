@@ -128,3 +128,37 @@ func TestCardCSSWithoutRulesAndAssetRewrite(t *testing.T) {
 		t.Fatalf("missing=%v", missing)
 	}
 }
+
+func TestLegacyCardCSSKeepsPeerStyleAndScriptOrdering(t *testing.T) {
+	carrier := DisplayRule{ID: legacyFengyueCSSID, Find: `/([\s\S])$/`, Replace: "$1<style>p{color:red}</style>", Enabled: true}
+	for _, replacement := range []string{"<style>p{color:blue}</style>", "<ScRiPt type='module'>x()</ScRiPt>"} {
+		for _, before := range []bool{false, true} {
+			f := sample(t)
+			peer := DisplayRule{ID: "peer", Find: "x", Replace: replacement, Enabled: true}
+			f.Rules = &Rules{Rules: []DisplayRule{carrier, peer}}
+			if before {
+				f.Rules.Rules = []DisplayRule{peer, carrier}
+			}
+			f.migrateLegacyCardCSS()
+			p, err := f.Build(nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := p.AuthorAsset["cardCss"]; ok {
+				t.Fatal("moving a carrier with an enabled style/script peer changes ordering")
+			}
+			if _, ok := p.AuthorAsset["cardCssDialect"]; ok {
+				t.Fatal("unmigrated legacy must not acquire a card CSS hint")
+			}
+			if len(f.Rules.Rules) != 2 || f.Rules.Rules[0].ID != map[bool]string{false: legacyFengyueCSSID, true: "peer"}[before] {
+				t.Fatal("rule ordering changed")
+			}
+		}
+	}
+	f := sample(t)
+	f.Rules = &Rules{Rules: []DisplayRule{carrier, {ID: "disabled", Find: "x", Replace: "<style>p{color:blue}</style>", Enabled: false}}}
+	f.migrateLegacyCardCSS()
+	if f.CardCSS == nil || len(f.Rules.Rules) != 1 {
+		t.Fatal("disabled peer should not block safe migration")
+	}
+}

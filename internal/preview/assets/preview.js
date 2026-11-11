@@ -53,6 +53,7 @@
   async function loadCard() {
     const rulesText = await fetchText('rules.json')
     const rules = rulesText ? JSON.parse(rulesText) : { rules: [] }
+    const cardCss = await fetchText('card.css')
     const welcome = (await fetchText('welcome.md')) || ''
     const cardJson = JSON.parse((await fetchText('card.json')) || '{}')
     const samplesMd = (await fetchText('preview/replies.md')) || ''
@@ -67,12 +68,14 @@
     const rulesOff = params.get('rules') === 'off'
     state.rulesOff = rulesOff
     // targets（ai／user／system）限定規則作用的訊息；沒有就是每一則，玩家的句子也算。
-    const raw = rulesOff ? [] : (rules.rules || []).map((r, i) => ({ id: r.id ?? i, name: r.name || '', find: r.find, replace: String(r.replace ?? ''), enabled: r.enabled !== false, ...(Array.isArray(r.targets) ? { targets: r.targets } : {}) }))
+    const raw = rulesOff ? [] : (rules.rules || []).map((r, i) => ({ id: r.id ?? i, name: r.name || '', find: r.find, replace: String(r.replace ?? ''), enabled: r.enabled !== false, ...(Array.isArray(r.targets) ? { targets: r.targets } : {}), ...(r.cssDialect ? { cssDialect: r.cssDialect } : {}) }))
     const inlined = await inlineAssetScripts(raw)
     state.card = {
       format: rules.cardFormat || 'mmd',
       rules: raw.map((r) => ({ ...r, replace: assets(r.replace) })),
       statusbar: rulesOff ? '' : assets(rules.mountTrigger || ''),
+      ...(rulesOff ? { cardCss: '' } : cardCss !== null ? { cardCss: assets(cardCss) } : {}),
+      ...(typeof rules.cardCssDialect === 'string' ? { cardCssDialect: rules.cardCssDialect } : {}),
     }
     if (inlined.length) state.card.rules.push({ id: '__preview_external__', name: 'preview: external scripts from assets/', find: '\u0000__never__', replace: inlined.join(''), enabled: true })
     state.welcome = assets(welcome)

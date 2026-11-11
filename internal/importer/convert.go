@@ -38,7 +38,9 @@ type Result struct {
 	Rules          *RuleSet
 	CreatorNotes   string
 	// OpeningPage is written to opening.html (an AI Fengyue card's detailed introduction).
-	OpeningPage string
+	OpeningPage    string
+	CardCSS        string
+	CardCSSDialect string
 	// Variables is written to variables.json (with variables.md and panel.hbs).
 	Variables *card.Variables
 	// Portrait/Background bytes and extensions, when the source bundled them.
@@ -272,8 +274,16 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 		page := r.OpeningPage
 		f.OpeningPage = &page
 	}
+	if r.CardCSS != "" {
+		css := r.CardCSS
+		f.CardCSS = &css
+	}
 	if r.Rules != nil && (len(r.Rules.Rules) > 0 || r.OpeningPage != "" || r.Rules.Format == "fengyue") {
 		rules := &card.Rules{MountTrigger: r.Rules.Statusbar, MountLayer: "over", PageMode: r.Rules.PageMode, CardFormat: r.Rules.Format}
+		if r.CardCSSDialect != "" {
+			dialect := r.CardCSSDialect
+			rules.CardCSSDialect = &dialect
+		}
 		// AI Fengyue cards open on the detailed introduction and the choices; a tapped choice is sent.
 		if r.Rules.Format == "fengyue" {
 			rules.OpeningMode = "page"
@@ -303,6 +313,9 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 	}
 	if f.OpeningPage != nil {
 		rep.Files = append(rep.Files, card.OpeningFile)
+	}
+	if f.CardCSS != nil {
+		rep.Files = append(rep.Files, card.CardCSSFile)
 	}
 	if v := f.Variables; v != nil {
 		rep.Files = append(rep.Files, card.VariablesFile)

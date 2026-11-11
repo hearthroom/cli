@@ -178,6 +178,9 @@ func Card(dir string) (*Result, error) {
 		}
 	}
 	checkVariables(dir, r)
+	if css := read(card.CardCSSFile); len(css) > contract.Provider.ReplaceMaxBytes {
+		r.errorf(card.CardCSSFile, "CSS is %d bytes, over %d (UTF-8 bytes)", len(css), contract.Provider.ReplaceMaxBytes)
+	}
 	scanHTML(playerText, card.WelcomeFile, r, false)
 	checkRating(read(card.RatingFile), r)
 	res.Findings = r.findings
@@ -221,6 +224,9 @@ func checkRating(raw string, r *report) {
 
 func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *report) {
 	where := card.RulesFile
+	if dialect := rules.CardCSSDialect; dialect != nil && !contains([]string{"", "mmd", "tavern", "fengyue"}, *dialect) {
+		r.errorf(where, "cardCssDialect %q is not supported", *dialect)
+	}
 	if rules.PageMode != "" && !contains(contract.Provider.PageMode, rules.PageMode) {
 		r.errorf(where, "pageMode %q is not one of %s", rules.PageMode, strings.Join(contract.Provider.PageMode, ", "))
 	}

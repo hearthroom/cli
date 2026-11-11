@@ -156,6 +156,11 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	for _, o := range f.Alternates {
 		res.Files = append(res.Files, o.File)
 	}
+	if f.CardCSS != nil {
+		res.Files = append(res.Files, card.CardCSSFile)
+	} else if assetRead {
+		stale = append(stale, card.CardCSSFile)
+	}
 	if f.Lorebook != nil {
 		res.Files = append(res.Files, card.LorebookFile)
 	} else if bookAbsent {

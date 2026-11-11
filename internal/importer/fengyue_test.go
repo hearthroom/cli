@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -35,8 +34,6 @@ func loadFengyueCases(t *testing.T) []fengyueCase {
 	return file.Cases
 }
 
-var styleBody = regexp.MustCompile(`<style>([\s\S]*)</style>`)
-
 func fengyueProjection(r *Result, notes []fengyueNote) map[string]any {
 	lore := []any{}
 	if r.Lorebook != nil {
@@ -45,15 +42,10 @@ func fengyueProjection(r *Result, notes []fengyueNote) map[string]any {
 			lore = append(lore, map[string]any{"name": e.Name, "content": e.Content, "keywords": e.Keywords, "triggerRegion": e.TriggerRegion, "enabled": e.Enabled, "order": order})
 		}
 	}
-	rules, css := []any{}, ""
+	rules, css := []any{}, r.CardCSS
 	if r.Rules != nil {
 		for _, rr := range r.Rules.Rules {
-			if rr.Name == FengyueCSSRuleName && rr.Find == fengyueCSSFind {
-				if m := styleBody.FindStringSubmatch(rr.Replace); m != nil {
-					css = m[1]
-				}
-				continue
-			}
+
 			var targets any
 			if rr.Targets != nil {
 				targets = *rr.Targets

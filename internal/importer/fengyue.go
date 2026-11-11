@@ -72,13 +72,6 @@ var fengyueAliasOf = func() map[string]string {
 	return m
 }()
 
-// FengyueCSSRuleName names the display rule that carries the built-in CSS.
-const FengyueCSSRuleName = "Built-in CSS (Fengyue)"
-
-// fengyueCSSFind matches the last character of every message, so the
-// replacement can append a <style> block (the same trick as the MMD side-dock rule).
-const fengyueCSSFind = `/([\s\S])$/`
-
 func fengyueSignalKey(k string) bool {
 	for _, p := range fengyueFormat.Detect.SignalKeyPrefixes {
 		if strings.HasPrefix(k, p) {
@@ -368,10 +361,10 @@ func convertFengyue(raw map[string]any, language string) (*Result, []fengyueNote
 
 	rules := fengyueRegex(fyObjects(fengyuePick(raw, "regex")), add)
 	if css, _ := fengyuePick(raw, "css").(string); strings.TrimSpace(css) != "" {
-		// Marked as Fengyue CSS: the play page maps its Fengyue chat-element ids onto ours.
-		rules = append(rules, RegexRule{Name: FengyueCSSRuleName, Find: fengyueCSSFind, Replace: "$1<style>" + strings.TrimSpace(css) + "</style>", Enabled: true, CSSDialect: "fengyue"})
+		// Page-wide CSS is emitted once, independently of message replacement rules.
+		r.CardCSS, r.CardCSSDialect = strings.TrimSpace(css), "fengyue"
 	}
-	if len(rules) > 0 || r.OpeningPage != "" {
+	if len(rules) > 0 || r.OpeningPage != "" || r.CardCSS != "" {
 		r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox", Format: "fengyue"}
 	}
 

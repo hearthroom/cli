@@ -71,7 +71,7 @@ func TestProviderPreflightContract(t *testing.T) {
 			}
 		}
 	}
-	checkConstants("internal/service/role/author_asset.go", map[string]int{"AuthorAssetMaxBytes": rulesTotalMax, "AuthorAssetRuleReplaceMax": ruleReplaceMax})
+	checkConstants("internal/service/role/author_asset.go", map[string]int{"AuthorAssetMaxBytes": rulesTotalMax, "AuthorAssetRuleReplaceMax": ruleReplaceMax, "AuthorAssetCardCSSMax": ruleReplaceMax})
 	checkConstants("internal/surface/rolesurface/trial.go", map[string]int{"trialBodyLimit": trialBodyMax})
 	checkConstants("internal/service/trial/trial.go", map[string]int{"MaxEntries": 1000, "MaxNameRunes": 100, "MaxRuleReplace": ruleReplaceMax, "MaxRulesTotal": rulesTotalMax})
 	checkConstants("internal/service/role/shared_state.go", map[string]int{"SharedMaxPolls": 16, "SharedMaxCounters": 16, "SharedMaxOptions": 12, "SharedMaxStep": 1000, "SharedMaxPerMember": 1000000000, "SharedMaxGoal": 1000000000000})

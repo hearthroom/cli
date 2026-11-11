@@ -47,8 +47,12 @@ func TestImportFengyueExport(t *testing.T) {
 					t.Fatalf("%v: card.json = %s", extra, manifest)
 				}
 				rules, _ := os.ReadFile(filepath.Join(dir, "rules.json"))
-				if !strings.Contains(string(rules), ".st-bar{color:#c33") {
+				if strings.Contains(string(rules), ".st-bar{color:#c33") || !strings.Contains(string(rules), `"cardCssDialect": "fengyue"`) {
 					t.Fatalf("%v: rules.json = %s", extra, rules)
+				}
+				css, err := os.ReadFile(filepath.Join(dir, "card.css"))
+				if err != nil || !strings.Contains(string(css), ".st-bar{color:#c33") {
+					t.Fatalf("%v: card.css = %q, %v", extra, css, err)
 				}
 			}
 		})

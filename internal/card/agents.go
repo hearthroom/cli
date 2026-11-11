@@ -54,6 +54,7 @@ func AgentsGuide(name string) string {
 		"Read it first; keep it current.\n\n" +
 		"`" + IntroFile + "` (optional) is the card page introduction in Markdown; it is not sent to the model.\n\n" +
 		"`" + OpeningFile + "` (optional) is HTML shown above the opening of every new chat; players see it, the model does not.\n\n" +
+		"`" + CardCSSFile + "` (optional) is plain CSS for the whole play page, below display-rule styles; no find pattern or source selection is needed. An empty file clears the stored style; absence preserves it.\n\n" +
 		"`" + VariablesFile + "` (optional) holds the card variables: values the story keeps exact from turn to turn,\n" +
 		"with rules for the model in `" + VariableRulesFile + "` and a panel skin in `" + PanelFile + "`. Keep them small; they go with every turn.\n\n" +
 		"Pushing, validating and rendering are free. Only `play -m` spends credits and\n" +

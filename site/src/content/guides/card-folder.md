@@ -11,6 +11,7 @@ my-card/
   definition.md      the private definition of the character (roleDetailDesc)
   welcome.md         the opening message (roleWelcome)
   intro.md           optional card page introduction in Markdown (roleReadme); not sent to the model
+  card.css           optional card-wide CSS, applied once below display-rule styles; not sent to the model
   opening.html       optional opening page: HTML shown above the opening message of every new chat; not sent to the model
   openings/          optional alternate openings, one Markdown file each, in file-name order
     alt-01.md
@@ -208,6 +209,23 @@ Lorebook keywords and secondary keywords need `/pattern/flags` syntax for regula
 `id` fields appear after `pull` or a push to an owned card; they hold the
 provider's ids and let later pushes update instead of duplicate. `disabled: true` keeps an entry in the uploaded Lorebook with its enabled state turned off. To delete a CLI-managed entry from an owned card, remove it locally and push with `--prune`. Without that flag, push lists the entries it would delete and stops before writing the Lorebook. Entries created by other tools are kept. Empty entry content is rejected rather than silently omitted.
 
+## card.css
+
+`card.css` contains plain CSS for the whole card, without `<style>` tags or a
+find pattern. It applies once per play page, below styles in display rules, and
+never enters the model prompt. The play page maps known AI Fengyue chat-element
+selectors automatically; authors do not choose a style source.
+
+The file is optional: absence preserves the stored CSS, and an existing empty
+file clears it. Its limit is 524288 UTF-8 bytes after relative asset URLs are
+rewritten. `assets/...` URLs use the same upload and rewrite path as rules.
+`card import` writes AI Fengyue's built-in CSS here.
+
+Imports and older folders may carry `cardCssDialect` in `rules.json`
+(`fengyue`, `tavern`, `mmd`, or an explicit empty string). This is a compatibility
+hint: retain it on round-trip, omit it for new handwritten CSS, and use an empty
+string to clear a stored hint. Omitting the key preserves the stored hint.
+
 ## rules.json
 
 ```json
@@ -228,30 +246,16 @@ provider's ids and let later pushes update instead of duplicate. `disabled: true
 `fengyue` (imported from AI Fengyue: page-wide styles that follow the light or
 dark theme, and tapping an opening choice sends it instead of filling the input).
 
-Each rule may set `cssDialect` to say how the `<style>` in its `replace` is
-written: `fengyue` (CSS written for the AI Fengyue chat page: its chat-element
-ids such as `#customized-answer-content`, `#ai-chat-input` and `#ai-send-button`
-map onto the bubbles, input box and send button; rules starting with `.dark`
-apply in dark mode; `body`, `html` and `:root` rules do nothing, as on Fengyue;
-buttons drop position, size, display,
-transform and margin; `!important` is removed), `tavern`
-(every selector prefixed with `.mes_text `) or `mmd` (applied as written).
-Without the key the rule follows `cardFormat`. `card import` sets `fengyue` on
-the built-in CSS from AI Fengyue.
+Older rules may retain `cssDialect` (`fengyue`, `tavern`, or `mmd`). The CLI
+preserves those values; new handwritten styles do not need a source selection.
+Without a hint, display-rule styles follow `cardFormat`. AI Fengyue imports put
+page-wide styles in `card.css`, rather than adding a rule that matches the last
+character of each message. Ordinary display rules still require a non-blank
+`find`; use `card.css` for styles that do not replace message text.
 
-One card can mix rules with different values. When styles meet on the same
-element, the higher level wins:
-
-1. platform defaults;
-2. the site's light or dark theme and colours (MMD cards stay dark);
-3. `--chat-*` variables, which only change the colours the defaults use;
-4. `fengyue` CSS;
-5. every other rule's `<style>`: above level 4 whatever the selector weight;
-   among themselves normal CSS applies (heavier selector first, then the later
-   rule).
-
-To override Fengyue CSS, write a normal `<style>` in another rule; `!important`
-is not needed.
+When styles meet, platform defaults and the site's theme come first, then
+`card.css`, then enabled display-rule styles. Existing Fengyue hints retain their
+compatibility behavior, including dark-mode selectors and mapped chat elements.
 
 `sharedState` declares the polls and counters players can write on this card:
 

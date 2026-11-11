@@ -64,7 +64,7 @@ func TestPullReplacesOptionalContentBeforeNextPush(t *testing.T) {
 			if len(got) != len(want) || len(want) > 0 && !reflect.DeepEqual(got, want) {
 				t.Errorf("next push alternatives = %v, want %v", got, want)
 			}
-			for _, stale := range []string{card.LorebookFile, card.RulesFile, card.IntroFile, card.VariablesFile, card.VariableRulesFile, card.PanelFile, "openings/old-one.md", "openings/old-two.md"} {
+			for _, stale := range []string{card.LorebookFile, card.RulesFile, card.CardCSSFile, card.IntroFile, card.VariablesFile, card.VariableRulesFile, card.PanelFile, "openings/old-one.md", "openings/old-two.md"} {
 				if _, err := os.Lstat(filepath.Join(f.Dir, stale)); !os.IsNotExist(err) {
 					t.Errorf("obsolete managed file %s still exists: %v", stale, err)
 				}
@@ -87,6 +87,8 @@ func pullReplacementFixture(t *testing.T) *card.Folder {
 	f.Definition, f.Welcome = "Old definition.", "Old opening."
 	intro := "Old introduction."
 	f.Intro = &intro
+	css := "p{color:red}"
+	f.CardCSS = &css
 	f.Lorebook = &card.Lorebook{Name: "Old book", Entries: []card.LorebookEntry{{Name: "Old entry", Content: "Old lore."}}}
 	f.Rules = &card.Rules{Rules: []card.DisplayRule{{ID: "old", Find: "/old/", Replace: "Old rule.", Enabled: true}}}
 	f.Alternates = []card.Opening{{File: "openings/old-one.md", Text: "Old alternate one."}, {File: "openings/old-two.md", Text: "Old alternate two."}}
@@ -109,7 +111,7 @@ func pullReplacementFixture(t *testing.T) *card.Folder {
 func TestPullReadWarningsDoNotRemoveOptionalFiles(t *testing.T) {
 	f := pullReplacementFixture(t)
 	before := map[string][]byte{}
-	for _, name := range []string{card.LorebookFile, card.RulesFile} {
+	for _, name := range []string{card.LorebookFile, card.RulesFile, card.CardCSSFile} {
 		before[name], _ = os.ReadFile(filepath.Join(f.Dir, name))
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -8,9 +8,11 @@ import (
 const legacyFengyueCSSID = "hearthroom-fengyue-inner-css"
 
 var legacyStyleClose = regexp.MustCompile(`(?i)</style(?:[\t\n\f\r />]|$)`)
+var legacyStyleOrScriptPeer = regexp.MustCompile(`(?i)<(?:style|script)(?:[\t\n\f\r />]|$)`)
 
 // Only the unchanged built-in carrier emitted by the web importer is migrated.
 // Presence, including an empty card.css, is authoritative; edited/disabled/duplicate rules stay rules.
+// Enabled style/script peers keep the carrier in place so moving it cannot change CSS/script ordering.
 func (f *Folder) migrateLegacyCardCSS() {
 	if f.CardCSS != nil || f.Rules == nil {
 		return
@@ -24,6 +26,11 @@ func (f *Folder) migrateLegacyCardCSS() {
 	}
 	if count != 1 {
 		return
+	}
+	for i, peer := range f.Rules.Rules {
+		if i != index && peer.Enabled && legacyStyleOrScriptPeer.MatchString(peer.Replace) {
+			return
+		}
 	}
 	r := f.Rules.Rules[index]
 	if !r.Enabled || r.Find != `/([\s\S])$/` || !strings.HasPrefix(r.Replace, "$1<style>") || !strings.HasSuffix(r.Replace, "</style>") {

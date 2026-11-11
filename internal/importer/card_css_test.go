@@ -22,7 +22,7 @@ func TestFengyueCSSUsesCardCSSFile(t *testing.T) {
 	if f.CardCSS == nil || *f.CardCSS != " #ai-chat-input{color:red} " {
 		t.Fatalf("card.css missing: %v", f.CardCSS)
 	}
-	if f.Rules == nil || len(f.Rules.Rules) != 0 || f.Rules.CardCSSDialect == nil || *f.Rules.CardCSSDialect != "fengyue" {
+	if f.Rules == nil || len(f.Rules.Rules) != 0 || f.Rules.CardCSSDialect == nil || *f.Rules.CardCSSDialect != "fengyue-v2" {
 		t.Fatalf("fake CSS rule retained: %+v", f.Rules)
 	}
 }
@@ -64,7 +64,7 @@ func TestFengyueCSSPreservesRawBytesThroughFolder(t *testing.T) {
 				}
 			}
 			assertFile()
-			if f.CardCSS == nil || *f.CardCSS != tc.css || f.Rules == nil || f.Rules.CardCSSDialect == nil || *f.Rules.CardCSSDialect != "fengyue" {
+			if f.CardCSS == nil || *f.CardCSS != tc.css || f.Rules == nil || f.Rules.CardCSSDialect == nil || *f.Rules.CardCSSDialect != "fengyue-v2" {
 				t.Fatalf("loaded CSS bytes or import hint changed: css=%v rules=%+v", f.CardCSS, f.Rules)
 			}
 			if err := f.Save(); err != nil {

@@ -95,7 +95,7 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 		if f.Rules != nil {
 			problems = append(problems, card.CheckSharedState(f.Rules.SharedState)...)
 		}
-		allowed("cardCssDialect", "", "mmd", "tavern", "fengyue")
+		allowed("cardCssDialect", "", "mmd", "tavern", "fengyue", "fengyue-v2")
 		if css, ok := p.AuthorAsset["cardCss"].(string); ok && checkSizes && len(css) > ruleReplaceMax {
 			add("card.css is %d bytes after URL rewriting; the limit is %d bytes. Reduce the CSS before pushing.", len(css), ruleReplaceMax)
 		}

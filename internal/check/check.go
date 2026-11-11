@@ -224,7 +224,7 @@ func checkRating(raw string, r *report) {
 
 func checkRules(dir string, rules *card.Rules, modelText, playerText string, r *report) {
 	where := card.RulesFile
-	if dialect := rules.CardCSSDialect; dialect != nil && !contains([]string{"", "mmd", "tavern", "fengyue"}, *dialect) {
+	if dialect := rules.CardCSSDialect; dialect != nil && !contains([]string{"", "mmd", "tavern", "fengyue", "fengyue-v2"}, *dialect) {
 		r.errorf(where, "cardCssDialect %q is not supported", *dialect)
 	}
 	if rules.PageMode != "" && !contains(contract.Provider.PageMode, rules.PageMode) {

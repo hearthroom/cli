@@ -46,6 +46,7 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 		"locale-zh-Hant": "zh-Hant", "locale-zh-Hans": "zh-Hans", "locale-en": "en", "locale-ja": "ja", "locale-ko": "ko",
 		"locale-zh-TW": "zh-Hant", "locale-zh_CN": "zh-Hans", "locale-ja-JP": "ja", "locale-ko_KR": "ko", "locale-unknown": "en",
 	}
+	v2css := `#customized-answer-content{padding:18px 14px;line-height:1.85;border-width:1px;border-style:solid;border-top-width:3px}.dark #customized-answer-content-markdown{color:#fff}`
 
 	for _, tc := range []struct {
 		name, css, query, mode string
@@ -60,6 +61,10 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 		{"hint-phone", "#ai-chat-input{background:rgb(40,90,130)}", "", "standard", true, true, 390, 844},
 		{"hint-desktop-light", "#ai-chat-input{background:rgb(40,90,130)}", "", "standard", true, true, 1280, 800},
 		{"hint-phone-light", "#ai-chat-input{background:rgb(40,90,130)}", "", "standard", true, true, 390, 844},
+		{"v2-desktop", v2css, "", "standard", true, false, 1280, 800},
+		{"v2-phone", v2css, "", "standard", true, false, 390, 844},
+		{"v2-desktop-light", v2css, "", "standard", true, false, 1280, 800},
+		{"v2-phone-light", v2css, "", "standard", true, false, 390, 844},
 		{"locale-zh-Hant", "", "&locale=zh-Hant", "standard", true, false, 390, 844},
 		{"locale-zh-Hans", "", "&locale=zh-Hans", "standard", true, false, 390, 844},
 		{"locale-en", "", "&locale=en", "standard", true, false, 390, 844},
@@ -76,6 +81,9 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 			files := map[string]string{
 				"card.json": `{"name":"Preview fixture"}`, "welcome.md": "Hello.",
 				"rules.json": `{"pageMode":"sandbox","cardCssDialect":"fengyue","rules":[]}`,
+			}
+			if strings.HasPrefix(tc.name, "v2-") {
+				files["rules.json"] = `{"pageMode":"sandbox","cardCssDialect":"fengyue-v2","rules":[]}`
 			}
 			if tc.present {
 				files["card.css"] = tc.css
@@ -144,6 +152,17 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 			labels, err := chromedp.Run(ctx, chromedp.Evaluate[[]string](`(()=>{const d=`+doc+`;const q=s=>d.querySelector(s);return [q('.chat-input-collapsed-placeholder').textContent,q('#mes_stop').getAttribute('aria-label'),q('#options_button').getAttribute('aria-label'),q('.lt-send').getAttribute('aria-label'),q('[data-chat="paste"]').textContent.trim(),q('[data-chat="clear"]').textContent.trim(),q('.mind-type').getAttribute('aria-label'),q('.ai-assistant').getAttribute('aria-label')]})()`))
 			if err != nil || strings.Join(labels, "\x00") != strings.Join(localized[lang], "\x00") {
 				t.Fatalf("composer locale %s: got %q want %q: %v", lang, labels, localized[lang], err)
+			}
+			if strings.HasPrefix(tc.name, "v2-") {
+				bubbleBG, text, inputBG, inputFG := "rgb(50, 51, 52)", "rgb(255, 255, 255)", "rgb(40, 41, 42)", "rgb(252, 252, 252)"
+				if strings.HasSuffix(tc.name, "-light") {
+					bubbleBG, text, inputBG, inputFG = "rgb(247, 247, 248)", "rgb(17, 25, 40)", "rgb(252, 252, 252)", "rgb(40, 41, 42)"
+				}
+				mustWait(`getComputedStyle(` + doc + `.querySelector('.mes_text')).backgroundColor===` + jsString(bubbleBG) + ` && getComputedStyle(` + doc + `.querySelector('.lt-bubble-body')).color===` + jsString(text))
+				mustWait(`getComputedStyle(` + doc + `.querySelector('.composer-field')).backgroundColor===` + jsString(inputBG) + ` && getComputedStyle(` + doc + `.querySelector('.uni-textarea-textarea')).color===` + jsString(inputFG))
+				mustWait(`getComputedStyle(` + doc + `.querySelector('.mes_text')).fontSize==='14px' && getComputedStyle(` + doc + `.querySelector('.lt-bubble-body')).lineHeight==='21px'`)
+				mustWait(`(()=>{const d=` + doc + `,w=document.getElementById('frame').contentWindow.innerWidth;return Math.abs(d.querySelector('.mes_text').getBoundingClientRect().width-(Math.min(w,720)-32))<1})()`)
+				return
 			}
 			if !tc.interact {
 				return

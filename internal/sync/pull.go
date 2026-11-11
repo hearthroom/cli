@@ -76,7 +76,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 			assetRead = false
 			res.Warnings = append(res.Warnings, "display rules could not be read: "+err.Error())
 		}
-	} else if ra.Status != "none" || len(ra.Rules) > 0 {
+	} else if ra.Status != "none" || len(ra.Rules) > 0 || ra.CardCSS != nil || ra.CardCSSDialect != nil {
 		asset = &ra
 	}
 

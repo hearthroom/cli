@@ -33,6 +33,7 @@ const (
 	// Players see it; the model never does. It belongs to the author asset, so it
 	// is pushed together with rules.json.
 	OpeningFile  = "opening.html"
+	CardCSSFile  = "card.css"
 	OpeningsDir  = "openings"
 	LorebookFile = "lorebook.json"
 	RulesFile    = "rules.json"
@@ -123,6 +124,9 @@ type Rules struct {
 	// tapped choice is sent). Omitted keeps what the site has; a new card defaults to page for
 	// cardFormat fengyue and greeting otherwise, and pull writes it only when it differs from that.
 	OpeningMode string `json:"openingMode,omitempty"`
+	// CardCSSDialect is a retained import hint; new handwritten card.css does not need it.
+	// A pointer distinguishes omission (preserve) from an explicit empty value (clear).
+	CardCSSDialect *string `json:"cardCssDialect,omitempty"`
 	// SharedState declares the polls and counters players may write (sdk.shared). A push without it
 	// leaves the server's declaration alone; "sharedState": {} clears it.
 	SharedState json.RawMessage `json:"sharedState,omitempty"`
@@ -154,10 +158,12 @@ type Folder struct {
 	// OpeningPage is opening.html; nil when the file does not exist, so the
 	// stored page is left alone on push. An existing empty file clears it.
 	OpeningPage *string
-	Welcome     string
-	Alternates  []Opening
-	Lorebook    *Lorebook
-	Rules       *Rules
+	// CardCSS is card.css; absence preserves the stored style, an empty file clears it.
+	CardCSS    *string
+	Welcome    string
+	Alternates []Opening
+	Lorebook   *Lorebook
+	Rules      *Rules
 	// Variables is variables.json (with variables.md and panel.hbs); nil when
 	// the file does not exist.
 	Variables *Variables
@@ -313,6 +319,15 @@ func Load(dir string) (*Folder, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	if _, err := os.Stat(filepath.Join(dir, CardCSSFile)); err == nil {
+		text, err := readText(filepath.Join(dir, CardCSSFile))
+		if err != nil {
+			return nil, err
+		}
+		f.CardCSS = &text
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
 	f.Alternates, err = readOpenings(dir)
 	if err != nil {
 		return nil, err
@@ -335,6 +350,7 @@ func Load(dir string) (*Folder, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	f.migrateLegacyCardCSS()
 	if f.Variables, err = LoadVariables(dir); err != nil {
 		return nil, err
 	}
@@ -374,6 +390,11 @@ func (f *Folder) Save() error {
 	}
 	if f.OpeningPage != nil {
 		if err := writeText(filepath.Join(f.Dir, OpeningFile), *f.OpeningPage); err != nil {
+			return err
+		}
+	}
+	if f.CardCSS != nil {
+		if err := os.WriteFile(filepath.Join(f.Dir, CardCSSFile), []byte(*f.CardCSS), 0o644); err != nil {
 			return err
 		}
 	}
@@ -673,6 +694,9 @@ func (f *Folder) scanRefs(add func(string)) {
 	}
 	if f.OpeningPage != nil {
 		scan(*f.OpeningPage)
+	}
+	if f.CardCSS != nil {
+		scan(*f.CardCSS)
 	}
 	scan(f.Welcome)
 	for _, o := range f.Alternates {

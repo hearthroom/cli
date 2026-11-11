@@ -4,7 +4,7 @@ import "testing"
 
 // 風月的內置 CSS 匯進來要標成風月寫法，畫布才會把它對準風月介面元素的部分轉到我們的元素上。
 // 內置 CSS 空著、只有 custom_css 時拿 custom_css。
-func TestFengyueCSSRuleIsMarkedFengyue(t *testing.T) {
+func TestFengyueCardCSSRetainsImportHint(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		raw  map[string]any
@@ -17,17 +17,8 @@ func TestFengyueCSSRuleIsMarkedFengyue(t *testing.T) {
 			if r.Rules == nil {
 				t.Fatal("no rules")
 			}
-			found := false
-			for _, rule := range r.Rules.Rules {
-				if rule.Find == fengyueCSSFind {
-					found = true
-					if rule.CSSDialect != "fengyue" {
-						t.Fatalf("css rule dialect = %q", rule.CSSDialect)
-					}
-				}
-			}
-			if !found {
-				t.Fatal("css rule missing")
+			if r.CardCSS != "#ai-chat-input{color:red}" || r.CardCSSDialect != "fengyue" || len(r.Rules.Rules) != 0 {
+				t.Fatalf("card CSS missing or still carried by a fake rule: %+v", r)
 			}
 		})
 	}

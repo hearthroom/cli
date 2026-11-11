@@ -2,7 +2,7 @@ package importer
 
 import "testing"
 
-// 風月的內置 CSS 匯進來要標成風月寫法，畫布才會把它對準風月介面元素的部分轉到我們的元素上。
+// 新匯入保留 v2 提示，讓畫布套用原站基底；舊資料的提示不在這條路徑升版。
 // 內置 CSS 空著、只有 custom_css 時拿 custom_css。
 func TestFengyueCardCSSRetainsImportHint(t *testing.T) {
 	for _, tc := range []struct {
@@ -17,7 +17,7 @@ func TestFengyueCardCSSRetainsImportHint(t *testing.T) {
 			if r.Rules == nil {
 				t.Fatal("no rules")
 			}
-			if r.CardCSS != "#ai-chat-input{color:red}" || r.CardCSSDialect != "fengyue" || len(r.Rules.Rules) != 0 {
+			if r.CardCSS != "#ai-chat-input{color:red}" || r.CardCSSDialect != "fengyue-v2" || len(r.Rules.Rules) != 0 {
 				t.Fatalf("card CSS missing or still carried by a fake rule: %+v", r)
 			}
 		})

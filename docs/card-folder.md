@@ -277,10 +277,13 @@ display rules.
 The file is optional: absence preserves the stored CSS, and an existing empty
 file clears it. Its limit is 524288 UTF-8 bytes after relative asset URLs are
 rewritten. `assets/...` URLs use the same upload and rewrite path as rules.
-`card import` writes AI Fengyue's built-in CSS here.
+`card import` writes AI Fengyue's built-in CSS here. Reimport an older Fengyue
+card to use the latest Fengyue compatibility.
 
 Imports and older folders may carry `cardCssDialect` in `rules.json`
-(`fengyue`, `tavern`, `mmd`, or an explicit empty string). This is a compatibility
+(`fengyue-v2`, `fengyue`, `tavern`, `mmd`, or an explicit empty string). New
+Fengyue imports use `fengyue-v2` for source-platform base styles; older hints
+keep their original rendering. This is a compatibility
 hint: retain it on round-trip, omit it for new handwritten CSS, and use an empty
 string to clear a stored hint. Omitting the key preserves the stored hint.
 

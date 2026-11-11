@@ -65,6 +65,7 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 		{"v2-phone", v2css, "", "standard", true, false, 390, 844},
 		{"v2-desktop-light", v2css, "", "standard", true, false, 1280, 800},
 		{"v2-phone-light", v2css, "", "standard", true, false, 390, 844},
+		{"v2-display-rule", "#installedBuiltInCss #customized-answer #customized-answer-content{background:rgb(5,4,3)}", "", "standard", true, false, 1280, 800},
 		{"locale-zh-Hant", "", "&locale=zh-Hant", "standard", true, false, 390, 844},
 		{"locale-zh-Hans", "", "&locale=zh-Hans", "standard", true, false, 390, 844},
 		{"locale-en", "", "&locale=en", "standard", true, false, 390, 844},
@@ -84,6 +85,9 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 			}
 			if strings.HasPrefix(tc.name, "v2-") {
 				files["rules.json"] = `{"pageMode":"sandbox","cardCssDialect":"fengyue-v2","rules":[]}`
+			}
+			if tc.name == "v2-display-rule" {
+				files["rules.json"] = `{"pageMode":"sandbox","cardCssDialect":"fengyue-v2","rules":[{"id":"priority","find":"Hello","replace":"$&<style>#customized-answer-content{background:rgb(9,8,7)}</style>","enabled":true,"cssDialect":"fengyue"}]}`
 			}
 			if tc.present {
 				files["card.css"] = tc.css
@@ -154,12 +158,17 @@ func TestPreviewCardCSSComposer(t *testing.T) {
 				t.Fatalf("composer locale %s: got %q want %q: %v", lang, labels, localized[lang], err)
 			}
 			if strings.HasPrefix(tc.name, "v2-") {
+				if tc.name == "v2-display-rule" {
+					mustWait(`getComputedStyle(` + doc + `.querySelector('.mes_text')).backgroundColor==='rgb(9, 8, 7)'`)
+					return
+				}
 				bubbleBG, text, inputBG, inputFG := "rgb(50, 51, 52)", "rgb(255, 255, 255)", "rgb(40, 41, 42)", "rgb(252, 252, 252)"
 				if strings.HasSuffix(tc.name, "-light") {
 					bubbleBG, text, inputBG, inputFG = "rgb(247, 247, 248)", "rgb(17, 25, 40)", "rgb(252, 252, 252)", "rgb(40, 41, 42)"
 				}
 				mustWait(`getComputedStyle(` + doc + `.querySelector('.mes_text')).backgroundColor===` + jsString(bubbleBG) + ` && getComputedStyle(` + doc + `.querySelector('.lt-bubble-body')).color===` + jsString(text))
 				mustWait(`getComputedStyle(` + doc + `.querySelector('.composer-field')).backgroundColor===` + jsString(inputBG) + ` && getComputedStyle(` + doc + `.querySelector('.uni-textarea-textarea')).color===` + jsString(inputFG))
+				mustWait(`getComputedStyle(` + doc + `.querySelector('.canvas-root')).backgroundColor===` + jsString(inputBG))
 				mustWait(`getComputedStyle(` + doc + `.querySelector('.mes_text')).fontSize==='14px' && getComputedStyle(` + doc + `.querySelector('.lt-bubble-body')).lineHeight==='21px'`)
 				mustWait(`(()=>{const d=` + doc + `,w=document.getElementById('frame').contentWindow.innerWidth;return Math.abs(d.querySelector('.mes_text').getBoundingClientRect().width-(Math.min(w,720)-32))<1})()`)
 				return

@@ -19,7 +19,9 @@
   const log = (s, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = s; logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight }
 
   const cardBase = (params.get('card') || '/card/').replace(/\/?$/, '/')
-  const state = { card: null, seq: 0, messages: [], helloed: false, busy: false, samples: [] }
+  const state = { card: null, seq: 0, messages: [], helloed: false, busy: false, samples: [], inputValue: '' }
+  let streamToken = 0
+  let activeReply = null
 
   async function fetchText(name) {
     const r = await fetch(cardBase + name, { cache: 'no-store' })
@@ -54,6 +56,9 @@
     const rulesText = await fetchText('rules.json')
     const rules = rulesText ? JSON.parse(rulesText) : { rules: [] }
     const cardCss = await fetchText('card.css')
+    // 檔案存在（包括明確留空）才用正式掛點；rules=off 補出的空 payload 不改舊卡的殼。
+    state.cardCssPresent = cardCss !== null
+    state.inputValue = ''
     const welcome = (await fetchText('welcome.md')) || ''
     const cardJson = JSON.parse((await fetchText('card.json')) || '{}')
     const samplesMd = (await fetchText('preview/replies.md')) || ''
@@ -94,6 +99,37 @@
   }
 
   const post = (m) => frame.contentWindow.postMessage({ ms: PROTOCOL, ...m }, '*')
+  const standardChrome = () => state.cardCssPresent && document.getElementById('chrome').value !== 'host'
+  // 標準殼由宿主供應 --lt-canvas-*。離線宿主沿用殼自己的深淺調色盤，
+  // 尺寸對齊標準畫布；var() 保留換色與作者 --chat-* 覆寫，不另注入作者 CSS。
+  const themeVars = Object.fromEntries(Object.entries({
+    bg: 'var(--chat-bg)', fg: 'var(--chat-text)', muted: 'var(--chat-text-muted)', line: 'var(--chat-border)', accent: 'var(--chat-accent)',
+    font: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang TC", "Noto Sans TC", sans-serif',
+    'font-size': '15px', 'line-height': 'normal',
+    'header-bg': 'var(--chat-bg)', 'header-fg': 'var(--chat-text)', 'header-height': '52px', 'header-blur': '12px',
+    'title-size': '15px', 'title-weight': '600', 'avatar-size': '30px', 'avatar-radius': '9999px',
+    'name-size': '12px', 'name-color': 'var(--chat-text-muted)', 'msg-avatar-size': '32px',
+    'bubble-ai-bg': 'var(--chat-bubble-ai-bg)', 'bubble-user-bg': 'var(--chat-bubble-user-bg)', 'bubble-fg': 'var(--chat-bubble-text)',
+    'bubble-radius': '14px', 'bubble-padding': '10px 14px', 'bubble-max-width': '100%',
+    'composer-bg': 'var(--chat-composer-bg)', 'composer-fg': 'var(--chat-composer-text)', 'composer-field-bg': 'var(--chat-input-bg)',
+    'composer-border': 'var(--chat-border)', 'composer-radius': '18px', 'placeholder-color': 'var(--chat-input-placeholder)',
+    'send-size': '32px', 'send-bg': 'var(--chat-surface)', 'send-fg': 'var(--chat-text)',
+    'pill-bg': 'var(--chat-shortcut-bg)', 'pill-fg': 'var(--chat-shortcut-text)',
+    'stop-bg': 'var(--chat-modal-bg)', 'stop-fg': 'var(--chat-modal-text)', 'stop-border': 'var(--chat-border)',
+  }).map(([key, value]) => [`--lt-canvas-${key}`, value]))
+  const chromeState = () => ({
+    header: {
+      roleName: state.name, avatar: '', badge: '', backLabel: '', showBack: false,
+      fullscreenSupported: false, favoriteSupported: false, commentsSupported: false,
+    },
+    composer: {
+      placeholder: 'Write a message', sendState: state.busy ? 'pending' : state.inputValue.trim() ? 'send' : 'send-disabled',
+      generating: state.busy, enterSends: true, shortcuts: [], moreOpen: false, moreItems: [],
+      modelScore: '', assistEnabled: false, assistBusy: false, assistCost: '',
+      labels: { stop: 'Stop', more: 'More', send: 'Send', paste: 'Paste', clear: 'Clear', model: 'Model', assist: 'Let AI draft a reply', perTurn: 'Credits per turn' },
+    },
+  })
+  const syncChrome = () => { if (standardChrome()) post({ type: 'chrome', state: chromeState() }) }
   const hello = () => ({
     theme: document.getElementById('theme').value,
     locale: params.get('locale') || 'zh-Hant',
@@ -104,6 +140,7 @@
     capabilities: { saves: true, edit: false, send: true, archive: true },
     composer: true,
     chrome: document.getElementById('chrome').value === 'host' ? 'host' : 'shell',
+    ...(standardChrome() ? { chromeState: chromeState(), themeVars } : {}),
     saves: {},
     // 殼的 debug 訊息（sdk.debug.log、腳本錯誤）不開面板也會轉送到這一頁的記錄；?debug=1 才把殼內面板與幾何疊層打開。
     debug: params.get('debug') === '1',
@@ -131,6 +168,22 @@
       return
     }
     if (m.type === 'debug') { log(`[debug ${m.level}] ${m.args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}`, m.level === 'error' ? 'err' : m.level === 'warn' ? 'warn' : '') ; return }
+    if (standardChrome() && m.type === 'input') {
+      state.inputValue = String(m.value ?? '')
+      syncChrome()
+      return
+    }
+    if (standardChrome() && m.type === 'ui') {
+      if (m.event === 'send' && !state.busy && state.inputValue.trim()) {
+        const text = state.inputValue
+        state.inputValue = ''
+        post({ type: 'input', value: '' })
+        addUser(text)
+        const next = state.samples.length ? state.samples[state.seq % state.samples.length] : 'OK.'
+        streamReply(next)
+      } else if (m.event === 'stop') stopReply()
+      return
+    }
     if (m.type === 'request') {
       log(`request ${m.op} ${JSON.stringify(m.args).slice(0, 120)}`)
       if (m.op === 'message.send') {
@@ -159,24 +212,43 @@
   async function streamReply(text, chunks = 24) {
     if (state.busy) { log('still streaming', 'warn'); return }
     state.busy = true
+    const token = ++streamToken
     const id = `l${++state.seq}`
+    activeReply = { id, role: 'ai', content: '', serverId: null }
+    syncChrome()
     post({ type: 'message.new', message: { id, role: 'ai', content: '', serverId: null } })
     // the waits before the first word, as the platform reports them (sdk.generation / generation:phase)
     const wait = (document.getElementById('wait') || {}).value || ''
     const phase = async (p, ms) => { post({ type: 'generation', busy: true, phase: p }); log(`phase ${p}`); await new Promise((r) => setTimeout(r, ms)) }
     await phase('preparing', 500)
-    if (wait === 'summarize') await phase('summarizing', 3000)
-    if (wait === 'think' || wait === 'summarize') await phase('thinking', 3000)
+    if (token !== streamToken) return
+    if (wait === 'summarize') { await phase('summarizing', 3000); if (token !== streamToken) return }
+    if (wait === 'think' || wait === 'summarize') { await phase('thinking', 3000); if (token !== streamToken) return }
     post({ type: 'generation', busy: true, phase: 'writing' })
     const step = Math.max(1, Math.ceil(text.length / chunks))
     for (let k = step; k < text.length; k += step) {
+      activeReply.content = text.slice(0, k)
       post({ type: 'message.stream', id, content: text.slice(0, k) })
       await new Promise((r) => setTimeout(r, 60))
+      if (token !== streamToken) return
     }
-    post({ type: 'message.done', id, content: text, serverId: String(9000 + state.seq) })
+    finishReply(text)
+  }
+  function finishReply(content) {
+    if (!activeReply) return
+    activeReply.content = content
+    activeReply.serverId = String(9000 + state.seq)
+    post({ type: 'message.done', id: activeReply.id, content, serverId: activeReply.serverId })
     post({ type: 'generation', busy: false, phase: 'idle' })
-    state.messages.push({ id, role: 'ai', content: text, serverId: String(9000 + state.seq) })
+    state.messages.push(activeReply)
+    activeReply = null
     state.busy = false
+    syncChrome()
+  }
+  function stopReply() {
+    if (!activeReply) return
+    ++streamToken
+    finishReply(activeReply.content)
   }
   function addInstant(text) {
     const id = `l${++state.seq}`
@@ -268,6 +340,7 @@
     post({ type: 'messages', messages: state.messages })
   }
   async function reload() {
+    if (state.cardCssPresent) stopReply()
     await loadCard()
     state.helloed = false
     frame.src = frame.src.split('#')[0] + '#' + Date.now()

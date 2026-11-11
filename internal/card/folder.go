@@ -320,10 +320,15 @@ func Load(dir string) (*Folder, error) {
 		return nil, err
 	}
 	if _, err := os.Stat(filepath.Join(dir, CardCSSFile)); err == nil {
-		text, err := readText(filepath.Join(dir, CardCSSFile))
-		if err != nil {
+		// CSS is a raw asset: keep CRLF and any UTF-8 BOM, unlike Markdown.
+		data, err := os.ReadFile(filepath.Join(dir, CardCSSFile))
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
+		if !utf8.Valid(data) {
+			return nil, fmt.Errorf("%s: not valid UTF-8", CardCSSFile)
+		}
+		text := string(data)
 		f.CardCSS = &text
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err

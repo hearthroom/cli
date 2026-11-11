@@ -10,6 +10,22 @@ Fixtures are built in the tests themselves (PNG chunks, CHARX archives, MMD
 files, a fake OAuth provider, a fake WebSocket stream), so the suite runs
 offline on Linux, macOS and Windows.
 
+## Sandbox SDK contract
+
+Stage generates `contract/sandbox-contract.json` from its runtime SDK in
+`src/sandbox/__tests__/contract.spec.ts`. To synchronize the CLI, copy that
+generated file to `internal/check/sandbox-contract.json`, then run:
+
+```sh
+HEARTHROOM_STAGE_SOURCE=/path/to/stage \
+  go test ./internal/check -run TestSandboxSDKContract -v
+```
+
+The test compares SDK keys, capabilities, share properties and event names.
+CI runs it against stage's latest `main`. Local runs explicitly skip this
+cross-repository check when the variable is unset; ordinary card regressions
+still run offline. This verifies source agreement, not a deployed SDK.
+
 ## End-to-end tests
 
 `internal/e2e` runs the CLI's own code paths against a real provider. It is

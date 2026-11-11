@@ -95,6 +95,38 @@ func TestSDKMisuseAndClassicPage(t *testing.T) {
 	}
 }
 
+func TestSDKState(t *testing.T) {
+	for _, tc := range []struct {
+		name, script, wantError string
+	}{
+		{"current", `sdk.state.get()`, ""},
+		{"message", `sdk.state.of("message-1")`, ""},
+		{"change event", `sdk.on("state:change", function(state) {})`, ""},
+		{"misspelled get", `sdk.state.gett()`, "sdk.state.gett does not exist"},
+		{"misspelled of", `sdk.state.off("message-1")`, "sdk.state.off does not exist"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rules, err := json.Marshal(map[string]any{"pageMode": "sandbox", "rules": []any{map[string]any{
+				"id": "state", "find": "{{state}}", "replace": "<script>" + tc.script + "</script>", "enabled": true,
+			}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			r, err := Card(write(t, t.TempDir(), map[string]string{"rules.json": string(rules)}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.wantError == "" {
+				if r.Errors() != 0 {
+					t.Fatalf("valid SDK state usage flagged: %v", msgs(r))
+				}
+			} else if !has(msgs(r), "error:", tc.wantError) {
+				t.Fatalf("missing %q: %v", tc.wantError, msgs(r))
+			}
+		})
+	}
+}
+
 func TestSanitizerTraps(t *testing.T) {
 	dir := write(t, t.TempDir(), map[string]string{
 		"card.json":  `{"formatVersion":1,"name":"x","language":"en"}`,

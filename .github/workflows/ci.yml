@@ -9,6 +9,26 @@ permissions:
   contents: read
 
 jobs:
+  sandbox-contract:
+    name: sandbox SDK contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: hearthroom/moonstage
+          ref: main
+          path: .stage-source
+          sparse-checkout: contract
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/check -run TestSandboxSDKContract -v
+        env:
+          HEARTHROOM_STAGE_SOURCE: ${{ github.workspace }}/.stage-source
+
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

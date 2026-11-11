@@ -214,9 +214,13 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 		p.Worldbook = wb
 	}
 
-	if f.Rules != nil {
-		rules := make([]map[string]any, 0, len(f.Rules.Rules))
-		for i, r := range f.Rules.Rules {
+	if f.Rules != nil || f.CardCSS != nil {
+		assetRules := f.Rules
+		if assetRules == nil {
+			assetRules = &Rules{}
+		}
+		rules := make([]map[string]any, 0, len(assetRules.Rules))
+		for i, r := range assetRules.Rules {
 			id := r.ID
 			if id == "" {
 				id = fmt.Sprintf("rule-%02d", i+1)
@@ -232,25 +236,31 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 			}
 			rules = append(rules, rule)
 		}
-		layer := f.Rules.MountLayer
+		layer := assetRules.MountLayer
 		if layer == "" {
 			layer = "over"
 		}
-		aa := map[string]any{"rules": rules, "mountLayer": layer, "mountTrigger": f.Rules.MountTrigger}
-		if f.Rules.PageMode != "" {
-			aa["pageMode"] = f.Rules.PageMode
+		aa := map[string]any{"rules": rules, "mountLayer": layer, "mountTrigger": assetRules.MountTrigger}
+		if f.CardCSS != nil {
+			aa["cardCss"] = Rewrite(*f.CardCSS, urls)
 		}
-		if f.Rules.CardFormat != "" {
-			aa["cardFormat"] = f.Rules.CardFormat
+		if assetRules.CardCSSDialect != nil {
+			aa["cardCssDialect"] = *assetRules.CardCSSDialect
+		}
+		if assetRules.PageMode != "" {
+			aa["pageMode"] = assetRules.PageMode
+		}
+		if assetRules.CardFormat != "" {
+			aa["cardFormat"] = assetRules.CardFormat
 		}
 		// Sent only when written, so folders without it keep their digests and the site's choice.
-		if f.Rules.OpeningMode != "" {
-			aa["openingMode"] = f.Rules.OpeningMode
+		if assetRules.OpeningMode != "" {
+			aa["openingMode"] = assetRules.OpeningMode
 		}
 		// Sent only when the file has one, so cards without a declaration keep their digests; the
 		// server keeps an omitted declaration, so clearing it means writing "sharedState": {}.
-		if len(f.Rules.SharedState) > 0 {
-			aa["sharedState"] = f.Rules.SharedState
+		if len(assetRules.SharedState) > 0 {
+			aa["sharedState"] = assetRules.SharedState
 		}
 		// Same rule as sharedState: sent only when opening.html exists (an empty file clears the page),
 		// so folders without one keep their digests and the stored page.
@@ -343,16 +353,18 @@ type RemoteEntry struct {
 
 // RemoteAsset is GET /open/v1/role/author-asset.
 type RemoteAsset struct {
-	Rules        []DisplayRule   `json:"rules"`
-	MountTrigger string          `json:"mountTrigger"`
-	MountLayer   string          `json:"mountLayer"`
-	PageMode     string          `json:"pageMode"`
-	CardFormat   string          `json:"cardFormat"`
-	SharedState  json.RawMessage `json:"sharedState"`
-	OpeningPage  string          `json:"openingPage"`
-	OpeningMode  string          `json:"openingMode"`
-	Status       string          `json:"status"`
-	Version      int64           `json:"version"`
+	Rules          []DisplayRule   `json:"rules"`
+	MountTrigger   string          `json:"mountTrigger"`
+	MountLayer     string          `json:"mountLayer"`
+	PageMode       string          `json:"pageMode"`
+	CardFormat     string          `json:"cardFormat"`
+	SharedState    json.RawMessage `json:"sharedState"`
+	OpeningPage    string          `json:"openingPage"`
+	OpeningMode    string          `json:"openingMode"`
+	CardCSS        *string         `json:"cardCss"`
+	CardCSSDialect *string         `json:"cardCssDialect"`
+	Status         string          `json:"status"`
+	Version        int64           `json:"version"`
 }
 
 // FromRemote builds a folder from provider responses. lorebook may be nil.
@@ -421,8 +433,10 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 			openingMode = asset.OpeningMode
 		}
 	}
-	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil || strings.TrimSpace(asset.OpeningPage) != "" || openingMode != "") {
-		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat, OpeningMode: openingMode, SharedState: shared}
+	if asset != nil && (len(asset.Rules) > 0 || asset.MountTrigger != "" || asset.PageMode != "" && asset.PageMode != "classic" || shared != nil || strings.TrimSpace(asset.OpeningPage) != "" || openingMode != "" || asset.CardCSS != nil || asset.CardCSSDialect != nil) {
+		f.Rules = &Rules{Rules: asset.Rules, MountTrigger: asset.MountTrigger, MountLayer: asset.MountLayer, PageMode: asset.PageMode, CardFormat: asset.CardFormat, OpeningMode: openingMode, SharedState: shared, CardCSSDialect: asset.CardCSSDialect}
+		f.CardCSS = asset.CardCSS
+		f.migrateLegacyCardCSS()
 		if strings.TrimSpace(asset.OpeningPage) != "" {
 			page := asset.OpeningPage
 			f.OpeningPage = &page

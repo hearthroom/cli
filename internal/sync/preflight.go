@@ -92,7 +92,13 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 		allowed("openingMode", "", "greeting", "page")
 		allowed("mountLayer", "", "under", "over", "cover")
 		allowed("pageMode", "", "classic", "immersive", "sandbox")
-		problems = append(problems, card.CheckSharedState(f.Rules.SharedState)...)
+		if f.Rules != nil {
+			problems = append(problems, card.CheckSharedState(f.Rules.SharedState)...)
+		}
+		allowed("cardCssDialect", "", "mmd", "tavern", "fengyue")
+		if css, ok := p.AuthorAsset["cardCss"].(string); ok && checkSizes && len(css) > ruleReplaceMax {
+			add("card.css is %d bytes after URL rewriting; the limit is %d bytes. Reduce the CSS before pushing.", len(css), ruleReplaceMax)
+		}
 		total := 0
 		rules, _ := p.AuthorAsset["rules"].([]map[string]any)
 		for i, r := range rules {

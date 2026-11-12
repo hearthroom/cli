@@ -192,25 +192,37 @@ type LorebookUpload struct {
 	BeforeIDs        []string         `json:"beforeIds,omitempty"`
 }
 
+type CardImageProvision struct {
+	Target      string `json:"target,omitempty"`
+	API         string `json:"api"`
+	Actor       int64  `json:"actor"`
+	OperationID string `json:"operationId"`
+	Name        string `json:"name"`
+	Language    string `json:"language"`
+}
+
 type State struct {
-	LorebookSourceIDs   map[string]string `json:"lorebookSourceIds,omitempty"`
-	IgnoreLocalLorebook bool              `json:"ignoreLocalLorebook,omitempty"`
-	PrivatePending      bool              `json:"privatePending,omitempty"`
-	OwnedPushPending    bool              `json:"ownedPushPending,omitempty"`
-	LorebookEntryMap    map[string]string `json:"lorebookEntryMap,omitempty"`
-	LorebookUpload      *LorebookUpload   `json:"lorebookUpload,omitempty"`
-	Target              string            `json:"target,omitempty"` // "trial" or "owned"
-	RoleID              string            `json:"roleId,omitempty"`
-	TrialKey            string            `json:"trialKey,omitempty"`
-	API                 string            `json:"api,omitempty"`
-	Sections            map[string]string `json:"sections,omitempty"` // server hashes by section
-	LocalHashes         map[string]string `json:"localHashes,omitempty"`
-	Assets              map[string]Asset  `json:"assets,omitempty"` // by relative path
-	AuthorAssetVersion  int64             `json:"authorAssetVersion,omitempty"`
-	LorebookID          string            `json:"lorebookId,omitempty"`
-	LorebookEntryIDs    []string          `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
-	ConversationID      string            `json:"conversationId,omitempty"`
-	AssetFolder         string            `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
+	CardImageProvision  *CardImageProvision `json:"cardImageProvision,omitempty"`
+	CardImages          map[string]Asset    `json:"cardImages,omitempty"`
+	CardImagesRoleID    string              `json:"cardImagesRoleId,omitempty"`
+	LorebookSourceIDs   map[string]string   `json:"lorebookSourceIds,omitempty"`
+	IgnoreLocalLorebook bool                `json:"ignoreLocalLorebook,omitempty"`
+	PrivatePending      bool                `json:"privatePending,omitempty"`
+	OwnedPushPending    bool                `json:"ownedPushPending,omitempty"`
+	LorebookEntryMap    map[string]string   `json:"lorebookEntryMap,omitempty"`
+	LorebookUpload      *LorebookUpload     `json:"lorebookUpload,omitempty"`
+	Target              string              `json:"target,omitempty"` // "trial" or "owned"
+	RoleID              string              `json:"roleId,omitempty"`
+	TrialKey            string              `json:"trialKey,omitempty"`
+	API                 string              `json:"api,omitempty"`
+	Sections            map[string]string   `json:"sections,omitempty"` // server hashes by section
+	LocalHashes         map[string]string   `json:"localHashes,omitempty"`
+	Assets              map[string]Asset    `json:"assets,omitempty"` // by relative path
+	AuthorAssetVersion  int64               `json:"authorAssetVersion,omitempty"`
+	LorebookID          string              `json:"lorebookId,omitempty"`
+	LorebookEntryIDs    []string            `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
+	ConversationID      string              `json:"conversationId,omitempty"`
+	AssetFolder         string              `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
 	// Submission is a review submission that has not been confirmed yet. Its
 	// operation id is sent again on retry, so a lost reply cannot submit twice.
 	Submission          *Submission          `json:"submission,omitempty"`
@@ -240,10 +252,11 @@ type Submission struct {
 
 // Asset records an uploaded file.
 type Asset struct {
-	SHA256   string `json:"sha256"`
-	URL      string `json:"url"`
-	FileName string `json:"fileName,omitempty"`
-	ID       string `json:"id,omitempty"` // library item id; follows the file when it is renamed in the library
+	StorageScope string `json:"storageScope,omitempty"`
+	SHA256       string `json:"sha256"`
+	URL          string `json:"url"`
+	FileName     string `json:"fileName,omitempty"`
+	ID           string `json:"id,omitempty"` // library item id; follows the file when it is renamed in the library
 }
 
 // ErrNotCardFolder is returned when card.json is missing.
@@ -756,6 +769,13 @@ func (f *Folder) AssetDirs() []string {
 	})
 	sort.Strings(out)
 	return out
+}
+
+// LibraryAssetRefs excludes card-owned images unless text also references them.
+func (f *Folder) LibraryAssetRefs() (present, missing []string) {
+	clone := *f
+	clone.Manifest.Media = Media{}
+	return clone.AssetRefs()
 }
 
 // AssetRefs lists every distinct relative asset path referenced by the folder,

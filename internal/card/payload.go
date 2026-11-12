@@ -312,6 +312,7 @@ func nonNil(s []string) []string {
 
 // RemoteDetail is the subset of GET /open/v1/role/detail the folder uses.
 type RemoteDetail struct {
+	Provisioning            *bool             `json:"provisioning,omitempty"`
 	RoleID                  string            `json:"characterRoleId"`
 	RoleName                string            `json:"roleName"`
 	RoleDesc                string            `json:"roleDesc"`

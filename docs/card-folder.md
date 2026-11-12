@@ -117,7 +117,7 @@ so the next plain push from that pulled folder creates a new trial slot.
 | `responseDefaults` | `responseDefaults` | optional author defaults for the player's response preferences (see [Response defaults](#response-defaults)) |
 | `media.portrait` | `roleAvatar` | relative path under `assets/` or an absolute URL |
 | `media.background` | `roleBackground` | same; on HarperHarbor the portrait doubles as the background |
-| `media.folder` | — | media-library folder for `assets/`; defaults to the card name on the first push (see [Media folder](#media-folder)) |
+| `media.folder` | — | media-library folder for body/display assets; defaults to the card name on the first push (see [Media folder](#media-folder)) |
 | `media.backgroundLandscape` | `roleBackgroundLandscape` | optional landscape (16:9) background; the chat page prefers it on wide screens and falls back to the portrait one. Both are cropped to cover the screen, so keep important elements in the central 75% |
 | `media.share` | `roleShareImage` | optional 1.91:1 link-preview image (1200×630) shown when the card's link is shared on Discord, LINE, X and similar. Put the title and main subject in the centre and keep the sides to background only, since some platforms crop to 2:1 or show a square thumbnail. Without it, previews use `media.backgroundLandscape`, then the portrait |
 
@@ -210,7 +210,15 @@ checks the values before a push.
 
 ## Media folder
 
-Everything under `assets/` is uploaded into one folder of your media library,
+Card image fields use separate card-bound storage. `card push` obtains the
+private owned/trial card identity before uploading local card images. Equal
+filenames never overwrite another card's image. New card images are absent
+from the personal library, cannot be deleted there, and do not consume its
+quota. Picking an owned image URL creates an independent card copy; arbitrary
+new external URLs require downloading the image into `assets/` first. The
+avatar aliases the background slot; an explicit background takes precedence.
+
+Body/display assets are uploaded into one folder of your media library,
 and the served URL mirrors the path: `assets/art/expr/happy.webp` becomes
 `<libraryPrefix>/<folder>/art/expr/happy.webp`. Paths are case-sensitive;
 non-ASCII folder names are percent-escaped in the URL.
@@ -226,7 +234,8 @@ is refused; export the video as MP4 (H.264) first.
   not move its files. A folder that already held uploads before this field
   existed keeps its old name until `media.folder` is set.
 - To rename the card's folder, run `media mv <old> <new>`: it shows which of
-  your cards still mention the old URLs, and `--yes` moves the files. A file's
+  your cards still mention the old URLs, and `--yes` confirms the move. Legacy
+  card-image references block a move even with confirmation. A file's
   URL is its path, so the old URLs stop working. Then set `media.folder` to the
   new name. A push also follows files that were renamed or moved on the
   website, and uploads again any that were deleted there.
@@ -235,7 +244,8 @@ is refused; export the video as MP4 (H.264) first.
   `media rm` remove them.
 - On the first push into a folder this card has not uploaded to, the CLI stops
   if the folder already holds other files, because an upload with the same
-  path replaces that file for every card that uses it. Set `media.folder` to a
+  path updates body/display references. Legacy card-image references block
+  replacement. Set `media.folder` to a
   new name, or to that name to share the folder on purpose (one series, one
   folder).
 - A directory reference is uploaded whole: `"assets/art/expr/"`, or a path
@@ -247,9 +257,19 @@ is refused; export the video as MP4 (H.264) first.
 - Generated images: `media generate --out assets/portrait.png` downloads the
   result into the folder, so the card references it like any other asset;
   `media generate --dir <folder>` saves it in the library instead and prints
-  its URL, which `media.portrait` and the Markdown files can use directly.
+  its URL. A card image field adopts it as an independent copy; Markdown
+  continues to use the library URL. `--dir` is optional and consumes quota.
   Later images of the same character take the portrait as a reference:
-  `--image <library path or URL>` keeps the face, hair and outfit.
+  `--image <library path or owned image URL>` keeps the face, hair and outfit.
+
+Existing library-backed card images remain library items and count toward
+quota pending a separately authorized migration. An unchanged `card pull
+--download` followed by push retains its previous image URLs; changing a
+local card image uploads a new card-bound copy. A file used both in a card
+image field and in Markdown has separate destinations and sync records.
+Unattached completed uploads can be cleaned up after 24 hours; images used by
+retained card versions remain available. The CLI persists creation identity
+and completed image URLs so a retry can resume the same card.
 
 ## lorebook.json
 

@@ -239,16 +239,29 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 
 	}
 
+	// A local card picture must have an owned source identity before upload.
+	target, err = ensureCardImageTarget(ctx, c, f, target, owned, opts, res)
+	if err != nil {
+		return nil, err
+	}
+	// Completion may have committed before its reply was lost. Author detail
+	// is authoritative; do not submit a changed completion fingerprint again.
+	if owned && f.State.CardImageProvision != nil && remote.Provisioning != nil && !*remote.Provisioning {
+		f.State.CardImageProvision = nil
+		if err = f.SaveState(); err != nil {
+			return nil, err
+		}
+	}
 	// Media first: the payload needs the served URLs.
 	urls := StoredURLs(f)
 	if !opts.SkipMedia {
-		present, _ := f.AssetRefs()
+		present, _ := f.LibraryAssetRefs()
 		if len(present) > 0 || len(f.State.Assets) > 0 {
 			caps, err := media.Probe(ctx, c)
 			if err != nil {
 				return nil, err
 			}
-			planned, plannedOutcomes, err := media.Sync(ctx, c, f, caps, media.SyncOptions{DryRun: true})
+			planned, plannedOutcomes, err := media.Sync(ctx, c, f, caps, media.SyncOptions{DryRun: true, LibraryOnly: true})
 			if err != nil {
 				return nil, err
 			}
@@ -280,6 +293,7 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			}
 
 			synced, outcomes, err := media.Sync(ctx, c, f, caps, media.SyncOptions{
+				LibraryOnly: true,
 				DryRun:      opts.DryRun,
 				Concurrency: opts.Concurrency,
 				Save:        f.SaveState,
@@ -307,9 +321,17 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 		}
 	}
 
+	cardImages, imageOutcomes, err := syncCardImages(ctx, c, f, target, opts)
+	if err != nil {
+		return nil, err
+	}
+	res.Assets = append(res.Assets, imageOutcomes...)
 	payload, err := f.Build(urls)
 	if err != nil {
 		return nil, err
+	}
+	for key, value := range cardImages {
+		payload.Card[key] = value
 	}
 	res.Rules, err = preflight(f, payload, language, true)
 	if err != nil {
@@ -440,11 +462,14 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.LocalHashes["media"] = mediaDigest
 		tr.Changed = append(tr.Changed, "media")
 	}
+	if f.State.CardImageProvision != nil && f.State.CardImageProvision.Target == "trial" {
+		f.State.CardImageProvision = nil
+	}
 	if err := f.SaveState(); err != nil {
 		return nil, err
 	}
 	res.RoleID = tr.RoleID
-	res.Created = tr.Created
+	res.Created = res.Created || tr.Created
 	res.ExpiresAt = tr.ExpiresAt
 	res.Slots = tr.Slots
 	res.Sections = tr.Sections
@@ -622,7 +647,10 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	// creation, so its language rides with the card fields and counts toward
 	// their digest; other languages are fixed and never sent.
 	cardFields, cardDigest := p.Card, OwnedDigest(f, digests, card.SectionCard)
-	if lang, ok := switchableScript(f); ok {
+	if lang, ok := switchableScript(f); ok || f.State.CardImageProvision != nil {
+		if f.State.CardImageProvision != nil {
+			lang = f.Manifest.Language
+		}
 		cardFields = make(map[string]any, len(p.Card)+1)
 		for k, v := range p.Card {
 			cardFields[k] = v
@@ -719,6 +747,13 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	}
 	if res.Unchanged == nil {
 		res.Unchanged = []string{}
+	}
+	if f.State.CardImageProvision != nil {
+		if err := c.OpenPost(ctx, "/role/"+url.PathEscape(roleID)+"/provisionComplete", map[string]any{"roleName": f.Manifest.Name, "language": f.Manifest.Language, "visibility": "unlisted"}, nil); err != nil {
+			return nil, fmt.Errorf("finish card creation: %w", err)
+		}
+		f.State.CardImageProvision = nil
+		res.RoleVisibility = "unlisted"
 	}
 	f.State.OwnedPushPending = false
 	f.State.IgnoreLocalLorebook = false

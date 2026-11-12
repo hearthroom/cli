@@ -89,6 +89,9 @@ type uploadResponse struct {
 // with growing pauses; a named upload replaces the same library path, so
 // sending it again after a lost reply does no harm.
 func Upload(ctx context.Context, c *api.Client, localPath, relativePath, roleID string) (UploadResult, error) {
+	if roleID != "" {
+		return uploadCard(ctx, c, localPath, roleID)
+	}
 	for attempt := 1; ; attempt++ {
 		res, err := uploadOnce(ctx, c, localPath, relativePath, roleID)
 		if err == nil || attempt >= uploadAttempts || !retryable(ctx, err) {
@@ -351,6 +354,8 @@ const (
 
 // SyncOptions control Sync.
 type SyncOptions struct {
+	// LibraryOnly excludes the card-owned portrait, landscape and share slots.
+	LibraryOnly bool
 	// DryRun reports what would be uploaded without sending anything.
 	DryRun bool
 	// Concurrency is the number of parallel uploads; 0 means DefaultConcurrency.
@@ -396,6 +401,9 @@ func Sync(ctx context.Context, c *api.Client, f *card.Folder, caps Capabilities,
 		f = &clone
 	}
 	present, missing := f.AssetRefs()
+	if opts.LibraryOnly {
+		present, missing = f.LibraryAssetRefs()
+	}
 	urls := map[string]string{}
 	var outcomes []Outcome
 	if caps.RelativePaths {

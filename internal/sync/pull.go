@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/url"
 	"os"
 	"path"
@@ -109,34 +110,45 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 			return nil, err
 		}
 		urls := map[string]string{}
-		fetch := func(ref *string, fallback string) {
+		images := map[string]card.Asset{}
+		f.State.CardImages = map[string]card.Asset{}
+		f.State.CardImagesRoleID = d.RoleID
+		fetch := func(ref *string, fallback, slot string) {
 			u := strings.TrimSpace(*ref)
 			if u == "" || !strings.HasPrefix(u, "http") {
 				return
 			}
 			if rel, ok := urls[u]; ok {
 				*ref = rel
+				f.State.CardImages[slot] = images[u]
 				return
 			}
-			name := fileNameFor(u, fallback)
-			rel := card.AssetsDir + "/" + name
-			if err := download(ctx, c, u, filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+			name, err := downloadImage(ctx, c, u, dir, fallback)
+			if err != nil {
 				res.Warnings = append(res.Warnings, fmt.Sprintf("download %s: %v", u, err))
 				return
 			}
-			digest, _ := card.FileDigest(filepath.Join(dir, filepath.FromSlash(rel)))
-			if f.State.Assets == nil {
-				f.State.Assets = map[string]card.Asset{}
+			rel := card.AssetsDir + "/" + name
+			digest, err := card.FileDigest(filepath.Join(dir, filepath.FromSlash(rel)))
+			if err != nil {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("hash downloaded image %s: %v", name, err))
+				return
 			}
-			f.State.Assets[rel] = card.Asset{SHA256: digest, URL: u}
+			scope := "legacy"
+			if parsed, e := url.Parse(u); e == nil && strings.Contains(parsed.Path, "/card-media/"+d.RoleID+"/") {
+				scope = "card"
+			}
+			saved := card.Asset{SHA256: digest, URL: u, StorageScope: scope}
+			f.State.CardImages[slot] = saved
+			images[u] = saved
 			urls[u] = rel
 			res.Downloaded = append(res.Downloaded, rel)
 			*ref = rel
 		}
-		fetch(&f.Manifest.Media.Portrait, "portrait")
-		fetch(&f.Manifest.Media.Background, "background")
-		fetch(&f.Manifest.Media.BackgroundLandscape, "background-landscape")
-		fetch(&f.Manifest.Media.Share, "share")
+		fetch(&f.Manifest.Media.Portrait, "portrait", "roleBackground")
+		fetch(&f.Manifest.Media.Background, "background", "roleBackground")
+		fetch(&f.Manifest.Media.BackgroundLandscape, "background-landscape", "roleBackgroundLandscape")
+		fetch(&f.Manifest.Media.Share, "share", "roleShareImage")
 	}
 
 	if err := f.Save(); err != nil {
@@ -272,3 +284,45 @@ func download(ctx context.Context, c *api.Client, rawURL, dest string) error {
 
 // ErrNoTarget is returned when a folder was never pushed.
 var ErrNoTarget = errors.New("this folder has not been pushed yet; run `hearthroom card push` first")
+
+// Card URLs are opaque and have no filename extension. Keep local image names
+// readable and preserve the verified response MIME for later card uploads.
+func downloadImage(ctx context.Context, c *api.Client, rawURL, dir, fallback string) (string, error) {
+	body, contentType, err := c.Download(ctx, rawURL)
+	if err != nil {
+		return "", err
+	}
+	defer body.Close()
+	name := fileNameFor(rawURL, fallback)
+	if strings.ContainsAny(name, "/\\") || name == "." || name == ".." {
+		name = fallback
+	}
+	if path.Ext(name) == "" {
+		kind, _, _ := mime.ParseMediaType(contentType)
+		extension := map[string]string{"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp", "image/svg+xml": ".svg"}[kind]
+		if extension != "" {
+			name = fallback + extension
+		}
+	}
+	dest := filepath.Join(dir, card.AssetsDir, name)
+	temp := dest + ".part"
+	out, err := os.Create(temp)
+	if err != nil {
+		return "", err
+	}
+	_, copyErr := io.Copy(out, body)
+	closeErr := out.Close()
+	if copyErr != nil {
+		os.Remove(temp)
+		return "", copyErr
+	}
+	if closeErr != nil {
+		os.Remove(temp)
+		return "", closeErr
+	}
+	if err = os.Rename(temp, dest); err != nil {
+		os.Remove(temp)
+		return "", err
+	}
+	return name, nil
+}

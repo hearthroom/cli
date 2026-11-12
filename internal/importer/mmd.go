@@ -38,13 +38,14 @@ type RuleSet struct {
 	// persona TXT is in the set.
 	Personality string
 	// Dropped lists the regex-script fields the folder has no place for (SillyTavern-only
-	// flags such as markdownOnly), when any script set one.
-	Dropped []string
+	// flags without a display-rule equivalent), when any script set one.
+	Dropped           []string
+	PromptOnlySkipped int
 }
 
 // droppedScriptFields are SillyTavern regex-script options the display rule engine does
 // not have. They are reported, not silently lost.
-var droppedScriptFields = []string{"trimStrings", "markdownOnly", "promptOnly", "runOnEdit", "substituteRegex", "minDepth", "maxDepth"}
+var droppedScriptFields = []string{"trimStrings", "runOnEdit", "substituteRegex", "minDepth", "maxDepth"}
 
 func droppedFieldsOf(scripts any) []string {
 	arr, ok := scripts.([]any)
@@ -84,6 +85,25 @@ func droppedFieldsOf(scripts any) []string {
 		}
 	}
 	return out
+}
+
+func promptOnlyRuleCount(scripts any) int {
+	arr, _ := scripts.([]any)
+	n := 0
+	for _, value := range arr {
+		if script, ok := value.(map[string]any); ok && boolOf(script["promptOnly"]) && strText(script["findRegex"]) != "" {
+			n++
+		}
+	}
+	return n
+}
+
+func promptOnlyNote(n int) string {
+	word := "rules"
+	if n == 1 {
+		word = "rule"
+	}
+	return fmt.Sprintf("%d prompt-only %s skipped: display rules only change what is shown", n, word)
 }
 
 // MMDFile is one classified file.
@@ -267,10 +287,11 @@ func RuleSetFromImport(raw any) (*RuleSet, string) {
 		scripts = arr
 	}
 	rules := RulesFromTavern(scripts)
-	if len(rules) == 0 {
+	skipped := promptOnlyRuleCount(scripts)
+	if len(rules) == 0 && skipped == 0 {
 		return nil, ""
 	}
-	set := &RuleSet{Rules: rules, Dropped: droppedFieldsOf(scripts)}
+	set := &RuleSet{Rules: rules, Dropped: droppedFieldsOf(scripts), PromptOnlySkipped: skipped}
 	welcome := ""
 	if isObj {
 		set.Statusbar = strText(obj["statusbar"])
@@ -388,6 +409,9 @@ func MergeMMDFiles(files []*MMDFile, language string) *Result {
 		if def == nil && rules.Set != nil && rules.Set.Personality != "" {
 			r.Definition = rules.Set.Personality
 			r.Notes = append(r.Notes, "the persona came from the rules file's personality field (no persona TXT was given); review definition.md")
+		}
+		if rules.Set != nil && rules.Set.PromptOnlySkipped > 0 {
+			r.Notes = append(r.Notes, promptOnlyNote(rules.Set.PromptOnlySkipped))
 		}
 		if rules.Set != nil && len(rules.Set.Dropped) > 0 {
 			r.Notes = append(r.Notes, "regex-script fields with no place in display rules were dropped: "+strings.Join(rules.Set.Dropped, ", "))

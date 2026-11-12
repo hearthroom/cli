@@ -279,7 +279,7 @@ func TestMMDSet(t *testing.T) {
 		t.Fatalf("personality not used: %q", merged.Definition)
 	}
 	notes := strings.Join(merged.Notes, "\n")
-	if !strings.Contains(notes, "personality field") || !strings.Contains(notes, "trimStrings, markdownOnly") || strings.Contains(notes, "promptOnly") || strings.Contains(notes, "missing the persona TXT") {
+	if !strings.Contains(notes, "personality field") || !strings.Contains(notes, "trimStrings") || strings.Contains(notes, "markdownOnly") || strings.Contains(notes, "promptOnly") || strings.Contains(notes, "missing the persona TXT") {
 		t.Fatalf("notes: %v", merged.Notes)
 	}
 	// Meimo "export regex" list and API envelope.

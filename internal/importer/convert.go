@@ -115,6 +115,9 @@ func FromTavern(p *Parsed, language string) *Result {
 	}
 	if len(d.Extensions) > 0 {
 		rules := RulesFromTavern(d.Extensions["regex_scripts"])
+		if n := promptOnlyRuleCount(d.Extensions["regex_scripts"]); n > 0 {
+			r.Notes = append(r.Notes, promptOnlyNote(n))
+		}
 		if len(rules) > 0 {
 			r.Rules = &RuleSet{Rules: rules, Format: "tavern"}
 		}

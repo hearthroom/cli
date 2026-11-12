@@ -958,6 +958,9 @@ func RulesFromTavern(scripts any) []RegexRule {
 		if !ok {
 			continue
 		}
+		if boolOf(m["promptOnly"]) {
+			continue
+		}
 		find := strText(m["findRegex"])
 		if find == "" {
 			continue

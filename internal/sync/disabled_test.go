@@ -95,7 +95,7 @@ func TestOwnedPushPreservesDisabledAndRequiresExplicitDeletion(t *testing.T) {
 	if len(remote) != 4 {
 		t.Fatalf("push lost disabled entries: got %d, want 4", len(remote))
 	}
-	firstID, groupID := f.Lorebook.Entries[0].ID, f.Lorebook.Entries[2].ID
+	firstID, groupID := f.State.LorebookEntryMap["0:0"], f.State.LorebookEntryMap["2:0"]
 	assertKept := func() {
 		t.Helper()
 		for id, e := range remote {

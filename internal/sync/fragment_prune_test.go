@@ -78,7 +78,7 @@ func TestOwnedPushObsoleteFragmentsDoNotRequirePrune(t *testing.T) {
 			if len(remote) != 2 {
 				t.Fatalf("initial fragments=%d", len(remote))
 			}
-			firstID := f.Lorebook.Entries[0].ID
+			firstID := f.State.LorebookEntryMap["0:0"]
 			switch change {
 			case "shorten":
 				f.Lorebook.Entries[0].Content = "Short text"
@@ -96,7 +96,7 @@ func TestOwnedPushObsoleteFragmentsDoNotRequirePrune(t *testing.T) {
 			if len(remote) != 1 || remote[firstID] == nil || remote[firstID]["isEnabled"] != false || len(res.PruneEntries) != 0 {
 				t.Fatalf("wrong fragment cleanup: %v prune=%v", remote, res.PruneEntries)
 			}
-			if f.Lorebook.Entries[0].ID != firstID {
+			if f.State.LorebookEntryMap["0:0"] != firstID {
 				t.Fatal("first fragment identity changed")
 			}
 			if change == "author group" && remote[firstID]["matchOptions"].(map[string]any)["groupId"] != "author" {

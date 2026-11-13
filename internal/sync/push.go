@@ -41,6 +41,7 @@ type PushOptions struct {
 	// GroupProgress reports entries split before any writes.
 	GroupProgress func(GroupedEntry)
 	limits        pushLimits
+	sourceKeys    [][]string
 	entryKeys     []string
 }
 
@@ -102,6 +103,35 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			return nil, err
 		}
 		f = &clone
+	}
+
+	// Work with remote identities without changing the author's source object or files.
+	if f.Lorebook != nil {
+		original := f.Lorebook
+		book := *original
+		book.Entries = append([]card.LorebookEntry(nil), original.Entries...)
+		f.Lorebook = &book
+		defer func() { f.Lorebook = original }()
+		opts.sourceKeys = lorebookSourceKeys(original)
+		sameTarget := f.State.Target == "owned" && (opts.To == "" || opts.To == f.State.RoleID) && (!opts.Create || f.State.OwnedPushPending)
+		if sameTarget {
+			for i := range book.Entries {
+				if f.State.IgnoreLocalLorebook {
+					book.Entries[i].ID = ""
+				}
+				for _, key := range opts.sourceKeys[i] {
+					// An explicit source ID is authoritative unless this target has
+					// already mapped it (for example after --create).
+					if original.Entries[i].ID != "" && key != "id:"+original.Entries[i].ID {
+						continue
+					}
+					if id := f.State.LorebookSourceIDs[key]; id != "" {
+						book.Entries[i].ID = id
+						break
+					}
+				}
+			}
+		}
 	}
 
 	if opts.Create && opts.To != "" {
@@ -498,6 +528,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.IgnoreLocalLorebook = true
 		f.State.LorebookEntryIDs = nil
 		f.State.LorebookEntryMap = nil
+		f.State.LorebookSourceIDs = nil
 		f.State.LorebookUpload = nil
 		if f.Lorebook != nil {
 			f.Lorebook.ID = ""
@@ -520,14 +551,12 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.IgnoreLocalLorebook = true
 		f.State.LorebookEntryIDs = nil
 		f.State.LorebookEntryMap = nil
+		f.State.LorebookSourceIDs = nil
 		f.State.LorebookUpload = nil
 		f.State.AuthorAssetVersion = 0
 		f.State.PrivatePending = false
 		if f.Lorebook != nil {
 			f.Lorebook.ID = ""
-			for i := range f.Lorebook.Entries {
-				f.Lorebook.Entries[i].ID = ""
-			}
 		}
 	}
 	// Older clients recorded a compatibility request to make the created card

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
@@ -43,9 +44,11 @@ func readPushLimits(ctx context.Context, c *api.Client) (pushLimits, error) {
 }
 
 type GroupedEntry struct {
-	Index int    `json:"index"`
-	Name  string `json:"name"`
-	Parts int    `json:"parts"`
+	Characters int    `json:"characters"`
+	Limit      int    `json:"limit"`
+	Index      int    `json:"index"`
+	Name       string `json:"name"`
+	Parts      int    `json:"parts"`
 }
 
 // splitContent retains every rune, including paragraph separators and CRLF.
@@ -116,7 +119,7 @@ func prepareEntries(f *card.Folder, wb map[string]any, limit int) (map[string]an
 			parts = splitContent(parts[0], limit)
 		}
 		if len(parts) > 1 {
-			groups = append(groups, GroupedEntry{Index: i, Name: local.Name, Parts: len(parts)})
+			groups = append(groups, GroupedEntry{Index: i, Name: local.Name, Parts: len(parts), Characters: utf8.RuneCountInString(entry["content"].(string)), Limit: limit})
 		}
 		groupID := "cli-" + card.Digest([]any{i, local.Name, entry["content"]})[:24]
 		for j, part := range parts {
@@ -141,6 +144,32 @@ func prepareEntries(f *card.Folder, wb map[string]any, limit int) (map[string]an
 	return out, keys, groups
 }
 
+// Aliases survive reordering and edits without writing generated IDs into sources.
+// Ambiguous names/content have no alias; explicit IDs or a fresh pull disambiguate them.
+func lorebookSourceKeys(book *card.Lorebook) [][]string {
+	names, hashes := map[string]int{}, map[string]int{}
+	digests := make([]string, len(book.Entries))
+	for i, e := range book.Entries {
+		names[e.Name]++
+		e.ID, e.Name = "", ""
+		digests[i] = card.Digest(e)
+		hashes[digests[i]]++
+	}
+	keys := make([][]string, len(book.Entries))
+	for i, e := range book.Entries {
+		if e.ID != "" {
+			keys[i] = append(keys[i], "id:"+e.ID)
+		}
+		if hashes[digests[i]] == 1 {
+			keys[i] = append(keys[i], "content:"+digests[i])
+		}
+		if e.Name != "" && names[e.Name] == 1 {
+			keys[i] = append(keys[i], "name:"+e.Name)
+		}
+	}
+	return keys
+}
+
 func planLorebook(f *card.Folder, wb map[string]any, existing []card.RemoteEntry, opts PushOptions) *card.LorebookUpload {
 	upload := &card.LorebookUpload{Digest: card.Digest(wb), BatchSize: opts.limits.MaxOpsPerCall}
 	if upload.BatchSize <= 0 {
@@ -154,9 +183,8 @@ func planLorebook(f *card.Folder, wb map[string]any, existing []card.RemoteEntry
 	}
 	entries, _ := wb["entries"].([]map[string]any)
 	nameCount := map[string]int{}
-	for _, e := range entries {
-		n, _ := e["name"].(string)
-		nameCount[n]++
+	for _, e := range f.Lorebook.Entries {
+		nameCount[e.Name]++
 	}
 	seen := map[string]bool{}
 	retainedSources := map[string]bool{}
@@ -206,7 +234,7 @@ func planLorebook(f *card.Folder, wb map[string]any, existing []card.RemoteEntry
 			target = ""
 		}
 		n, _ := body["name"].(string)
-		if target == "" && n != "" && nameCount[n] == 1 && len(byName[n]) == 1 && !seen[byName[n][0].EntryID] {
+		if target == "" && strings.HasSuffix(key, ":0") && n != "" && nameCount[n] == 1 && len(byName[n]) == 1 && !seen[byName[n][0].EntryID] {
 			target = byName[n][0].EntryID
 		}
 		op := map[string]any{}
@@ -224,6 +252,11 @@ func planLorebook(f *card.Folder, wb map[string]any, existing []card.RemoteEntry
 		}
 		upload.Ops = append(upload.Ops, op)
 		upload.Keys = append(upload.Keys, key)
+		var aliases []string
+		if strings.HasSuffix(key, ":0") && source < len(opts.sourceKeys) {
+			aliases = opts.sourceKeys[source]
+		}
+		upload.SourceKeys = append(upload.SourceKeys, aliases)
 	}
 	known := map[string]bool{}
 	for _, id := range f.State.LorebookEntryIDs {
@@ -239,6 +272,7 @@ func planLorebook(f *card.Folder, wb map[string]any, existing []card.RemoteEntry
 		if known[e.EntryID] && !seen[e.EntryID] {
 			upload.Ops = append(upload.Ops, map[string]any{"op": "delete", "entryId": e.EntryID})
 			upload.Keys = append(upload.Keys, "")
+			upload.SourceKeys = append(upload.SourceKeys, nil)
 			if fragments[e.EntryID] {
 				upload.FragmentDeletes = append(upload.FragmentDeletes, e.EntryID)
 			}
@@ -437,14 +471,17 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		currentMap[key] = f.State.LorebookEntryMap[key]
 	}
 	f.State.LorebookEntryMap = currentMap
-	// Keep the original unsplit content on disk. IDs for fragments live in state.
-	f.Lorebook.ID = bookID
-	for i := range f.Lorebook.Entries {
-		if id := f.State.LorebookEntryMap[strconv.Itoa(i)+":0"]; id != "" {
-			f.Lorebook.Entries[i].ID = id
+	sourceIDs := map[string]string{}
+	for i, aliases := range opts.sourceKeys {
+		if id := currentMap[strconv.Itoa(i)+":0"]; id != "" {
+			for _, key := range aliases {
+				sourceIDs[key] = id
+			}
 		}
 	}
-	return f.Save()
+	f.State.LorebookSourceIDs = sourceIDs
+	// Generated identities and fragment progress belong only to sync state.
+	return f.SaveState()
 }
 
 func completeBatch(f *card.Folder, created []string) error {
@@ -475,6 +512,14 @@ func completeBatch(f *card.Folder, created []string) error {
 			delete(known, id)
 		} else {
 			f.State.LorebookEntryMap[u.Keys[i]] = id
+			if i < len(u.SourceKeys) {
+				if f.State.LorebookSourceIDs == nil {
+					f.State.LorebookSourceIDs = map[string]string{}
+				}
+				for _, key := range u.SourceKeys[i] {
+					f.State.LorebookSourceIDs[key] = id
+				}
+			}
 			known[id] = true
 		}
 	}

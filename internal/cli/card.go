@@ -131,8 +131,9 @@ Lorebook writes use the provider's batch limits. Progress is saved in
 .hearthroom/state.json after the card, Lorebook and each batch are saved;
 rerun the same command after an interruption to continue. Keep that state file.
 Long entries without group settings are split at paragraph or sentence boundaries,
-with shared groupId and increasing groupOrder; the original text stays in your
-files. Existing group settings are sent as written. Trial cards hold at most the
+with shared groupId and increasing groupOrder. Push reports each split, updates
+the original entry with the first part and saves fragment IDs only in sync state;
+source files and IDs stay unchanged. Existing group settings are sent as written. Trial cards hold at most the
 provider's entry limit; use --create for a larger owned card. New owned cards
 default to unlisted; anyone with the link can play the latest saved content.
 
@@ -166,7 +167,7 @@ them and stops before writing the Lorebook. Entries created by other tools are k
 				opts.Progress = progress.update
 			}
 			opts.GroupProgress = func(g sync.GroupedEntry) {
-				a.Out.Note("Lorebook entry %d (%s): %d grouped parts", g.Index+1, g.Name, g.Parts)
+				a.Out.Note("Lorebook entry %d (%s) has %d characters, exceeding the %d-character limit; split into %d upload parts", g.Index+1, g.Name, g.Characters, g.Limit, g.Parts)
 			}
 			res, err := sync.Push(cmd.Context(), a.Client(), f, opts)
 			if progress != nil {

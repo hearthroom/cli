@@ -544,7 +544,12 @@ Korean, and 12000 for English; a bound book's detail response provides its actua
 
 A long entry without `matchOptions.groupId` or `groupOrder` is split for upload at
 paragraph or sentence boundaries, with shared `groupId` and increasing `groupOrder`.
-Joining the parts exactly restores the original text; the local file stays unsplit.
+Joining the parts exactly restores the original text. Push reports the entry, limit
+and number of parts; the first part updates its existing entry ID and later parts
+reuse their saved IDs. Source files, including IDs and unsplit content, stay unchanged;
+sync identities live in `.hearthroom/state.json`, which must stay with the folder.
+Obsolete split parts are removed automatically. Other known removed entries require
+`--prune`; unknown remote entries stay untouched and need explicit author cleanup.
 Existing group settings are preserved, so an oversized author-grouped entry must
 be shortened by its author. Grouped parts count separately toward the trial limit.
 

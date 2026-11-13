@@ -174,6 +174,7 @@ type Opening struct {
 
 // State is .hearthroom/state.json: what the folder is synced to.
 type LorebookUpload struct {
+	SourceKeys       [][]string       `json:"sourceKeys,omitempty"`
 	FragmentDeletes  []string         `json:"fragmentDeletes,omitempty"`
 	Digest           string           `json:"digest"`
 	Ops              []map[string]any `json:"operations"`
@@ -186,6 +187,7 @@ type LorebookUpload struct {
 }
 
 type State struct {
+	LorebookSourceIDs   map[string]string `json:"lorebookSourceIds,omitempty"`
 	IgnoreLocalLorebook bool              `json:"ignoreLocalLorebook,omitempty"`
 	PrivatePending      bool              `json:"privatePending,omitempty"`
 	OwnedPushPending    bool              `json:"ownedPushPending,omitempty"`

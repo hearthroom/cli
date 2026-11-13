@@ -101,6 +101,7 @@ func ensureCardImageTarget(ctx context.Context, c *api.Client, f *card.Folder, t
 	f.State.IgnoreLocalLorebook = true
 	f.State.LorebookEntryIDs = nil
 	f.State.LorebookEntryMap = nil
+	f.State.LorebookSourceIDs = nil
 	f.State.LorebookUpload = nil
 	f.State.AuthorAssetVersion = 0
 	if f.Lorebook != nil {

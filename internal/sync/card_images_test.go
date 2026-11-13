@@ -130,6 +130,9 @@ func TestNewOwnedCardPicturePersistsProvisionIntentBeforeUploadAndResumesLostRep
 		t.Fatal(err)
 	}
 	folder = f
+	// Reusing a folder with --create must not carry another card's remote IDs.
+	f.State.RoleID, f.State.Target, f.State.API = "previous-card", "owned", srv.URL
+	f.State.LorebookSourceIDs = map[string]string{"id:source-entry": "previous-remote-entry"}
 	os.MkdirAll(filepath.Join(f.Dir, "assets"), 0700)
 	os.WriteFile(filepath.Join(f.Dir, "assets", "same.png"), []byte("synthetic"), 0600)
 	f.Manifest.Media.Background = "assets/same.png"
@@ -146,6 +149,17 @@ func TestNewOwnedCardPicturePersistsProvisionIntentBeforeUploadAndResumesLostRep
 	}
 	if calls != 2 || uploads != 1 || completed != 1 {
 		t.Fatalf("create/upload/complete %d/%d/%d", calls, uploads, completed)
+	}
+	stateBytes, err := os.ReadFile(filepath.Join(f.Dir, ".hearthroom", "state.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted card.State
+	if err := json.Unmarshal(stateBytes, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if persisted.RoleID != "created-card" || len(persisted.LorebookSourceIDs) != 0 {
+		t.Fatalf("new card retained another target's Lorebook identity: role=%s mappings=%v", persisted.RoleID, persisted.LorebookSourceIDs)
 	}
 }
 

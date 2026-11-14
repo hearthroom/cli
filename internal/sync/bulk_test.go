@@ -31,6 +31,7 @@ func TestBulkPushResumesAfterFailure(t *testing.T) {
 	}
 	roles, books, batches := 0, 0, 0
 	failed := false
+	bound := false
 	remote := []map[string]any{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reply := func(v any) { json.NewEncoder(w).Encode(v) }
@@ -50,7 +51,11 @@ func TestBulkPushResumesAfterFailure(t *testing.T) {
 		case "/open/v1/role/r/document", "/open/v1/role/r/welcome":
 			reply(map[string]any{})
 		case "/open/v1/worldbook/bindings":
-			reply(map[string]any{"bindings": []any{}})
+			if bound {
+				reply(map[string]any{"bindings": []any{map[string]any{"worldbookId": "b"}}})
+			} else {
+				reply(map[string]any{"bindings": []any{}})
+			}
 		case "/open/v1/worldbook":
 			books++
 			reply(map[string]any{"worldbookId": "b"})
@@ -59,7 +64,10 @@ func TestBulkPushResumesAfterFailure(t *testing.T) {
 		case "/open/v1/worldbook/entry/list":
 			reply(map[string]any{"entries": remote})
 		case "/open/v1/worldbook/b/document":
-			var b struct{ Entries []map[string]any }
+			var b struct {
+				Entries []map[string]any
+				Binding map[string]any
+			}
 			json.NewDecoder(r.Body).Decode(&b)
 			if len(b.Entries) > 80 {
 				t.Errorf("batch has %d operations", len(b.Entries))
@@ -74,6 +82,9 @@ func TestBulkPushResumesAfterFailure(t *testing.T) {
 				w.WriteHeader(503)
 				reply(map[string]any{"error": "temporarily_unavailable"})
 				return
+			}
+			if b.Binding != nil {
+				bound = true
 			}
 			ids := []string{}
 			for _, op := range b.Entries {

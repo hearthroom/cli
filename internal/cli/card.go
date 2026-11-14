@@ -137,9 +137,14 @@ source files and IDs stay unchanged. Existing group settings are sent as written
 provider's entry limit; use --create for a larger owned card. New owned cards
 default to unlisted; anyone with the link can play the latest saved content.
 
-Disabled Lorebook entries are uploaded and remain disabled. Entries removed
-locally are deleted from an owned card only with --prune; otherwise push lists
-them and stops before writing the Lorebook. Entries created by other tools are kept.`,
+Disabled Lorebook entries are uploaded and remain disabled. Only entries whose
+local content or options changed since the last sync are sent as updates. Push
+checks the Lorebook version recorded in .hearthroom/state.json and stops on a
+409 version_conflict (or if the card's bound Lorebook changed on the server) so
+online edits are not silently overwritten; run card pull --force to merge, or
+pass --force to overwrite online Lorebook changes. Entries removed locally are
+deleted from an owned card only with --prune; otherwise push lists them and
+stops before writing the Lorebook. Entries created by other tools are kept.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {
@@ -214,7 +219,7 @@ them and stops before writing the Lorebook. Entries created by other tools are k
 	c.Flags().BoolVar(&opts.Evict, "evict", false, "free the least recently used trial slot when all are in use")
 	c.Flags().BoolVar(&opts.DryRun, "dry-run", false, "check limits and show planned changes without uploading media or writing card content or local state")
 	c.Flags().BoolVar(&opts.Prune, "prune", false, "delete CLI-managed Lorebook entries removed from the local file")
-	c.Flags().BoolVar(&opts.Force, "force", false, "send every section even if unchanged; also skips the readiness check")
+	c.Flags().BoolVar(&opts.Force, "force", false, "send every section even if unchanged, overwrite online Lorebook changes, and skip the readiness check")
 	c.Flags().BoolVar(&opts.SkipMedia, "skip-media", false, "do not upload assets; keep previously uploaded URLs")
 	c.Flags().BoolVar(&validate, "validate", false, "run the server validation after pushing")
 	c.Flags().IntVar(&concurrency, "concurrency", media.DefaultConcurrency, fmt.Sprintf("files uploaded at once, 1 to %d; %s changes the default", media.MaxConcurrency, envUploadConcurrency))
@@ -284,6 +289,9 @@ func (a *App) printPush(res *sync.PushResult) {
 	}
 	for _, s := range res.Skipped {
 		a.Out.Line("  skipped: %s", s)
+	}
+	for _, w := range res.Warnings {
+		a.Out.Note("warning: %s", w)
 	}
 	if res.ExpiresAt != "" {
 		a.Out.Line("  trial expires:      %s", res.ExpiresAt)
@@ -495,6 +503,12 @@ func (a *App) cardPull() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "pull <roleId> [dir]",
 		Short: "Write one of your cards to a folder",
+		Long: `Reads one of your cards from the provider into a folder, including its latest
+bound Lorebook (written to lorebook.json) and display rules, and records the
+remote Lorebook version and per-entry digests in .hearthroom/state.json.
+
+If the folder also keeps worldbook/*.md source files, pull updates lorebook.json
+only and warns before you run lorebook build so pulled changes are not overwritten.`,
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {

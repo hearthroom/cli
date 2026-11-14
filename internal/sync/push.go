@@ -39,16 +39,22 @@ type PushOptions struct {
 	// Progress, when set, is told about every finished media upload.
 	Progress func(media.Progress)
 	// GroupProgress reports entries split before any writes.
-	GroupProgress func(GroupedEntry)
-	limits        pushLimits
-	sourceKeys    [][]string
-	entryKeys     []string
+	GroupProgress     func(GroupedEntry)
+	limits            pushLimits
+	sourceKeys        [][]string
+	entryKeys         []string
+	remoteBookID      string
+	remoteBookName    string
+	remoteBookVersion int32
+	remoteBookBound   bool
+	checkedBindings   bool
 }
 
 // PushResult reports what happened.
 type PushResult struct {
 	PruneEntries   []string          `json:"pruneEntries,omitempty"`
 	Grouped        []GroupedEntry    `json:"grouped,omitempty"`
+	Warnings       []string          `json:"warnings,omitempty"`
 	Target         string            `json:"target"`
 	RoleID         string            `json:"roleId"`
 	RoleVisibility string            `json:"roleVisibility,omitempty"`
@@ -205,34 +211,37 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 			if opts.To != "" {
 				target = opts.To
 			}
+			sameCard := target != "" && target == f.State.RoleID && f.State.Target == "owned"
+			preDigests := pre.Digests()
+			lorebookChanged := opts.Force || !sameCard || f.State.LorebookUpload != nil || f.State.LocalHashes[card.SectionWorldbook] != preDigests[card.SectionWorldbook]
 			bookID := ""
-			if target == f.State.RoleID {
+			if sameCard {
 				bookID = f.State.LorebookID
 			}
 			if target != "" {
 				if n := limits.EntryContentMaxByLanguage[language]; n > 0 {
 					limit = n
 				}
-				if bookID == "" {
-					var bindings bindingsOutput
-					if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {target}}, &bindings); err != nil {
+				if bookID == "" || (sameCard && lorebookChanged) {
+					bookID, err = checkOwnedBoundLorebook(ctx, c, f, target, bookID, sameCard, &opts, res)
+					if err != nil {
 						return nil, err
-					}
-					if len(bindings.Bindings) > 0 {
-						bookID = bindings.Bindings[0].WorldbookID
 					}
 				}
 			}
 			if bookID != "" {
-				var detail struct {
-					EntryContentMax int `json:"entryContentMax"`
-				}
+				var detail worldbookDetailOutput
 				if err := c.OpenGet(ctx, "/worldbook/detail", url.Values{"worldbookId": {bookID}}, &detail); err != nil {
 					return nil, err
 				}
 				if detail.EntryContentMax > 0 {
 					limit = detail.EntryContentMax
 				}
+				opts.remoteBookID = bookID
+				if detail.Name != "" {
+					opts.remoteBookName = detail.Name
+				}
+				opts.remoteBookVersion = detail.Version
 			}
 		}
 		opts.limits.entryMax = limit
@@ -340,6 +349,33 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 	res.RulesTotal = ruleTotal(payload)
 	digests := payload.Digests()
 	if payload.Worldbook != nil {
+		if owned && (!opts.Create || f.State.OwnedPushPending) && !opts.checkedBindings {
+			sameCard := target != "" && target == f.State.RoleID && f.State.Target == "owned"
+			if sameCard && f.State.LorebookID != "" && f.State.LocalHashes[card.SectionWorldbook] != digests[card.SectionWorldbook] {
+				prevBookID := f.State.LorebookID
+				bookID, err := checkOwnedBoundLorebook(ctx, c, f, target, prevBookID, true, &opts, res)
+				if err != nil {
+					return nil, err
+				}
+				if bookID != prevBookID {
+					opts.remoteBookID = bookID
+					opts.remoteBookVersion = 0
+					if bookID != "" {
+						var detail worldbookDetailOutput
+						if err := c.OpenGet(ctx, "/worldbook/detail", url.Values{"worldbookId": {bookID}}, &detail); err != nil {
+							return nil, err
+						}
+						if detail.EntryContentMax > 0 {
+							opts.limits.entryMax = detail.EntryContentMax
+						}
+						if detail.Name != "" {
+							opts.remoteBookName = detail.Name
+						}
+						opts.remoteBookVersion = detail.Version
+					}
+				}
+			}
+		}
 		payload.Worldbook, opts.entryKeys, res.Grouped = prepareEntries(f, payload.Worldbook, opts.limits.entryMax)
 	}
 
@@ -549,12 +585,8 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.LocalHashes = map[string]string{}
 		f.State.OwnedPushPending = true
 		f.State.PrivatePending = false
-		f.State.LorebookID = ""
+		f.State.ResetLorebook()
 		f.State.IgnoreLocalLorebook = true
-		f.State.LorebookEntryIDs = nil
-		f.State.LorebookEntryMap = nil
-		f.State.LorebookSourceIDs = nil
-		f.State.LorebookUpload = nil
 		if f.Lorebook != nil {
 			f.Lorebook.ID = ""
 			for i := range f.Lorebook.Entries {
@@ -572,12 +604,8 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		// card, or another owned card). Against a new target they would make
 		// every section look unchanged and leave the card empty.
 		f.State.LocalHashes = map[string]string{}
-		f.State.LorebookID = ""
+		f.State.ResetLorebook()
 		f.State.IgnoreLocalLorebook = true
-		f.State.LorebookEntryIDs = nil
-		f.State.LorebookEntryMap = nil
-		f.State.LorebookSourceIDs = nil
-		f.State.LorebookUpload = nil
 		f.State.AuthorAssetVersion = 0
 		f.State.PrivatePending = false
 		if f.Lorebook != nil {
@@ -732,7 +760,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	// lorebook
 	if p.Worldbook != nil {
 		if changed(card.SectionWorldbook) {
-			if err := pushLorebook(ctx, c, f, roleID, p.Worldbook, opts); err != nil {
+			if err := pushLorebook(ctx, c, f, roleID, p.Worldbook, opts, res); err != nil {
 				return nil, err
 			}
 			f.State.LocalHashes[card.SectionWorldbook] = digests[card.SectionWorldbook]
@@ -765,6 +793,61 @@ type bindingsOutput struct {
 		WorldbookID string `json:"worldbookId"`
 		Name        string `json:"name"`
 	} `json:"bindings"`
+}
+
+func latestBinding(b bindingsOutput) (string, string, bool) {
+	if len(b.Bindings) == 0 {
+		return "", "", false
+	}
+	last := b.Bindings[len(b.Bindings)-1]
+	return last.WorldbookID, last.Name, true
+}
+
+func checkOwnedBoundLorebook(ctx context.Context, c *api.Client, f *card.Folder, target, bookID string, sameCard bool, opts *PushOptions, res *PushResult) (string, error) {
+	var bindings bindingsOutput
+	if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {target}}, &bindings); err != nil {
+		return "", err
+	}
+	opts.checkedBindings = true
+	boundID, boundName, hasBound := latestBinding(bindings)
+	createdUnbound := f.State.LorebookUpload != nil && f.State.LorebookUpload.CreatedUnbound && !hasBound
+	if sameCard && bookID != "" && !createdUnbound && boundID != bookID {
+		if !opts.Force {
+			if !hasBound {
+				return "", fmt.Errorf("card %s no longer has Lorebook %s bound on the server; run 'hearthroom card pull %s %s --force' to sync remote changes, or rerun push with --force to create and bind a new Lorebook without re-binding %s", target, bookID, target, f.Dir, bookID)
+			}
+			return "", fmt.Errorf("card %s is bound to Lorebook %s on the server, not %s recorded in local state; run 'hearthroom card pull %s %s --force' to fetch the bound Lorebook, or rerun push with --force to overwrite %s", target, boundID, bookID, target, f.Dir, boundID)
+		}
+		if !hasBound {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("card %s no longer has Lorebook %s bound on the server; --force creates and binds a new Lorebook instead of re-binding %s", target, bookID, bookID))
+		} else {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("card %s bound Lorebook changed on the server (%s -> %s); --force overwrites %s instead of re-binding %s", target, bookID, boundID, boundID, bookID))
+		}
+		f.State.ResetLorebook()
+		f.State.LorebookID = boundID
+		f.State.LorebookName = boundName
+		f.State.IgnoreLocalLorebook = true
+		f.Lorebook.ID = boundID
+		for i := range f.Lorebook.Entries {
+			f.Lorebook.Entries[i].ID = ""
+		}
+		bookID = boundID
+	} else if bookID == "" && hasBound {
+		bookID = boundID
+	}
+	if hasBound && boundID == bookID {
+		opts.remoteBookBound = true
+		opts.remoteBookName = boundName
+	}
+	return bookID, nil
+}
+
+type worldbookDetailOutput struct {
+	Name            string `json:"name"`
+	Description     string `json:"description"`
+	Format          string `json:"format"`
+	Version         int32  `json:"version"`
+	EntryContentMax int    `json:"entryContentMax"`
 }
 
 type entryListOutput struct {

@@ -7,7 +7,12 @@ parent: "card"
 
 # hearthroom card pull
 
-Write one of your cards to a folder
+Reads one of your cards from the provider into a folder, including its latest
+bound Lorebook (written to lorebook.json) and display rules, and records the
+remote Lorebook version and per-entry digests in .hearthroom/state.json.
+
+If the folder also keeps worldbook/*.md source files, pull updates lorebook.json
+only and warns before you run lorebook build so pulled changes are not overwritten.
 
 ## Usage
 

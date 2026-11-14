@@ -33,6 +33,12 @@ func TestOwnedPushObsoleteFragmentsDoNotRequirePrune(t *testing.T) {
 					reply(map[string]any{"entryContentMax": limit})
 				case "/open/v1/role/detail":
 					reply(map[string]any{"language": "en"})
+				case "/open/v1/worldbook/bindings":
+					if r.URL.Query().Get("roleId") == "r" {
+						reply(map[string]any{"bindings": []any{map[string]any{"worldbookId": "b"}}})
+					} else {
+						reply(map[string]any{"bindings": []any{}})
+					}
 				case "/open/v1/worldbook/entry/list":
 					rows := []map[string]any{}
 					for _, e := range remote {

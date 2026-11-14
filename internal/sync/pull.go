@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/hearthroom/cli/internal/api"
@@ -51,22 +53,32 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 
 	var b bindingsOutput
 	bookID, bookName := "", ""
+	var bookDetail worldbookDetailOutput
 	bookAbsent := false
+	entriesRead := false
 	var entries []card.RemoteEntry
 	if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {roleID}}, &b); err != nil {
 		res.Warnings = append(res.Warnings, "Lorebook bindings could not be read: "+err.Error())
 	} else if len(b.Bindings) == 0 {
 		bookAbsent = true
 	} else {
-		bookID, bookName = b.Bindings[0].WorldbookID, b.Bindings[0].Name
+		bookID, bookName, _ = latestBinding(b)
+		if err := c.OpenGet(ctx, "/worldbook/detail", url.Values{"worldbookId": {bookID}}, &bookDetail); err != nil {
+			if !api.IsStatus(err, 404) {
+				res.Warnings = append(res.Warnings, "Lorebook detail could not be read: "+err.Error())
+			}
+		} else if bookDetail.Name != "" {
+			bookName = bookDetail.Name
+		}
 		var el entryListOutput
 		if err := c.OpenGet(ctx, "/worldbook/entry/list", url.Values{"worldbookId": {bookID}}, &el); err != nil {
 			res.Warnings = append(res.Warnings, "Lorebook entries could not be read: "+err.Error())
 		} else {
 			entries = el.Entries
+			entriesRead = true
 		}
 		if len(b.Bindings) > 1 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("card has %d bound Lorebooks; only the first was pulled", len(b.Bindings)))
+			res.Warnings = append(res.Warnings, fmt.Sprintf("card has %d bound Lorebooks; only the latest bound Lorebook was pulled", len(b.Bindings)))
 		}
 	}
 	var asset *card.RemoteAsset
@@ -82,6 +94,16 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	}
 
 	f := card.FromRemote(dir, d, bookID, bookName, entries, asset)
+	if f.Lorebook != nil {
+		if bookDetail.Description != "" {
+			f.Lorebook.Description = bookDetail.Description
+		}
+		if bookDetail.Format != "" {
+			f.Lorebook.Format = bookDetail.Format
+		}
+		f.State.LorebookVersion = bookDetail.Version
+		f.State.LorebookName = bookName
+	}
 	f.State.API = c.API
 	stale, err := stalePullOpenings(f)
 	if err != nil {
@@ -149,6 +171,13 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		fetch(&f.Manifest.Media.Background, "background", "roleBackground")
 		fetch(&f.Manifest.Media.BackgroundLandscape, "background-landscape", "roleBackgroundLandscape")
 		fetch(&f.Manifest.Media.Share, "share", "roleShareImage")
+	}
+
+	if entriesRead {
+		recordPulledLorebookHashes(f, bookDetail.EntryContentMax)
+	}
+	if hasWorldbookMarkdownSources(dir) {
+		res.Warnings = append(res.Warnings, "worldbook/*.md source files were not updated by pull (only lorebook.json was updated); update worldbook/*.md before running 'hearthroom lorebook build' or local builds will overwrite pulled Lorebook changes")
 	}
 
 	if err := f.Save(); err != nil {
@@ -325,4 +354,77 @@ func downloadImage(ctx context.Context, c *api.Client, rawURL, dir, fallback str
 		return "", err
 	}
 	return name, nil
+}
+
+func recordPulledLorebookHashes(f *card.Folder, entryMax int) {
+	if f.Lorebook == nil {
+		return
+	}
+	built, err := f.Build(StoredURLs(f))
+	if err != nil || built.Worldbook == nil {
+		return
+	}
+	if d := built.Digests()[card.SectionWorldbook]; d != "" && f.State.Target == "owned" {
+		if f.State.LocalHashes == nil {
+			f.State.LocalHashes = map[string]string{}
+		}
+		f.State.LocalHashes[card.SectionWorldbook] = d
+	}
+	if len(f.Lorebook.Entries) == 0 {
+		return
+	}
+	prepared, keys, _ := prepareEntries(f, built.Worldbook, entryMax)
+	bodies, _ := prepared["entries"].([]map[string]any)
+	hashes := map[string]string{}
+	entryMap := map[string]string{}
+	for i, body := range bodies {
+		if i >= len(keys) {
+			break
+		}
+		key := keys[i]
+		prefix, suffix, ok := strings.Cut(key, ":")
+		if !ok || suffix != "0" {
+			continue
+		}
+		idx, err := strconv.Atoi(prefix)
+		if err != nil || idx < 0 || idx >= len(f.Lorebook.Entries) {
+			continue
+		}
+		id := f.Lorebook.Entries[idx].ID
+		if id == "" {
+			continue
+		}
+		hashes[id] = entryOpDigest(body)
+		entryMap[key] = id
+	}
+	if len(hashes) > 0 {
+		f.State.LorebookEntryHashes = hashes
+		f.State.LorebookEntryMap = entryMap
+	}
+}
+
+func hasWorldbookMarkdownSources(dir string) bool {
+	root := filepath.Join(dir, "worldbook")
+	info, err := os.Lstat(root)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	found := false
+	_ = filepath.WalkDir(root, func(p string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if strings.HasPrefix(e.Name(), "_") && p != root {
+			if e.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+			found = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	return found
 }

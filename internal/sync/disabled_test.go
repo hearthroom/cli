@@ -39,6 +39,8 @@ func TestOwnedPushPreservesDisabledAndRequiresExplicitDeletion(t *testing.T) {
 			reply(map[string]any{"maxOpsPerCall": 2, "entryContentMaxByLanguage": map[string]int{"en": 20}})
 		case "/open/v1/role/detail":
 			reply(map[string]any{"language": "en"})
+		case "/open/v1/worldbook/bindings":
+			reply(map[string]any{"bindings": []any{map[string]any{"worldbookId": "b"}}})
 		case "/open/v1/worldbook/detail":
 			reply(map[string]any{"entryContentMax": 20})
 		case "/open/v1/role/r/document":
@@ -187,6 +189,8 @@ func TestUpgradeReconcilesLegacyInFlightBeforeNewPlan(t *testing.T) {
 				switch r.URL.Path {
 				case "/open/v1/role/author-asset":
 					reply(map[string]any{"status": "none"})
+				case "/open/v1/worldbook/bindings":
+					reply(map[string]any{"bindings": []any{map[string]any{"worldbookId": "b"}}})
 				case "/open/v1/worldbook/entry/list":
 					reply(map[string]any{"entries": remote})
 				case "/open/v1/worldbook/b/document":

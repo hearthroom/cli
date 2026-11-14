@@ -207,7 +207,14 @@ Lorebook keywords and secondary keywords need `/pattern/flags` syntax for regula
 ```
 
 `id` fields appear after `pull` or a push to an owned card; they hold the
-provider's ids and let later pushes update instead of duplicate. `disabled: true` keeps an entry in the uploaded Lorebook with its enabled state turned off. To delete a CLI-managed entry from an owned card, remove it locally and push with `--prune`. Without that flag, push lists the entries it would delete and stops before writing the Lorebook. Entries created by other tools are kept. Empty entry content is rejected rather than silently omitted.
+provider's ids and let later pushes update instead of duplicate. Only entries whose local content or options changed since the last sync are sent as updates, and book-level `metadata` is sent only when `name` in `lorebook.json` actually changed (preserving any online Lorebook description or tags). `disabled: true` keeps an entry in the uploaded Lorebook with its enabled state turned off. To delete a CLI-managed entry from an owned card, remove it locally and push with `--prune`. Without that flag, push lists the entries it would delete and stops before writing the Lorebook. Entries created by other tools are kept. Empty entry content is rejected rather than silently omitted.
+
+### Resolving Lorebook push conflicts
+
+`card pull` and `card push` record the remote Lorebook's `version` and bound `lorebookId` in `.hearthroom/state.json` (selecting the card's latest bound Lorebook, matching the web editor). If the Lorebook was edited on the web since the last sync—or if the card's bound Lorebook was switched or unbound on the server—`hearthroom card push` stops before overwriting online edits (`409 version_conflict` or bound-book mismatch):
+
+1. Run `hearthroom card pull <roleId> <dir> --force` to fetch the latest online `lorebook.json` and merge your local edits. If the folder keeps `worldbook/*.md` entry sources, `pull` warns that only `lorebook.json` was updated—sync `worldbook/*.md` before running `hearthroom lorebook build` so local builds do not overwrite pulled changes.
+2. Only pass `hearthroom card push <dir> --force` when you intentionally want local files to overwrite online Lorebook changes (push prints an explicit overwrite warning and never re-binds a previously unbound Lorebook ID).
 
 ## card.css
 
@@ -413,11 +420,12 @@ the last push, so only changed sections are sent.
 ## .hearthroom/state.json
 
 Written by the CLI. Keep this file when resuming an interrupted push: it links the
-folder to its card and Lorebook and records completed batches, pending operations
-and learned entry IDs. Removing it loses that link and may create another card or
-Lorebook on the next push. It also contains section hashes, uploaded asset digests
-and URLs, the media folder and the author-asset version. Share it only with
-teammates who should update the same card; pending operations can contain card text.
+folder to its card and Lorebook and records completed batches, pending operations,
+learned entry IDs, per-entry digests (`lorebookEntryHashes`), and the remote
+Lorebook version (`lorebookVersion`). Removing it loses that link and may create
+another card or Lorebook on the next push. It also contains section hashes, uploaded
+asset digests and URLs, the media folder and the author-asset version. Share it only
+with teammates who should update the same card; pending operations can contain card text.
 
 Lorebook writes read the provider's limits from `/open/v1/worldbook/limits`.
 The current provider allows 200 operations per request and 1000 entries per trial

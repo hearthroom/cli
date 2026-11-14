@@ -46,14 +46,20 @@ Lorebook writes use the provider's batch limits. Progress is saved in
 .hearthroom/state.json after the card, Lorebook and each batch are saved;
 rerun the same command after an interruption to continue. Keep that state file.
 Long entries without group settings are split at paragraph or sentence boundaries,
-with shared groupId and increasing groupOrder; the original text stays in your
-files. Existing group settings are sent as written. Trial cards hold at most the
+with shared groupId and increasing groupOrder. Push reports each split, updates
+the original entry with the first part and saves fragment IDs only in sync state;
+source files and IDs stay unchanged. Existing group settings are sent as written. Trial cards hold at most the
 provider's entry limit; use --create for a larger owned card. New owned cards
 default to unlisted; anyone with the link can play the latest saved content.
 
-Disabled Lorebook entries are uploaded and remain disabled. Entries removed
-locally are deleted from an owned card only with --prune; otherwise push lists
-them and stops before writing the Lorebook. Entries created by other tools are kept.
+Disabled Lorebook entries are uploaded and remain disabled. Only entries whose
+local content or options changed since the last sync are sent as updates. Push
+checks the Lorebook version recorded in .hearthroom/state.json and stops on a
+409 version_conflict (or if the card's bound Lorebook changed on the server) so
+online edits are not silently overwritten; run card pull --force to merge, or
+pass --force to overwrite online Lorebook changes. Entries removed locally are
+deleted from an owned card only with --prune; otherwise push lists them and
+stops before writing the Lorebook. Entries created by other tools are kept.
 
 ## Usage
 
@@ -68,7 +74,7 @@ hearthroom card push [dir] [flags]
       --create            create a new owned card (unlisted by default) and write to it
       --dry-run           check limits and show planned changes without uploading media or writing card content or local state
       --evict             free the least recently used trial slot when all are in use
-      --force             send every section even if unchanged; also skips the readiness check
+      --force             send every section even if unchanged, overwrite online Lorebook changes, and skip the readiness check
       --prune             delete CLI-managed Lorebook entries removed from the local file
       --skip-media        do not upload assets; keep previously uploaded URLs
       --to string         write to a card you own by id instead of a trial card

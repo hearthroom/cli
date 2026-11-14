@@ -180,16 +180,19 @@ type Opening struct {
 
 // State is .hearthroom/state.json: what the folder is synced to.
 type LorebookUpload struct {
-	SourceKeys       [][]string       `json:"sourceKeys,omitempty"`
-	FragmentDeletes  []string         `json:"fragmentDeletes,omitempty"`
-	Digest           string           `json:"digest"`
-	Ops              []map[string]any `json:"operations"`
-	Keys             []string         `json:"keys"`
-	Next             int              `json:"nextOperation"`
-	CompletedBatches int              `json:"completedBatches"`
-	BatchSize        int              `json:"batchSize"`
-	InFlight         bool             `json:"inFlight,omitempty"`
-	BeforeIDs        []string         `json:"beforeIds,omitempty"`
+	RetainedMap      map[string]string `json:"retainedMap,omitempty"`
+	SourceKeys       [][]string        `json:"sourceKeys,omitempty"`
+	FragmentDeletes  []string          `json:"fragmentDeletes,omitempty"`
+	Digest           string            `json:"digest"`
+	Ops              []map[string]any  `json:"operations"`
+	Keys             []string          `json:"keys"`
+	Next             int               `json:"nextOperation"`
+	CompletedBatches int               `json:"completedBatches"`
+	BatchSize        int               `json:"batchSize"`
+	BaseVersion      int32             `json:"baseVersion,omitempty"`
+	CreatedUnbound   bool              `json:"createdUnbound,omitempty"`
+	InFlight         bool              `json:"inFlight,omitempty"`
+	BeforeIDs        []string          `json:"beforeIds,omitempty"`
 }
 
 type CardImageProvision struct {
@@ -206,6 +209,7 @@ type State struct {
 	CardImages          map[string]Asset    `json:"cardImages,omitempty"`
 	CardImagesRoleID    string              `json:"cardImagesRoleId,omitempty"`
 	LorebookSourceIDs   map[string]string   `json:"lorebookSourceIds,omitempty"`
+	LorebookEntryHashes map[string]string   `json:"lorebookEntryHashes,omitempty"`
 	IgnoreLocalLorebook bool                `json:"ignoreLocalLorebook,omitempty"`
 	PrivatePending      bool                `json:"privatePending,omitempty"`
 	OwnedPushPending    bool                `json:"ownedPushPending,omitempty"`
@@ -220,6 +224,8 @@ type State struct {
 	Assets              map[string]Asset    `json:"assets,omitempty"` // by relative path
 	AuthorAssetVersion  int64               `json:"authorAssetVersion,omitempty"`
 	LorebookID          string              `json:"lorebookId,omitempty"`
+	LorebookName        string              `json:"lorebookName,omitempty"`
+	LorebookVersion     int32               `json:"lorebookVersion,omitempty"`
 	LorebookEntryIDs    []string            `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
 	ConversationID      string              `json:"conversationId,omitempty"`
 	AssetFolder         string              `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
@@ -227,6 +233,19 @@ type State struct {
 	// operation id is sent again on retry, so a lost reply cannot submit twice.
 	Submission          *Submission          `json:"submission,omitempty"`
 	VisibilityOperation *VisibilityOperation `json:"visibilityOperation,omitempty"`
+}
+
+// ResetLorebook clears target-bound Lorebook identity, version, and entry tracking.
+func (s *State) ResetLorebook() {
+	s.LorebookID = ""
+	s.LorebookName = ""
+	s.LorebookVersion = 0
+	s.LorebookEntryIDs = nil
+	s.LorebookEntryMap = nil
+	s.LorebookSourceIDs = nil
+	s.LorebookEntryHashes = nil
+	s.LorebookUpload = nil
+	s.LorebookUpload = nil
 }
 
 // VisibilityOperation is saved before sending and retained until a definitive

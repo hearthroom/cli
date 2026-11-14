@@ -30,8 +30,8 @@ func TestSubmitUpdateContract(t *testing.T) {
 		{"empty silent note", "\r\n\u2003", "", false},
 		{"normalize lines and trim", " \r\nNew route\r\nand ending\rhere\u2003", "New route\nand ending\nhere", true},
 		{"10 code points despite surrogate pairs", strings.Repeat("😀", 10), strings.Repeat("😀", 10), true},
-		{"200 code points", strings.Repeat("😀", 200), strings.Repeat("😀", 200), true},
-		{"200 includes spaces and line breaks", "1234567890" + strings.Repeat(" \n", 94) + "ab", "1234567890" + strings.Repeat(" \n", 94) + "ab", true},
+		{"500 code points", strings.Repeat("😀", 500), strings.Repeat("😀", 500), true},
+		{"500 includes spaces and line breaks", "1234567890" + strings.Repeat(" \n", 244) + "ab", "1234567890" + strings.Repeat(" \n", 244) + "ab", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			site := &ratingSite{}
@@ -69,8 +69,8 @@ func TestSubmitUpdateRejectsInvalidNotesBeforeRequest(t *testing.T) {
 		{"whitespace", "\n\t\u2003\u00a0", "An update notification needs a changelog. Use --update-note to describe what changed.", true},
 		{"nine astral points", strings.Repeat("😀", 9), "Add details about what is new or changed to reach 10 characters, excluding whitespace.", true},
 		{"spaces cannot make ten", "abc def ghi\u2003\n", "Add details about what is new or changed to reach 10 characters, excluding whitespace.", true},
-		{"201 astral points", strings.Repeat("😀", 201), "Shorten the changelog to 200 characters or fewer before submitting.", true},
-		{"201 includes whitespace", "1234567890" + strings.Repeat(" ", 190) + "a", "Shorten the changelog to 200 characters or fewer before submitting.", true},
+		{"501 astral points", strings.Repeat("😀", 501), "Shorten the changelog to 500 characters or fewer before submitting.", true},
+		{"501 includes whitespace", "1234567890" + strings.Repeat(" ", 490) + "a", "Shorten the changelog to 500 characters or fewer before submitting.", true},
 		{"note does not authorize notification", "New route and ending", "A changelog requires Update and notify. Add --notify or remove --update-note before submitting.", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

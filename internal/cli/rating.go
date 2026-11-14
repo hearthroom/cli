@@ -449,7 +449,7 @@ twice. --fandom names the work the card is based on, if any.
 
 The default is a silent update, with no update notification.
 
-Leading and trailing whitespace is trimmed. A changelog needs at least 10 non-whitespace Unicode code points and no more than 200 code points in total; internal whitespace and line breaks count toward the total limit.
+Leading and trailing whitespace is trimmed. A changelog needs at least 10 non-whitespace Unicode code points and no more than 500 code points in total; internal whitespace and line breaks count toward the total limit.
 
 Each card can send one update notification every 3 days; silent updates remain available between notifications.
 
@@ -556,7 +556,7 @@ listing quota. Run it only when the author asks.`,
 	}
 	c.Flags().StringVar(&fandom, "fandom", "", "the work the card is based on, if any")
 	c.Flags().BoolVar(&majorUpdate, "notify", false, "Send an update notification to people who saved this card or follow its creator after the new version is approved and published; requires --update-note.")
-	c.Flags().StringVar(&updateNote, "update-note", "", "Public changelog shown in the notification: at least 10 characters excluding whitespace, with a total limit of 200; requires --notify.")
+	c.Flags().StringVar(&updateNote, "update-note", "", "Public changelog shown in the notification: at least 10 characters excluding whitespace, with a total limit of 500; requires --notify.")
 	return c
 }
 
@@ -583,8 +583,8 @@ func submissionUpdate(major bool, note string) (string, string, error) {
 	if nonWhitespace < 10 {
 		return "", "", errors.New("Add details about what is new or changed to reach 10 characters, excluding whitespace.")
 	}
-	if utf8.RuneCountInString(note) > 200 {
-		return "", "", errors.New("Shorten the changelog to 200 characters or fewer before submitting.")
+	if utf8.RuneCountInString(note) > 500 {
+		return "", "", errors.New("Shorten the changelog to 500 characters or fewer before submitting.")
 	}
 	return "major", note, nil
 }

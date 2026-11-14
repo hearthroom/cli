@@ -22,7 +22,7 @@ twice. --fandom names the work the card is based on, if any.
 
 The default is a silent update, with no update notification.
 
-Leading and trailing whitespace is trimmed. A changelog needs at least 10 non-whitespace Unicode code points and no more than 200 code points in total; internal whitespace and line breaks count toward the total limit.
+Leading and trailing whitespace is trimmed. A changelog needs at least 10 non-whitespace Unicode code points and no more than 500 code points in total; internal whitespace and line breaks count toward the total limit.
 
 Each card can send one update notification every 3 days; silent updates remain available between notifications.
 
@@ -42,7 +42,7 @@ hearthroom card submit [dir] [flags]
 ```
       --fandom string        the work the card is based on, if any
       --notify               Send an update notification to people who saved this card or follow its creator after the new version is approved and published; requires --update-note.
-      --update-note string   Public changelog shown in the notification: at least 10 characters excluding whitespace, with a total limit of 200; requires --notify.
+      --update-note string   Public changelog shown in the notification: at least 10 characters excluding whitespace, with a total limit of 500; requires --notify.
 ```
 
 ## Global options

@@ -15,7 +15,7 @@ func init() {
 func (a *App) lorebookCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lorebook",
-		Short: "Build lorebook.json from one Markdown file per entry, and check the entries",
+		Short: "Build or check lorebook.json, or read and edit individual Lorebook entries",
 		Long: `A Lorebook is easier to write and review as one file per entry. Keep the sources
 under <dir>/worldbook/, one Markdown file each: a frontmatter block (name, keywords,
 secondaryKeywords, constant, disabled, order, scanDepth, matchWholeWords,
@@ -25,9 +25,12 @@ are read; files and folders starting with "_" are notes and are skipped. "order"
 the entry's position in lorebook.json and is not stored as a field. "build" writes
 lorebook.json from them (never the other way round); "check" compares the two and
 looks for keywords that fire several entries at once, entries nothing can reach, and
-too many constant entries.`,
+too many constant entries.
+
+When editing a linked owned card concurrently with the web editor or another agent,
+use "lorebook entry" to list, read, add, update, or delete one remote entry at a time.`,
 	}
-	cmd.AddCommand(a.lorebookBuild(), a.lorebookCheck())
+	cmd.AddCommand(a.lorebookBuild(), a.lorebookCheck(), a.lorebookEntry())
 	return cmd
 }
 

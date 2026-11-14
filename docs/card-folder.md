@@ -304,6 +304,18 @@ provider's ids and let later pushes update instead of duplicate. Only entries wh
 1. Run `hearthroom card pull <roleId> <dir> --force` to fetch the latest online `lorebook.json` and merge your local edits. If the folder keeps `worldbook/*.md` entry sources, `pull` warns that only `lorebook.json` was updated—sync `worldbook/*.md` before running `hearthroom lorebook build` so local builds do not overwrite pulled changes.
 2. Only pass `hearthroom card push <dir> --force` when you intentionally want local files to overwrite online Lorebook changes (push prints an explicit overwrite warning and never re-binds a previously unbound Lorebook ID).
 
+### Per-entry Lorebook editing (concurrent workflows)
+
+When an author edits a Lorebook in the web editor while an AI agent or collaborator edits the same Lorebook from the CLI, use `hearthroom lorebook entry` on the linked owned card folder instead of pushing the whole `lorebook.json`:
+
+- `hearthroom lorebook entry list [dir]` — list remote entries, their `id`, category, status, keywords, and the current Lorebook `version`.
+- `hearthroom lorebook entry get [dir] <entry>` — read one remote entry by `id` or unique `name`.
+- `hearthroom lorebook entry add [dir] (--file <md-or-json> | --name ... --content ...)` — append one entry (creating and binding a Lorebook if the owned card does not have one yet).
+- `hearthroom lorebook entry update [dir] <entry> (--file <md-or-json> | --content ... --keywords ...)` — patch only the specified entry, leaving all other entries and book-level metadata (`name`, `description`, `tags`) untouched.
+- `hearthroom lorebook entry delete [dir] <entry>` — delete one remote entry.
+
+Each write sends `expectedVersion` from `.hearthroom/state.json` (or `--expected-version <n>` after inspecting live entries on a `409` conflict) and updates that entry's content, hash, and version in local `lorebook.json` and `.hearthroom/state.json`, so a subsequent `hearthroom card push` treats the entry as already synced. Markdown source files under `worldbook/*.md` are not rewritten automatically.
+
 `semanticRecall` defaults to on for new entries. Set it to `false` to allow only keyword or regular-expression activation; constant entries and content already retained in a conversation stay available. Set it to `true` to enable semantic recall again. An omitted field in a patch preserves the saved setting. Markdown entry sources accept `semanticRecall: false` or `semanticRecall: true` in their frontmatter.
 
 Turn off semantic recall on an entry when it must only appear once its keywords match, for example to keep a story reveal in order. Agent semantic lookup also excludes it; explicit list, read and text search remain available. Split pieces of one logical entry stay together: if any piece has semantic recall off, the group is keyword-only.

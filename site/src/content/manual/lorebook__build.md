@@ -26,4 +26,4 @@ hearthroom lorebook build [dir]
 
 ## See also
 
-- [`hearthroom lorebook`](/manual/lorebook/) — Build lorebook.json from one Markdown file per entry, and check the entries
+- [`hearthroom lorebook`](/manual/lorebook/) — Build or check lorebook.json, or read and edit individual Lorebook entries

@@ -48,6 +48,7 @@ func AgentsGuide(name string) string {
 		"hearthroom play . --new-session -m \"...\" --allow-spend --json   # one real turn; spends the author's credits\n" +
 		"hearthroom card check . --replay history.txt   # protocol health from real replies\n" +
 		"hearthroom lorebook build .                # worldbook/*.md -> lorebook.json\n" +
+		"hearthroom lorebook entry list .           # concurrent edits on an owned card: list|get|add|update|delete\n" +
 		"```\n\n" +
 		"`" + ReadmeFile + "` is the card's working notes (never sent): `uiRole: assist | core`, the status\n" +
 		"overhead threshold, decisions, rejected directions and the evidence of each version.\n" +

@@ -418,12 +418,7 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 	if lorebookID != "" {
 		lb := &Lorebook{ID: lorebookID, Name: lorebookName, Entries: []LorebookEntry{}}
 		for _, e := range entries {
-			lb.Entries = append(lb.Entries, LorebookEntry{
-				ID: e.EntryID, Name: e.Name, Content: e.Content, Category: e.Category,
-				Keywords: nonNil(e.Keywords), SecondaryKeywords: e.SecondaryKeywords,
-				SemanticRecall: e.SemanticRecall, Constant: e.IsConstant, Disabled: !e.IsEnabled, TriggerRegion: e.TriggerRegion,
-				MatchOptions: nullToNil(e.MatchOptions),
-			})
+			lb.Entries = append(lb.Entries, RemoteToLorebookEntry(e))
 		}
 		f.Lorebook = lb
 		for _, e := range entries {
@@ -468,6 +463,23 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 		f.State.Target = "owned"
 	}
 	return f
+}
+
+// RemoteToLorebookEntry converts one provider entry into the lorebook.json shape.
+func RemoteToLorebookEntry(e RemoteEntry) LorebookEntry {
+	return LorebookEntry{
+		ID:                e.EntryID,
+		Name:              e.Name,
+		Content:           e.Content,
+		Category:          e.Category,
+		Keywords:          nonNil(e.Keywords),
+		SecondaryKeywords: e.SecondaryKeywords,
+		SemanticRecall:    e.SemanticRecall,
+		Constant:          e.IsConstant,
+		Disabled:          !e.IsEnabled,
+		TriggerRegion:     e.TriggerRegion,
+		MatchOptions:      nullToNil(e.MatchOptions),
+	}
 }
 
 func nullToNil(raw json.RawMessage) json.RawMessage {

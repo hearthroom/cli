@@ -476,7 +476,7 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 		f.State.LorebookUpload = nil
 	}
 	if f.State.LorebookUpload == nil {
-		if !opts.Force && !createdBook && f.State.LorebookVersion == 0 {
+		if !opts.Force && !createdBook && (f.State.LorebookVersion == 0 || f.State.LorebookVersion == remoteVersion) {
 			if missingName, missingID, missing := missingTrackedEntry(f, existing.Entries); missing {
 				return fmt.Errorf("Lorebook entry %q (%s) was deleted on the server since last sync; run 'hearthroom card pull %s %s --force' to merge remote changes, or rerun push with --force to re-create it", missingName, missingID, roleID, f.Dir)
 			}
@@ -655,13 +655,28 @@ func missingTrackedEntry(f *card.Folder, existing []card.RemoteEntry) (string, s
 	for _, e := range existing {
 		remoteHas[e.EntryID] = true
 	}
-	for _, e := range f.Lorebook.Entries {
-		if e.ID != "" && tracked[e.ID] && !remoteHas[e.ID] {
-			return e.Name, e.ID, true
+	resolvedIDs := resolvedLocalEntryIDs(f)
+	for i, e := range f.Lorebook.Entries {
+		id := e.ID
+		if i < len(resolvedIDs) && resolvedIDs[i] != "" {
+			id = resolvedIDs[i]
+		}
+		if id != "" && tracked[id] && !remoteHas[id] {
+			return e.Name, id, true
 		}
 	}
 	return "", "", false
 }
+
+// conflictError replaces the provider error prose with actionable CLI guidance
+// while preserving the underlying *api.Error for errors.As and --json detail.
+type conflictError struct {
+	msg string
+	err error
+}
+
+func (e conflictError) Error() string { return e.msg }
+func (e conflictError) Unwrap() error { return e.err }
 
 func formatLorebookConflictError(err error, roleID, dir string, expectedVer, remoteVer int32) error {
 	var ae *api.Error
@@ -673,7 +688,11 @@ func formatLorebookConflictError(err error, roleID, dir string, expectedVer, rem
 		}
 	}
 	if remoteVer > 0 && expectedVer > 0 {
-		return fmt.Errorf("remote Lorebook was modified on the server (remote version %d, local base version %d); run 'hearthroom card pull %s %s --force' to fetch remote changes and merge, or rerun 'hearthroom card push %s --force' to overwrite online Lorebook edits", remoteVer, expectedVer, roleID, dir, dir)
+		msg := fmt.Sprintf("remote Lorebook was modified on the server (remote version %d, local base version %d); run 'hearthroom card pull %s %s --force' to fetch remote changes and merge, or rerun 'hearthroom card push %s --force' to overwrite online Lorebook edits", remoteVer, expectedVer, roleID, dir, dir)
+		if err != nil {
+			return conflictError{msg: msg, err: err}
+		}
+		return errors.New(msg)
 	}
 	if err != nil {
 		return fmt.Errorf("remote Lorebook was modified on the server (%w); run 'hearthroom card pull %s %s --force' to fetch remote changes and merge, or rerun 'hearthroom card push %s --force' to overwrite online Lorebook edits", err, roleID, dir, dir)

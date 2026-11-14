@@ -490,6 +490,24 @@ func (f *Folder) SaveState() error {
 	return writeFileAtomic(filepath.Join(f.Dir, StateDir, StateFile), raw)
 }
 
+// SaveLorebook writes lorebook.json (when non-nil) and .hearthroom/state.json
+// atomically without rewriting unrelated files in the card folder.
+func (f *Folder) SaveLorebook() error {
+	if err := os.MkdirAll(f.Dir, 0o755); err != nil {
+		return err
+	}
+	if f.Lorebook != nil {
+		raw, err := encodeJSON(f.Lorebook)
+		if err != nil {
+			return err
+		}
+		if err := writeFileAtomic(filepath.Join(f.Dir, LorebookFile), raw); err != nil {
+			return err
+		}
+	}
+	return f.SaveState()
+}
+
 // MarshalJSON writes known fields plus Extra, keeping formatVersion first.
 func (m Manifest) MarshalJSON() ([]byte, error) {
 	type plain Manifest
@@ -722,6 +740,22 @@ func FileDigest(path string) (string, error) {
 
 // assetRef matches relative asset references in text and JSON.
 var assetRef = regexp.MustCompile("assets/[^\\s\"'`<>()\\\\]+")
+
+// ScanAssetRefs returns distinct relative assets/... targets referenced in text.
+func ScanAssetRefs(text string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range assetRef.FindAllString(text, -1) {
+		p, _ := refTarget(strings.TrimRight(m, ".,;:!?"))
+		p = strings.TrimSpace(p)
+		if p != "" && strings.HasPrefix(p, AssetsDir+"/") && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
 
 // refTarget classifies one matched reference: a file, or a directory (a
 // trailing "/", or a path holding a $1 / ${x} / {{…}} placeholder, which

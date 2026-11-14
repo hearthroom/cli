@@ -281,11 +281,12 @@
   {
     "slug": "lorebook",
     "command": "hearthroom lorebook",
-    "short": "Build lorebook.json from one Markdown file per entry, and check the entries",
+    "short": "Build or check lorebook.json, or read and edit individual Lorebook entries",
     "parent": "hearthroom",
     "children": [
       "lorebook/build",
-      "lorebook/check"
+      "lorebook/check",
+      "lorebook/entry"
     ]
   },
   {
@@ -299,6 +300,49 @@
     "command": "hearthroom lorebook check",
     "short": "Compare worldbook/*.md with lorebook.json and look for keyword problems",
     "parent": "lorebook"
+  },
+  {
+    "slug": "lorebook/entry",
+    "command": "hearthroom lorebook entry",
+    "short": "List, read, add, update, or delete individual entries on a linked card's Lorebook",
+    "parent": "lorebook",
+    "children": [
+      "lorebook/entry/add",
+      "lorebook/entry/delete",
+      "lorebook/entry/get",
+      "lorebook/entry/list",
+      "lorebook/entry/update"
+    ]
+  },
+  {
+    "slug": "lorebook/entry/add",
+    "command": "hearthroom lorebook entry add",
+    "short": "Add one entry to the linked card's remote Lorebook",
+    "parent": "lorebook/entry"
+  },
+  {
+    "slug": "lorebook/entry/delete",
+    "command": "hearthroom lorebook entry delete",
+    "short": "Delete one entry from the linked card's remote Lorebook",
+    "parent": "lorebook/entry"
+  },
+  {
+    "slug": "lorebook/entry/get",
+    "command": "hearthroom lorebook entry get",
+    "short": "Read one entry from the linked card's remote Lorebook",
+    "parent": "lorebook/entry"
+  },
+  {
+    "slug": "lorebook/entry/list",
+    "command": "hearthroom lorebook entry list",
+    "short": "List entries in the linked card's remote Lorebook",
+    "parent": "lorebook/entry"
+  },
+  {
+    "slug": "lorebook/entry/update",
+    "command": "hearthroom lorebook entry update",
+    "short": "Update one entry in the linked card's remote Lorebook",
+    "parent": "lorebook/entry"
   },
   {
     "slug": "media",

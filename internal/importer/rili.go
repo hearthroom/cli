@@ -788,13 +788,16 @@ func formatRiliSchemaNodeRule(node *card.JSONNode) string {
 	return base
 }
 
-func buildRiliSchemaTree(node *card.JSONNode, path string, pathRules map[string]string) *card.JSONNode {
+func buildRiliSchemaTree(node *card.JSONNode, path string, pathRules map[string]string, pathOrder *[]string) *card.JSONNode {
 	t := inferRiliSchemaType(node)
 	props, hasProps := node.Get("properties")
 	hasProps = t == "object" && hasProps && props.Kind == card.JSONObject
 
 	if path != "" {
 		if rule := formatRiliSchemaNodeRule(node); rule != "" {
+			if _, seen := pathRules[path]; !seen {
+				*pathOrder = append(*pathOrder, path)
+			}
 			pathRules[path] = rule
 		}
 	}
@@ -805,7 +808,7 @@ func buildRiliSchemaTree(node *card.JSONNode, path string, pathRules map[string]
 			child := props.Vals[i]
 			cp := riliVarKeyPath(path, k)
 			if child.Kind == card.JSONObject {
-				out.Set(k, buildRiliSchemaTree(child, cp, pathRules))
+				out.Set(k, buildRiliSchemaTree(child, cp, pathRules, pathOrder))
 			} else {
 				out.Set(k, card.NewJSONString(""))
 			}
@@ -929,7 +932,13 @@ func convertRiliVariables(source map[string]any, rawBytes []byte, isMod bool, ad
 		schemaNode = n
 	}
 
-	if schemaNode.Kind != card.JSONObject || (riliNodeStr(schemaNode, "type") != "" && riliNodeStr(schemaNode, "type") != "object") {
+	invalidRoot := schemaNode.Kind != card.JSONObject
+	if !invalidRoot {
+		if tNode, hasType := schemaNode.Get("type"); hasType {
+			invalidRoot = tNode.Kind != card.JSONString || strings.TrimSpace(tNode.Str) != "object"
+		}
+	}
+	if invalidRoot {
 		text, _ := json.Marshal(rawSchema)
 		add("memoryInvalid", "memorySchema root must be a JSON object schema; it was kept as text in %s and must be fixed before pushing", card.VariablesFile)
 		if template != "" && usesSuggestions {
@@ -939,12 +948,39 @@ func convertRiliVariables(source map[string]any, rawBytes []byte, isMod bool, ad
 	}
 
 	pathRules := map[string]string{}
-	dataNode := buildRiliSchemaTree(schemaNode, "", pathRules)
-	rulesText := riliNodeStr(schemaNode, "description")
+	var pathOrder []string
+	dataNode := buildRiliSchemaTree(schemaNode, "", pathRules, &pathOrder)
+	if dataNode.Kind != card.JSONObject {
+		text, _ := json.Marshal(rawSchema)
+		add("memoryInvalid", "memorySchema root must be a JSON object schema; it was kept as text in %s and must be fixed before pushing", card.VariablesFile)
+		if template != "" && usesSuggestions {
+			add("templateSuggestions", "renderTemplate references suggestions, which are empty here; review %s before pushing", card.PanelFile)
+		}
+		return &card.Variables{Convention: "plain", Data: text, Panel: template}
+	}
 
-	add("memoryConverted", "working memory schema became card variables (%s); review starting values before pushing", card.VariablesFile)
-	if template != "" && usesSuggestions {
-		add("templateSuggestions", "renderTemplate references suggestions, which are empty here; review %s before pushing", card.PanelFile)
+	rulesText := riliNodeStr(schemaNode, "description")
+	pathBytes := 0
+	for _, k := range pathOrder {
+		if v := strings.TrimSpace(pathRules[k]); v != "" {
+			pathBytes += len(k) + len(v)
+		}
+	}
+	if pathBytes > card.VariablesPathRuleMax {
+		var lines []string
+		for _, k := range pathOrder {
+			if v := strings.TrimSpace(pathRules[k]); v != "" {
+				lines = append(lines, k+": "+v)
+			}
+		}
+		if joined := strings.Join(lines, "\n"); joined != "" {
+			if rulesText != "" {
+				rulesText = rulesText + "\n\n" + joined
+			} else {
+				rulesText = joined
+			}
+		}
+		pathRules = nil
 	}
 
 	v := &card.Variables{
@@ -955,6 +991,14 @@ func convertRiliVariables(source map[string]any, rawBytes []byte, isMod bool, ad
 	}
 	if len(pathRules) > 0 {
 		v.PathRules = pathRules
+	}
+	if problems := card.CheckVariables(v, nil); len(problems) > 0 {
+		add("memoryLimit", "working memory became card variables, but exceeds limits (%s); adjust before pushing", problems[0])
+	} else {
+		add("memoryConverted", "working memory schema became card variables (%s); review starting values before pushing", card.VariablesFile)
+	}
+	if template != "" && usesSuggestions {
+		add("templateSuggestions", "renderTemplate references suggestions, which are empty here; review %s before pushing", card.PanelFile)
 	}
 	return v
 }
@@ -1172,9 +1216,7 @@ func convertRili(raw map[string]any, rawBytes []byte, language string) (*Result,
 	if css != "" {
 		r.CardCSS, r.CardCSSDialect = css, "rili"
 	}
-	if len(rules) > 0 || r.OpeningPage != "" || r.CardCSS != "" {
-		r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox", Format: "fengyue"}
-	}
+	r.Rules = &RuleSet{Rules: rules, PageMode: "sandbox", Format: "fengyue"}
 
 	r.Variables = convertRiliVariables(source, rawBytes, isMod, add)
 	riliReportUnmapped(raw, source, prompt, isMod, add)

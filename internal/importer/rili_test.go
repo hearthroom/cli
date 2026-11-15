@@ -2,9 +2,11 @@ package importer
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -217,10 +219,10 @@ func TestRiliWritesValidCardFolder(t *testing.T) {
 		if problems := card.CheckVariables(f.Variables, body); len(problems) > 0 {
 			t.Fatalf("case %d CheckVariables problems: %v", idx, problems)
 		}
+		if f.Rules == nil || f.Rules.CardFormat != "fengyue" || f.Rules.PageMode != "sandbox" || f.Rules.OpeningMode != "page" {
+			t.Fatalf("case %d rules: %+v", idx, f.Rules)
+		}
 		if idx == 0 {
-			if f.Rules == nil || f.Rules.CardFormat != "fengyue" || f.Rules.PageMode != "sandbox" || f.Rules.OpeningMode != "page" {
-				t.Fatalf("case 0 rules: %+v", f.Rules)
-			}
 			if f.Rules.CardCSSDialect == nil || *f.Rules.CardCSSDialect != "rili" {
 				t.Fatalf("case 0 CardCSSDialect = %v, want rili", f.Rules.CardCSSDialect)
 			}
@@ -232,6 +234,86 @@ func TestRiliWritesValidCardFolder(t *testing.T) {
 				!strings.Contains(joinedNotes, "https://public.talkaicc.com/background/jknjh9pn7ke2d4kc4rlfpwsk.webp") {
 				t.Fatalf("expected talkaicc CDN URLs in CLI notes, got:\n%s", joinedNotes)
 			}
+		} else {
+			if f.Rules.CardCSSDialect != nil || f.CardCSS != nil {
+				t.Fatalf("case %d expected empty CardCSS/CardCSSDialect, got %v / %v", idx, f.CardCSS, f.Rules.CardCSSDialect)
+			}
 		}
+	}
+}
+
+func TestRiliMemorySchemaValidationAndLimits(t *testing.T) {
+	cases := loadRiliCases(t)
+	base, ok := DecodeRili(cases[0].Input)
+	if !ok {
+		t.Fatal("case 0 decode failed")
+	}
+
+	for _, rawSchema := range []string{
+		`{"type":123}`,
+		`{"type":["object"]}`,
+		`{"items":{"type":"string"}}`,
+		`{"type":"object","default":"not-an-object"}`,
+	} {
+		in := map[string]any{
+			"title":              base["title"],
+			"description":        base["description"],
+			"introPage":          base["introPage"],
+			"prompt":             base["prompt"],
+			"enableMemorySchema": true,
+			"memorySchema":       rawSchema,
+		}
+		res, notes := convertRili(in, nil, "zh-Hans")
+		if res.Variables == nil {
+			t.Fatalf("schema %s: expected Variables to retain raw text", rawSchema)
+		}
+		if problems := card.CheckVariables(res.Variables, nil); len(problems) == 0 {
+			t.Fatalf("schema %s: expected CheckVariables to block pushing", rawSchema)
+		}
+		var codes []string
+		for _, n := range notes {
+			codes = append(codes, n.code)
+		}
+		if !slices.Contains(codes, "memoryInvalid") || slices.Contains(codes, "memoryConverted") {
+			t.Fatalf("schema %s: unexpected note codes %v", rawSchema, codes)
+		}
+	}
+
+	props := map[string]any{}
+	for i := range 60 {
+		props[fmt.Sprintf("field_%02d", i)] = map[string]any{
+			"type":        "number",
+			"default":     i,
+			"description": strings.Repeat("規", 60),
+		}
+	}
+	overBytes, _ := json.Marshal(map[string]any{"type": "object", "properties": props})
+	overIn := map[string]any{
+		"title":              base["title"],
+		"description":        base["description"],
+		"introPage":          base["introPage"],
+		"prompt":             base["prompt"],
+		"enableMemorySchema": true,
+		"memorySchema":       string(overBytes),
+	}
+	res, notes := convertRili(overIn, nil, "zh-Hans")
+	if res.Variables == nil {
+		t.Fatal("expected Variables for over-limit schema")
+	}
+	if len(res.Variables.PathRules) != 0 {
+		t.Fatalf("expected PathRules > 8 KiB to spill into Rules, got %d entries", len(res.Variables.PathRules))
+	}
+	if !strings.Contains(res.Variables.Rules, "field_00:") {
+		t.Fatalf("expected spilled field rules in Rules, got %q", res.Variables.Rules)
+	}
+	if problems := card.CheckVariables(res.Variables, nil); len(problems) == 0 {
+		t.Fatal("expected CheckVariables problem for over-limit spilled rules")
+	}
+	var codes []string
+	for _, n := range notes {
+		codes = append(codes, n.code)
+	}
+	if !slices.Contains(codes, "memoryLimit") || slices.Contains(codes, "memoryConverted") {
+		t.Fatalf("expected memoryLimit note without memoryConverted, got %v", codes)
 	}
 }

@@ -13,6 +13,7 @@ func TestCardCSSCheckBounds(t *testing.T) {
 		{strings.Repeat("x", 524288), "", true},
 		{strings.Repeat("界", 174763), "", false},
 		{"p{color:red}", "fengyue", true},
+		{".is-user{color:red}", "rili", true},
 		{"\r\n#ai-chat-input{border-width:1px}\r\n", "fengyue-v2", true},
 		{"p{color:red}", "unknown", false},
 	} {

@@ -28,6 +28,17 @@ func TestCardCSSV2Preflight(t *testing.T) {
 	}
 }
 
+func TestCardCSSRiliPreflight(t *testing.T) {
+	f, err := card.Init(t.TempDir(), "Synthetic", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := card.Payload{AuthorAsset: map[string]any{"cardCss": "\r\n#ai-chat-input{color:red}\r\n", "cardCssDialect": "rili"}}
+	if _, err := preflight(f, p, "en", true); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPushPreflightRejectsBeforeAnyWrite(t *testing.T) {
 	for _, tc := range []struct {
 		name string

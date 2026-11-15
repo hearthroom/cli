@@ -342,7 +342,7 @@ rewritten. `assets/...` URLs use the same upload and rewrite path as rules.
 card to use the latest Fengyue compatibility.
 
 Imports and older folders may carry `cardCssDialect` in `rules.json`
-(`fengyue-v2`, `fengyue`, `tavern`, `mmd`, or an explicit empty string). New
+(`rili`, `fengyue-v2`, `fengyue`, `tavern`, `mmd`, or an explicit empty string). New
 Fengyue imports use `fengyue-v2` for source-platform base styles; older hints
 keep their original rendering. This is a compatibility
 hint: retain it on round-trip, omit it for new handwritten CSS, and use an empty

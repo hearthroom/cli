@@ -140,7 +140,8 @@ checks the values before a push.
   the stored page is left alone, an empty file clears it, and `card pull`
   writes it when the card has one. A card with opening choices or an opening
   page may leave `welcome.md` empty: the player speaks first. `card import`
-  writes it from an AI Fengyue card's detailed introduction.
+  writes it from an AI Fengyue card's detailed introduction or a Rili card's
+  `introPage`.
 - A file whose only content is an HTML comment (`<!-- … -->`) counts as empty.
 - Text is trimmed. Line endings are normalised to `\n`.
 - Any `assets/…` reference inside these files, Lorebook entries or rule
@@ -238,10 +239,10 @@ selectors automatically; authors do not choose a style source.
 The file is optional: absence preserves the stored CSS, and an existing empty
 file clears it. Its limit is 524288 UTF-8 bytes after relative asset URLs are
 rewritten. `assets/...` URLs use the same upload and rewrite path as rules.
-`card import` writes AI Fengyue's built-in CSS here.
+`card import` writes AI Fengyue's built-in CSS and Rili's `injectStyles` here.
 
 Imports and older folders may carry `cardCssDialect` in `rules.json`
-(`fengyue`, `tavern`, `mmd`, or an explicit empty string). This is a compatibility
+(`fengyue-v2`, `fengyue`, `rili`, `tavern`, `mmd`, or an explicit empty string). This is a compatibility
 hint: retain it on round-trip, omit it for new handwritten CSS, and use an empty
 string to clear a stored hint. Omitting the key preserves the stored hint.
 
@@ -383,8 +384,10 @@ variables. `variables.md` and `panel.hbs` are not sent without
 
 `card import` creates the files from a SillyTavern card's MagVarUpdate
 initial variables (Lorebook entries marked `[InitVar]`, which then leave the
-Lorebook) and from an AI Fengyue card's variable panel (data skeleton, panel
-skin and variable prompt).
+Lorebook), from an AI Fengyue card's variable panel (data skeleton, panel
+skin and variable prompt), and from a Rili card's working memory (`memorySchema`
+as `plain` variables plus `pathRules`, and `renderTemplate` rewritten into
+`panel.hbs`).
 
 ## rating.json
 

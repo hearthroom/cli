@@ -411,6 +411,9 @@ func WorldInfoToBook(raw any) *Book {
 	if !ok || obj == nil {
 		return nil
 	}
+	if riliBook := riliBookFromRaw(obj); riliBook != nil {
+		return riliBook
+	}
 	if data, ok := obj["data"].(map[string]any); ok {
 		return WorldInfoToBook(data["character_book"])
 	}
@@ -754,7 +757,16 @@ func EntryMatchOptions(e BookEntry) map[string]any {
 		}
 	}
 	if len(e.Extensions) > 0 {
-		opts["extensions"] = e.Extensions
+		extCopy := map[string]any{}
+		for k, v := range e.Extensions {
+			if k == "__rili" {
+				continue
+			}
+			extCopy[k] = v
+		}
+		if len(extCopy) > 0 {
+			opts["extensions"] = extCopy
+		}
 	}
 	return opts
 }
@@ -769,6 +781,10 @@ func BookEntriesToDrafts(entries []BookEntry, language string) []EntryDraft {
 		content := strings.TrimSpace(dec.Content)
 		if content == "" {
 			continue
+		}
+		var triggerRegion string
+		if rm, ok := e.Extensions["__rili"].(riliEntryMeta); ok {
+			triggerRegion = rm.triggerRegion
 		}
 		base := e.Name
 		if base == "" {
@@ -818,6 +834,7 @@ func BookEntriesToDrafts(entries []BookEntry, language string) []EntryDraft {
 				Enabled:           e.Enabled && !dec.DontActivate,
 				Constant:          e.Constant || dec.Activate,
 				MatchOptions:      mo,
+				TriggerRegion:     triggerRegion,
 			})
 		}
 	}
@@ -868,6 +885,9 @@ func BookEntryNotes(entries []BookEntry, language string) []string {
 	}
 	if split > 0 {
 		notes = append(notes, fmt.Sprintf("%d Lorebook entries were longer than %d characters and were split into several entries with the same keywords", split, limit))
+	}
+	for _, rn := range riliBookNotes(entries) {
+		notes = append(notes, rn.text)
 	}
 	return notes
 }

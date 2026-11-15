@@ -278,7 +278,7 @@ func WriteFolder(r *Result, dir string, force bool) (*Report, error) {
 		css := r.CardCSS
 		f.CardCSS = &css
 	}
-	if r.Rules != nil && (len(r.Rules.Rules) > 0 || r.OpeningPage != "" || r.Rules.Format == "fengyue") {
+	if r.Rules != nil && (len(r.Rules.Rules) > 0 || r.OpeningPage != "" || r.CardCSS != "" || r.Rules.Format == "fengyue") {
 		rules := &card.Rules{MountTrigger: r.Rules.Statusbar, MountLayer: "over", PageMode: r.Rules.PageMode, CardFormat: r.Rules.Format}
 		if r.CardCSSDialect != "" {
 			dialect := r.CardCSSDialect

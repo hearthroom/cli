@@ -67,6 +67,7 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 		defaults["agency"] = alias
 	}
 	problems = append(problems, card.CheckResponseDefaults(defaults)...)
+	problems = append(problems, card.CheckTools(f.Manifest.Tools)...)
 	for _, slot := range []struct{ wire, local string }{{"roleAvatar", "portrait"}, {"roleBackground", "background"}, {"roleBackgroundLandscape", "backgroundLandscape"}, {"roleShareImage", "share"}} {
 		raw, _ := p.Card[slot.wire].(string)
 		if raw == "" {

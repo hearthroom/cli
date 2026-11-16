@@ -62,6 +62,13 @@ func fakeStream(t *testing.T, script []string, wantModel string, wantLanguage ..
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"ticket": "T1", "expiresIn": 30})
 	})
+	mux.HandleFunc("/open/v1/models", func(w http.ResponseWriter, r *http.Request) {
+		if len(wantLanguage) > 2 {
+			_, _ = w.Write([]byte(`[{"families":[{"variants":[{"capabilities":{"tools":"unknown","forcedTools":"unknown"}}]}]}]`))
+		} else {
+			_, _ = w.Write([]byte(`[]`))
+		}
+	})
 	mux.HandleFunc("/open/v1/conversation/ws", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("protocolVersion") != "2" || r.Header.Get("Authorization") != "" {
 			http.Error(w, "bad upgrade", 400)
@@ -102,7 +109,10 @@ func fakeStream(t *testing.T, script []string, wantModel string, wantLanguage ..
 		if frame["conversationId"] != "conv1" || frame["message"] != "hi" || frame["operationKind"] != "send" || frame["clientOperationId"] == "" || (wantModel != "" && frame["model"] != wantModel) {
 			t.Errorf("chat frame = %v", frame)
 		}
-		if len(wantLanguage) > 1 && frame["debug"] != wantLanguage[1] {
+		if len(wantLanguage) > 2 && frame["tool"] != wantLanguage[2] {
+			t.Error("selected tool missing from paid frame")
+		}
+		if len(wantLanguage) > 1 && wantLanguage[1] != "" && frame["debug"] != wantLanguage[1] {
 			t.Error("debug not carried on paid turn")
 		}
 		// The provider defaults a missing language to English, so a Traditional

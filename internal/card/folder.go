@@ -178,6 +178,11 @@ type Opening struct {
 	Text string
 }
 
+// HasOpeningPageForPush follows Build's author-asset inclusion rule.
+func (f *Folder) HasOpeningPageForPush() bool {
+	return f.OpeningPage != nil && strings.TrimSpace(*f.OpeningPage) != "" && (f.Rules != nil || f.CardCSS != nil)
+}
+
 // State is .hearthroom/state.json: what the folder is synced to.
 type LorebookUpload struct {
 	RetainedMap      map[string]string `json:"retainedMap,omitempty"`

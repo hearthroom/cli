@@ -899,7 +899,7 @@ func playerSpeaksFirst(f *card.Folder, welcome map[string]any) bool {
 	if f.Rules != nil && f.Rules.OpeningMode == "page" {
 		return true
 	}
-	if f.OpeningPage != nil && strings.TrimSpace(*f.OpeningPage) != "" && f.Rules != nil {
+	if f.HasOpeningPageForPush() {
 		return true
 	}
 	prologue, _ := welcome["prologue"].([]string)

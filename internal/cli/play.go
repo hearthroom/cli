@@ -39,9 +39,10 @@ generates a reply and spends credits on the provider, so it runs only with
 charged and shown.
 
 Turns carry the card's language from card.json unless --language says otherwise;
-without one the provider replies in English. --new-session archives the current
-conversation with the card and starts a fresh one, so two folders can test the
-same card without sharing a thread.
+without one the provider replies in English. --new-session starts a fresh
+conversation with the card and archives the previous one if it has a user message;
+otherwise the previous conversation is discarded. To preserve an empty conversation
+after a failed first turn for troubleshooting, do not follow it with --new-session.
 
 --continue resumes saved Agent preparation from the latest eligible turn without
 sending your message again. It requires --allow-spend: only new model usage is
@@ -283,7 +284,7 @@ With --json, every server event is printed as one JSON object per line.` + "\n\n
 	c.Flags().BoolVar(&continueTurn, "continue", false, "continue the latest saved Agent preparation (spends credits; requires --allow-spend)")
 	c.Flags().StringVar(&roleID, "role", "", "card id instead of a folder")
 	c.Flags().StringVar(&language, "language", "", "reply language, e.g. zh-Hant (default: the folder's card.json language; the provider assumes en when none is sent)")
-	c.Flags().BoolVar(&newSession, "new-session", false, "archive the current conversation with this card and start a fresh one")
+	c.Flags().BoolVar(&newSession, "new-session", false, "start a fresh conversation; discard the previous one if it has no user messages")
 	c.Flags().StringVarP(&message, "message", "m", "", "message to send (spends credits; requires --allow-spend)")
 	c.Flags().BoolVar(&allowSpend, "allow-spend", false, "confirm that this turn may spend credits")
 	c.Flags().StringVar(&model, "model", "", "model value from `hearthroom models` for this turn (default: the card's saved model, else the provider default)")

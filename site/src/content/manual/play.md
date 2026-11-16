@@ -16,9 +16,10 @@ generates a reply and spends credits on the provider, so it runs only with
 charged and shown.
 
 Turns carry the card's language from card.json unless --language says otherwise;
-without one the provider replies in English. --new-session archives the current
-conversation with the card and starts a fresh one, so two folders can test the
-same card without sharing a thread.
+without one the provider replies in English. --new-session starts a fresh
+conversation with the card and archives the previous one if it has a user message;
+otherwise the previous conversation is discarded. To preserve an empty conversation
+after a failed first turn for troubleshooting, do not follow it with --new-session.
 
 --continue resumes saved Agent preparation from the latest eligible turn without
 sending your message again. It requires --allow-spend: only new model usage is
@@ -59,7 +60,7 @@ hearthroom play [dir] [flags]
       --limit int                 messages to show with --history (default 20)
   -m, --message string            message to send (spends credits; requires --allow-spend)
       --model hearthroom models   model value from hearthroom models for this turn (default: the card's saved model, else the provider default)
-      --new-session               archive the current conversation with this card and start a fresh one
+      --new-session               start a fresh conversation; discard the previous one if it has no user messages
       --role string               card id instead of a folder
       --show-thinking             print reasoning deltas to stderr
       --stop                      stop the reply currently being generated

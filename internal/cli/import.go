@@ -19,14 +19,14 @@ func (a *App) cardImport() *cobra.Command {
 	var force, mmd bool
 	c := &cobra.Command{
 		Use:   "import <file>...",
-		Short: "Convert a SillyTavern PNG/JSON/CHARX card, an AI Fengyue or Rili export, or an MMD file set into a card folder",
+		Short: "Convert a SillyTavern PNG/JSON/CHARX card, an AI Fengyue or RiliAI export, or an MMD file set into a card folder",
 		Long: `Reads cards from other tools and writes a card folder. Nothing is sent to the
 provider; review the folder, then run "hearthroom card push".
 
 Formats are detected by content:
   - SillyTavern PNG (V2 "chara" or V3 "ccv3" text chunk), JSON (V1/V2/V3), CHARX (zip)
   - AI Fengyue JSON from the editor's export button (导出配置)
-  - Rili AI (talkaicc.com) card JSON, chat-settings JSON, rili-mod JSON, or standalone lorebook.json
+  - RiliAI (talkaicc.com) card JSON, chat-settings JSON, rili-mod JSON, or standalone lorebook.json
   - MMD three-file set: regex export JSON, World Info JSON and persona TXT, in any order;
     pass all files of the set in one call (a PNG among them is treated as a SillyTavern card)
 

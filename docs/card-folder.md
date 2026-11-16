@@ -201,7 +201,7 @@ checks the values before a push.
   the stored page is left alone, an empty file clears it, and `card pull`
   writes it when the card has one. A card with opening choices or an opening
   page may leave `welcome.md` empty: the player speaks first. `card import`
-  writes it from an AI Fengyue card's detailed introduction or a Rili card's
+  writes it from an AI Fengyue card's detailed introduction or a RiliAI card's
   `introPage`.
 - A file whose only content is an HTML comment (`<!-- … -->`) counts as empty.
 - Text is trimmed. Line endings are normalised to `\n`.
@@ -339,12 +339,12 @@ display rules.
 The file is optional: absence preserves the stored CSS, and an existing empty
 file clears it. Its limit is 524288 UTF-8 bytes after relative asset URLs are
 rewritten. `assets/...` URLs use the same upload and rewrite path as rules.
-`card import` writes AI Fengyue's built-in CSS and Rili's `injectStyles` here.
+`card import` writes AI Fengyue's built-in CSS and RiliAI's `injectStyles` here.
 Reimport an older Fengyue card to use the latest Fengyue compatibility.
 
 Imports and older folders may carry `cardCssDialect` in `rules.json`
 (`rili`, `fengyue-v2`, `fengyue`, `tavern`, `mmd`, or an explicit empty string). New
-Fengyue imports use `fengyue-v2` for source-platform base styles; Rili imports
+Fengyue imports use `fengyue-v2` for source-platform base styles; RiliAI imports
 use `rili`; older hints keep their original rendering. This is a compatibility
 hint: retain it on round-trip, omit it for new handwritten CSS, and use an empty
 string to clear a stored hint. Omitting the key preserves the stored hint.
@@ -388,7 +388,7 @@ compatibility behavior, including dark-mode selectors and mapped chat elements.
 choice sends it as the player's first message, and `welcome.md` may be empty).
 Without the key the site keeps the card's current choice; a new card opens with
 `page` when `cardFormat` is `fengyue` and with `greeting` otherwise. `card import`
-writes `page` for AI Fengyue and Rili cards, and `card pull` writes the key only
+writes `page` for AI Fengyue and RiliAI cards, and `card pull` writes the key only
 when it differs from that default.
 
 `sharedState` declares the polls and counters players can write on this card:
@@ -499,7 +499,7 @@ variables. `variables.md` and `panel.hbs` are not sent without
 `card import` creates the files from a SillyTavern card's MagVarUpdate
 initial variables (Lorebook entries marked `[InitVar]`, which then leave the
 Lorebook), from an AI Fengyue card's variable panel (data skeleton, panel
-skin and variable prompt), and from a Rili card's working memory (`memorySchema`
+skin and variable prompt), and from a RiliAI card's working memory (`memorySchema`
 as `plain` variables plus `pathRules`, and `renderTemplate` rewritten into
 `panel.hbs`).
 

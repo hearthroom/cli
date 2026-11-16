@@ -459,7 +459,7 @@ func riliBookNotes(entries []BookEntry) []riliNote {
 	if region > 0 {
 		notes = append(notes, riliNote{
 			code: "entryRegion",
-			text: fmt.Sprintf("%d Lorebook entries scanned system or memory fields on Rili; they now scan chat messages", region),
+			text: fmt.Sprintf("%d Lorebook entries scanned system or memory fields on RiliAI; they now scan chat messages", region),
 		})
 	}
 	if weighted > 0 {
@@ -585,7 +585,7 @@ func convertRiliRegex(rows []map[string]any, add func(code, format string, args 
 		add("regexBackend", "%d backend-only regex rules were skipped because display rules here change only what is shown", backendCount)
 	}
 	if historyCount > 0 {
-		add("regexHistory", "%d regex rules rewrite chat history on Rili; display rules here change only what is shown", historyCount)
+		add("regexHistory", "%d regex rules rewrite chat history on RiliAI; display rules here change only what is shown", historyCount)
 	}
 	if unknownScope > 0 {
 		add("regexScope", "%d regex rules had an unrecognised messageRole; they now apply to every message", unknownScope)
@@ -1051,7 +1051,7 @@ func riliHasModelSettings(raw map[string]any) bool {
 
 func riliReportUnmapped(raw, source, prompt map[string]any, isMod bool, add func(code, format string, args ...any)) {
 	if isMod {
-		add("modFile", "imported Rili module file (rili-mod); add a card name and welcome/opening page before pushing")
+		add("modFile", "imported RiliAI module file (rili-mod); add a card name and welcome/opening page before pushing")
 	}
 	cover := riliStr(source["cover"])
 	bg := riliStr(source["background"])
@@ -1063,7 +1063,7 @@ func riliReportUnmapped(raw, source, prompt map[string]any, isMod bool, add func
 		if bg != "" {
 			urls = append(urls, "https://public.talkaicc.com/background/"+bg)
 		}
-		add("images", "cover/background carry Rili object keys only (%s); download and add them to assets/ before pushing", strings.Join(urls, ", "))
+		add("images", "cover/background carry RiliAI object keys only (%s); download and add them to assets/ before pushing", strings.Join(urls, ", "))
 	}
 	if opts, ok := source["options"].(map[string]any); ok {
 		if n := len(riliObjects(opts["items"])); n > 0 {
@@ -1105,7 +1105,7 @@ func riliReportUnmapped(raw, source, prompt map[string]any, isMod bool, add func
 		}
 	}
 	if other > 0 {
-		add("otherFields", "%d unrecognised Rili fields have no destination and were not imported", other)
+		add("otherFields", "%d unrecognised RiliAI fields have no destination and were not imported", other)
 	}
 }
 

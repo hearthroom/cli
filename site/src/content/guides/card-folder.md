@@ -140,7 +140,7 @@ checks the values before a push.
   the stored page is left alone, an empty file clears it, and `card pull`
   writes it when the card has one. A card with opening choices or an opening
   page may leave `welcome.md` empty: the player speaks first. `card import`
-  writes it from an AI Fengyue card's detailed introduction or a Rili card's
+  writes it from an AI Fengyue card's detailed introduction or a RiliAI card's
   `introPage`.
 - A file whose only content is an HTML comment (`<!-- … -->`) counts as empty.
 - Text is trimmed. Line endings are normalised to `\n`.
@@ -239,7 +239,7 @@ selectors automatically; authors do not choose a style source.
 The file is optional: absence preserves the stored CSS, and an existing empty
 file clears it. Its limit is 524288 UTF-8 bytes after relative asset URLs are
 rewritten. `assets/...` URLs use the same upload and rewrite path as rules.
-`card import` writes AI Fengyue's built-in CSS and Rili's `injectStyles` here.
+`card import` writes AI Fengyue's built-in CSS and RiliAI's `injectStyles` here.
 
 Imports and older folders may carry `cardCssDialect` in `rules.json`
 (`fengyue-v2`, `fengyue`, `rili`, `tavern`, `mmd`, or an explicit empty string). This is a compatibility
@@ -385,7 +385,7 @@ variables. `variables.md` and `panel.hbs` are not sent without
 `card import` creates the files from a SillyTavern card's MagVarUpdate
 initial variables (Lorebook entries marked `[InitVar]`, which then leave the
 Lorebook), from an AI Fengyue card's variable panel (data skeleton, panel
-skin and variable prompt), and from a Rili card's working memory (`memorySchema`
+skin and variable prompt), and from a RiliAI card's working memory (`memorySchema`
 as `plain` variables plus `pathRules`, and `renderTemplate` rewritten into
 `panel.hbs`).
 

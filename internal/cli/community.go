@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/hearthroom/cli/internal/output"
+	"github.com/hearthroom/cli/internal/tagcatalog"
 )
 
 func init() {
@@ -135,12 +138,50 @@ func (a *App) cardView() *cobra.Command {
 }
 
 func (a *App) tagsCommand() *cobra.Command {
-	var q, zone string
+	var q, zone, lang string
 	var limit int
+	var preset bool
 	c := &cobra.Command{
 		Use:   "tags",
-		Short: "List community tags",
+		Short: "List community tags or platform preset category tags",
+		Long: `Lists tags used on public community cards, or with --preset lists the platform's
+fixed preset category and play-style catalog.
+
+Public card publication (card submit and card visibility set public) requires at
+least one preset tag in card.json tags; custom free-form tags remain allowed
+alongside preset tags and do not satisfy the requirement on their own. Write a
+preset tag's display name (for example from --preset --lang <card.language>),
+not its URL key, into card.json tags.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if lang != "" && !preset {
+				return output.Exitf(2, "--lang requires --preset")
+			}
+			if preset {
+				if lang != "" && !tagcatalog.ValidLocale(lang) {
+					return output.Exitf(2, "--lang %q is not one of %s", lang, strings.Join(tagcatalog.Locales, ", "))
+				}
+				if a.Out.JSON {
+					return a.Out.JSONValue(tagcatalog.Catalog(lang))
+				}
+				loc := lang
+				if loc == "" {
+					loc = defaultRatingLocale("")
+				}
+				cat := tagcatalog.Catalog(loc)
+				byGroup := map[string][]tagcatalog.Item{}
+				for _, item := range cat.Items {
+					byGroup[item.Group] = append(byGroup[item.Group], item)
+				}
+				rows := make([][]string, 0, len(cat.Items))
+				for _, g := range cat.Groups {
+					for _, item := range byGroup[g] {
+						rows = append(rows, []string{item.Name, item.Group, item.Key})
+					}
+				}
+				a.Out.Table([]string{"DISPLAY NAME (" + loc + ")", "GROUP", "URL KEY"}, rows)
+				a.Out.Line("Write a display name (not its URL key) into card.json tags.")
+				return nil
+			}
 			query := url.Values{"limit": {strconv.Itoa(limit)}}
 			if q != "" {
 				query.Set("q", q)
@@ -167,6 +208,8 @@ func (a *App) tagsCommand() *cobra.Command {
 			return nil
 		},
 	}
+	c.Flags().BoolVar(&preset, "preset", false, "list the platform preset category and play-style tags (at least one is required in card.json tags to publish publicly)")
+	c.Flags().StringVar(&lang, "lang", "", "display language for --preset tag names: zh-Hant, zh-Hans, en, ja, or ko")
 	c.Flags().StringVar(&q, "q", "", "tag search text")
 	c.Flags().StringVar(&zone, "zone", "", "content language zone")
 	c.Flags().IntVar(&limit, "limit", 40, "entries")

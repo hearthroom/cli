@@ -64,7 +64,7 @@ my-card/
 |---|---|---|
 | `name` | `roleName` | required |
 | `summary` | `roleDesc` | one-line public summary for board tiles; the longer card page introduction is `intro.md` |
-| `tags` | `roleTag` | |
+| `tags` | `roleTag` | up to 10 tags; public publication requires at least one platform preset category or play-style display name (`hearthroom tags --preset --lang <language>`, not the URL `key`). Custom tags remain optional; drafts, trial cards, and `unlisted` cards do not require a preset tag |
 | `type` | `roleType` | `companion`, `story`, `game`, `generator` |
 | `sex` | `roleSex` | stored as-is |
 | `playerName` | `userName` | what the card calls the player |
@@ -396,6 +396,8 @@ The questionnaire follows Taiwan's game software rating (GSRR); the site
 computes the rating from the answers. `hearthroom card rate` asks the questions
 (or takes `--answers` from an agent) and writes this file;
 `hearthroom card submit` sends the answers with the card.
+
+Public submissions, updates to published cards, and restoring `public` visibility also require at least one platform preset category or play-style tag in `card.json` `tags` (run `hearthroom tags --preset` for valid display names; custom tags do not count). Cards already public without a preset tag remain listed until their next published update or public restoration.
 
 ```json
 {

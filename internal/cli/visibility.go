@@ -68,6 +68,7 @@ func (a *App) runVisibility(cmd *cobra.Command, args []string, target string) er
 	if err != nil {
 		return err
 	}
+	dir := dirArg(args)
 	if f.State.Target != "owned" || f.State.RoleID == "" {
 		return output.Exitf(2, "visibility needs a linked owned card; use card push --create first")
 	}
@@ -139,6 +140,9 @@ func (a *App) runVisibility(cmd *cobra.Command, args []string, target string) er
 					}
 					if e = clear(); e != nil {
 						return e
+					}
+					if remote.Code == "preset_tag_required" {
+						return output.Exit(2, fmt.Errorf("%w: restoring public access requires at least one platform preset category or play-style tag, and the approved version has none (custom tags do not count). Run `hearthroom tags --preset` to list valid tag names, add at least one display name (not its key) to `tags` in card.json, push with `hearthroom card push %s`, and submit the updated card with `hearthroom card submit %s`", err, dir, dir))
 					}
 					return err
 				}

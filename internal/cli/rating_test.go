@@ -115,6 +115,10 @@ func ratingFolder(t *testing.T, state card.State) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.Manifest.Tags = []string{"Roleplay"}
+	if err := f.Save(); err != nil {
+		t.Fatal(err)
+	}
 	f.State = state
 	if err := f.SaveState(); err != nil {
 		t.Fatal(err)

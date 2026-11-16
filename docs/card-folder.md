@@ -103,7 +103,7 @@ so the next plain push from that pulled folder creates a new trial slot.
 |---|---|---|
 | `name` | `roleName` | required |
 | `summary` | `roleDesc` | one-line public summary for board tiles; the longer card page introduction is `intro.md` |
-| `tags` | `roleTag` | |
+| `tags` | `roleTag` | up to 10 tags; public publication requires at least one platform preset category or play-style display name (`hearthroom tags --preset --lang <language>`, not the URL `key`). Custom tags remain optional; drafts, trial cards, and `unlisted` cards do not require a preset tag |
 | `type` | `roleType` | `companion`, `story`, `game`, `generator` |
 | `sex` | `roleSex` | stored as-is |
 | `playerName` | `userName` | what the card calls the player |
@@ -524,6 +524,8 @@ custom instructions, disabled entries and entries that are not always on do not 
 The service checks the actual version submitted for review. With the CLI, push local changes before submitting; unpushed
 edits do not count. This rule applies to new review submissions and does not retroactively remove cards that are already
 public. Meeting the character minimum does not guarantee review approval.
+
+Public submissions, updates to published cards, and restoring `public` visibility also require at least one platform preset category or play-style tag in `card.json` `tags` (run `hearthroom tags --preset` for valid display names; custom tags do not count). Cards already public without a preset tag remain listed until their next published update or public restoration.
 
 ```json
 {

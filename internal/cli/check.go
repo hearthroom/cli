@@ -35,7 +35,9 @@ without signing in or sending anything:
   - README.md (never sent) declarations: uiRole: assist | core and, for a core card,
     statusOverheadThreshold;
   - rating.json (never sent): whether the content rating that card submit needs is
-    there and has the shape this build knows (card rate writes it).
+    there and has the shape this build knows (card rate writes it);
+  - card.json tags: whether at least one platform preset category or play-style tag
+    is selected for public publication (hearthroom tags --preset lists valid names).
 
 A replacement larger than 256 KiB and no larger than 512 KiB produces a warning:
 it may slow down play, so consider splitting the rule into smaller rules.

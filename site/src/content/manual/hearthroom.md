@@ -29,7 +29,7 @@ AGENTS.md in the folder that says so).
 - [`hearthroom models`](/manual/models/) — List models the provider offers
 - [`hearthroom play`](/manual/play/) — Talk to a card from the terminal (experimental)
 - [`hearthroom search`](/manual/search/) — Browse or search the community board (no sign-in needed)
-- [`hearthroom tags`](/manual/tags/) — List community tags
+- [`hearthroom tags`](/manual/tags/) — List community tags or platform preset category tags
 - [`hearthroom upgrade`](/manual/upgrade/) — Update hearthroom to the latest release
 - [`hearthroom version`](/manual/version/) — Print the version
 - [`hearthroom wallet`](/manual/wallet/) — Show your credit balance and plans

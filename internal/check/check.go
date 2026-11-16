@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hearthroom/cli/internal/card"
+	"github.com/hearthroom/cli/internal/tagcatalog"
 )
 
 // Finding is one observation: an error blocks, a warning is read, an info is context.
@@ -138,8 +139,18 @@ func Card(dir string) (*Result, error) {
 	if raw := read(card.ManifestFile); raw != "" {
 		if err := json.Unmarshal([]byte(raw), &manifest); err != nil {
 			r.errorf(card.ManifestFile, "not valid JSON: %v", err)
-		} else if err := card.CheckLanguage(manifest.Language); err != nil {
-			r.errorf(card.ManifestFile, "%v", err)
+		} else {
+			langErr := card.CheckLanguage(manifest.Language)
+			if langErr != nil {
+				r.errorf(card.ManifestFile, "%v", langErr)
+			}
+			if !tagcatalog.HasPresetTag(manifest.Tags) {
+				if langErr == nil {
+					r.infof(card.ManifestFile, "no preset category or play-style tag in tags: public publication requires at least one platform preset tag (custom tags do not count); run `hearthroom tags --preset --lang %s` and add a display name (not its key) to card.json", manifest.Language)
+				} else {
+					r.infof(card.ManifestFile, "no preset category or play-style tag in tags: public publication requires at least one platform preset tag (custom tags do not count); run `hearthroom tags --preset` and add a display name (not its key) to card.json")
+				}
+			}
 		}
 	}
 	var lorebook card.Lorebook

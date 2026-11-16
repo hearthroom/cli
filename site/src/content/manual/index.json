@@ -415,7 +415,7 @@
   {
     "slug": "tags",
     "command": "hearthroom tags",
-    "short": "List community tags",
+    "short": "List community tags or platform preset category tags",
     "parent": "hearthroom"
   },
   {

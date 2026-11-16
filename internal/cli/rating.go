@@ -442,7 +442,7 @@ run "hearthroom card push --create". The new card defaults to unlisted:
 anyone with its link can play the latest saved content before review.
 Local edits that were not pushed are not part of the submission.
 
-Review uses the last pushed version. The combined character count for the character definition and enabled always-on Lorebook entries must reach 3001; content in either section counts toward the minimum. Opening messages and example conversations do not count. Public publication also requires at least one platform preset category or play-style tag in card.json tags (custom tags do not count; run "hearthroom tags --preset" to list valid display names).
+Review uses the last pushed version. The combined character count for the character definition and enabled always-on Lorebook entries must reach 3001; content in either section counts toward the minimum. Opening messages and example conversations do not count. Public publication requires a portrait cover in media.portrait or media.background. Push the image before submitting. Public publication also requires at least one platform preset category or play-style tag in card.json tags (custom tags do not count; run "hearthroom tags --preset" to list valid display names).
 
 Each submission carries an operation id kept in .hearthroom/state.json until
 the site accepts it, so running submit again after a lost reply does not submit
@@ -484,6 +484,17 @@ listing quota. Run it only when the author asks.`,
 			}
 			if !tagcatalog.HasPresetTag(f.Manifest.Tags) {
 				return presetTagMissingLocalError(dir, f.Manifest.Language)
+			}
+			if f.State.Submission == nil && strings.TrimSpace(f.Manifest.Media.Portrait) == "" && strings.TrimSpace(f.Manifest.Media.Background) == "" {
+				return output.Exitf(2, "Public cards need a portrait cover. Set media.portrait (or media.background) in card.json, push with `hearthroom card push %s`, then submit again.", dir)
+			}
+			if f.State.Submission == nil {
+				if strings.TrimSpace(f.Manifest.Name) == "" || card.Body(f.Definition) == "" {
+					return output.Exitf(2, "Public cards need a name in card.json and a character definition in definition.md. Complete them, push with `hearthroom card push %s`, then submit again.", dir)
+				}
+				if !hasSubmitOpening(f) {
+					return output.Exitf(2, "Public cards need at least one opening. Add welcome.md, a nonempty alternate in openings/, prologue in card.json, or opening.html, push with `hearthroom card push %s`, then submit again.", dir)
+				}
 			}
 			if err := a.RequireAuth(); err != nil {
 				return err
@@ -622,6 +633,23 @@ func presetTagMissingLocalError(dir, language string) error {
 	return output.Exitf(2, "no preset category or play-style tag in %s: public publication requires at least one platform preset tag in `tags` (custom tags do not count). Run `%s` to list valid tag names, add at least one display name (not its key) to `tags` in card.json, run `hearthroom card push %s`, then submit again", manifestPath, tagCmd, dir)
 }
 
+func hasSubmitOpening(f *card.Folder) bool {
+	if card.Body(f.Welcome) != "" || f.OpeningPage != nil && strings.TrimSpace(*f.OpeningPage) != "" {
+		return true
+	}
+	for _, opening := range f.Alternates {
+		if card.Body(opening.Text) != "" {
+			return true
+		}
+	}
+	for _, choice := range f.Manifest.Prologue {
+		if strings.TrimSpace(choice) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func submitError(err error, dir string) error {
 	var ae *api.Error
 	if !errors.As(err, &ae) {
@@ -636,6 +664,10 @@ func submitError(err error, dir string) error {
 		return output.Exit(2, fmt.Errorf("%w: this week's listing quota is used up", err))
 	case "publication_use_original":
 		return output.Exit(2, fmt.Errorf("%w: this card is a copy of one already listed; submit the original card instead", err))
+	case "cover_required":
+		return output.Exit(2, fmt.Errorf("%w: the last pushed version needs a portrait cover. Set media.portrait (or media.background) in card.json, push with `hearthroom card push %s`, then submit again", err, dir))
+	case "publication_fields_required":
+		return output.Exit(2, fmt.Errorf("%w: the last pushed version needs a name, preset category, character definition and at least one opening. Complete the missing fields, push with `hearthroom card push %s`, then submit again", err, dir))
 	case "preset_tag_required":
 		return output.Exit(2, fmt.Errorf("%w: the last pushed version has no platform preset category or play-style tag in card.json `tags` (custom tags do not count). Run `hearthroom tags --preset` to list valid tag names, add at least one display name (not its key) to `tags` in card.json, push with `hearthroom card push %s`, then submit again", err, dir))
 	case "review_length_insufficient":

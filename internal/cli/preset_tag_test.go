@@ -82,6 +82,9 @@ func TestCardSubmitPresetTagPreflightAndServerRefusal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.Manifest.Media.Portrait = "https://images.example.test/cover.png"
+	f.Definition = "A captain keeping watch at the harbor."
+	f.Welcome = "Welcome aboard."
 	f.Manifest.Tags = []string{"自訂標籤", "roleplay"} // URL key does not count
 	f.State = card.State{Target: "owned", RoleID: "role-1"}
 	if err := f.Save(); err != nil {

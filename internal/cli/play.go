@@ -20,12 +20,12 @@ func init() {
 
 func (a *App) playCommand() *cobra.Command {
 	var (
-		roleID, message, model, thinking, language  string
-		greeting, historyN                          int
-		allowSpend, history, stop, show, newSession bool
-		agent                                       string
-		continueTurn                                bool
-		debugRecall                                 bool
+		roleID, message, model, thinking, language, tool string
+		greeting, historyN                               int
+		allowSpend, history, stop, show, newSession      bool
+		agent                                            string
+		continueTurn                                     bool
+		debugRecall                                      bool
 	)
 	c := &cobra.Command{
 		Use:   "play [dir]",
@@ -204,7 +204,7 @@ With --json, every server event is printed as one JSON object per line.` + "\n\n
 				return output.Exit(3, play.ErrSpendNotAllowed)
 			}
 			opts := play.TurnOptions{
-				ConversationID: start.ConversationID, Message: message, Model: model, AllowSpend: true, DebugRecall: debugRecall,
+				Tool: tool, ConversationID: start.ConversationID, Message: message, Model: model, AllowSpend: true, DebugRecall: debugRecall,
 				ThinkingDepth: thinking, Language: turnLanguage(language, f),
 			}
 			if continuation != nil {
@@ -252,6 +252,9 @@ With --json, every server event is printed as one JSON object per line.` + "\n\n
 			if err != nil && !errors.Is(err, ctx.Err()) {
 				return err
 			}
+			if !a.Out.JSON && len(res.ToolCall) > 0 {
+				a.Out.Line("%s", res.ToolCall)
+			}
 			if !a.Out.JSON && debugRecall {
 				fmt.Fprintln(a.Out.Out, formatRecallDebug(res.RecallDebug))
 			}
@@ -287,6 +290,7 @@ With --json, every server event is printed as one JSON object per line.` + "\n\n
 	c.Flags().BoolVar(&newSession, "new-session", false, "start a fresh conversation; discard the previous one if it has no user messages")
 	c.Flags().StringVarP(&message, "message", "m", "", "message to send (spends credits; requires --allow-spend)")
 	c.Flags().BoolVar(&allowSpend, "allow-spend", false, "confirm that this turn may spend credits")
+	c.Flags().StringVar(&tool, "tool", "", "run this turn with one tool declared in card.json; not available in Agent or world mode")
 	c.Flags().StringVar(&model, "model", "", "model value from `hearthroom models` for this turn (default: the card's saved model, else the provider default)")
 	c.Flags().StringVar(&thinking, "thinking", "", "thinking depth override for models that support it")
 	c.Flags().StringVar(&agent, "agent", "", "agent mode for this turn: on or off (default: saved preference)")

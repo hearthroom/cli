@@ -77,6 +77,12 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 	p := Payload{Name: name}
 
 	fields := map[string]any{"roleName": name}
+	if problems := CheckTools(m.Tools); len(problems) > 0 {
+		return Payload{}, fmt.Errorf("%s", strings.Join(problems, "; "))
+	}
+	if len(m.Tools) > 0 {
+		fields["tools"] = json.RawMessage(append([]byte(nil), m.Tools...))
+	}
 	if v := strings.TrimSpace(m.Summary); v != "" {
 		fields["roleDesc"] = v
 	}
@@ -312,6 +318,7 @@ func nonNil(s []string) []string {
 
 // RemoteDetail is the subset of GET /open/v1/role/detail the folder uses.
 type RemoteDetail struct {
+	Tools                   json.RawMessage   `json:"tools"`
 	Provisioning            *bool             `json:"provisioning,omitempty"`
 	RoleID                  string            `json:"characterRoleId"`
 	RoleName                string            `json:"roleName"`
@@ -379,6 +386,7 @@ type RemoteAsset struct {
 func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, entries []RemoteEntry, asset *RemoteAsset) *Folder {
 	f := &Folder{Dir: dir}
 	f.Manifest = Manifest{
+		Tools:              append(json.RawMessage(nil), d.Tools...),
 		FormatVersion:      FormatVersion,
 		Name:               d.RoleName,
 		Summary:            d.RoleDesc,

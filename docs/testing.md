@@ -117,3 +117,14 @@ For a receiving-service check, use a dedicated local Provider and account:
 push a full source to trial and owned targets, pull a minimal card over that
 source, push again, and read every target back into fresh folders. Keep these
 persistent readbacks distinct from HTTP-fixture unit-test results.
+
+
+## Card tool validator agreement
+
+`internal/cardtools/tools.go` is the same bounded validator as the receiving Provider. Check source agreement without network or database access:
+
+```sh
+HEARTHROOM_PROVIDER_SOURCE=/path/to/server/provider go test ./internal/cardtools -run TestProviderCardToolsContract
+```
+
+Without the variable the cross-repository assertion is explicitly skipped. The regular suite still verifies manifest declaration/clear/pull, invalid schema rejection, selected-tool paid frames, legacy Provider rejection and terminal result DTOs. These are local fixture proofs; real model capabilities and a deployed SDK require their own measured readback.

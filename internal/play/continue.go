@@ -1,21 +1,24 @@
 package play
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 // OperationStatus is the public durable outcome shared by HTTP history and WS.
 type OperationStatus struct {
-	OperationID       string   `json:"operationId"`
-	ConversationID    string   `json:"conversationId"`
-	ClientOperationID string   `json:"clientOperationId"`
-	SourceChatID      string   `json:"sourceChatId"`
-	State             string   `json:"state"`
-	AgentTurn         bool     `json:"agentTurn"`
-	AllowedActions    []string `json:"allowedActions"`
-	ChargeCredits     int64    `json:"chargeCredits"`
-	Settled           bool     `json:"settled"`
+	ToolCall          json.RawMessage `json:"toolCall,omitempty"`
+	ToolReason        string          `json:"reason,omitempty"`
+	OperationID       string          `json:"operationId"`
+	ConversationID    string          `json:"conversationId"`
+	ClientOperationID string          `json:"clientOperationId"`
+	SourceChatID      string          `json:"sourceChatId"`
+	State             string          `json:"state"`
+	AgentTurn         bool            `json:"agentTurn"`
+	AllowedActions    []string        `json:"allowedActions"`
+	ChargeCredits     int64           `json:"chargeCredits"`
+	Settled           bool            `json:"settled"`
 }
 
 func (s OperationStatus) CanContinue() bool {

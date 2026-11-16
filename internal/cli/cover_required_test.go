@@ -47,7 +47,8 @@ func TestSubmitOpeningFormats(t *testing.T) {
 		{"greeting", card.Folder{Welcome: "Welcome"}, true},
 		{"alternate", card.Folder{Alternates: []card.Opening{{Text: "Welcome"}}}, true},
 		{"legacy choices", card.Folder{Manifest: card.Manifest{Prologue: []string{"Enter"}}}, true},
-		{"page", card.Folder{OpeningPage: &page}, true},
+		{"page", card.Folder{OpeningPage: &page, Rules: &card.Rules{}}, true},
+		{"unsent page", card.Folder{OpeningPage: &page}, false},
 		{"empty mode", card.Folder{Rules: &card.Rules{OpeningMode: "page"}}, false},
 		{"placeholder", card.Folder{Welcome: "<!-- Write an opening -->"}, false},
 	}
@@ -57,6 +58,33 @@ func TestSubmitOpeningFormats(t *testing.T) {
 				t.Fatalf("has opening=%v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestSubmitRejectsUnsentOpeningPage(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(422) }))
+	defer srv.Close()
+	dir := ratingFolder(t, card.State{Target: "owned", RoleID: "opening-page"})
+	f, err := card.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := "<p>At the harbor</p>"
+	f.Welcome = ""
+	f.OpeningPage = &page
+	f.Rules = nil
+	if err = f.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if err = card.WriteRating(dir, &card.Rating{Answers: card.RatingAnswers{Version: 1, Other: "other.none"}, Rating: "G"}); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = runCLI(t, "card", "submit", dir, "--api", srv.URL, "--site", srv.URL, "--config-dir", cfg)
+	if err == nil || calls != 0 || !strings.Contains(err.Error(), "rules.json") {
+		t.Fatalf("unsent opening page err=%v requests=%d", err, calls)
 	}
 }
 

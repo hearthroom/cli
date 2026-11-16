@@ -529,6 +529,8 @@ Public submissions and public restoration require a portrait cover in the saved 
 
 Public submissions also need a name, a platform preset category, a character definition and at least one opening. The opening can be `welcome.md`, a nonempty alternate under `openings/`, a `prologue` choice in `card.json`, or content in `opening.html`. Push the completed fields before submitting. The server checks the saved version again.
 
+`opening.html` travels with the author settings from `rules.json` or `card.css`. Keep one of those files in the folder when pushing an opening page.
+
 Public submissions, updates to published cards, and restoring `public` visibility also require at least one platform preset category or play-style tag in `card.json` `tags` (run `hearthroom tags --preset` for valid display names; custom tags do not count). Cards already public without a preset tag remain listed until their next published update or public restoration.
 
 ```json

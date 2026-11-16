@@ -496,7 +496,7 @@ listing quota. Run it only when the author asks.`,
 					return output.Exitf(2, "Public cards need a name in card.json and a character definition in definition.md. Complete them, push with `hearthroom card push %s`, then submit again.", dir)
 				}
 				if !hasSubmitOpening(f) {
-					return output.Exitf(2, "Public cards need at least one opening. Add welcome.md, a nonempty alternate in openings/, prologue in card.json, or opening.html, push with `hearthroom card push %s`, then submit again.", dir)
+					return output.Exitf(2, "Public cards need at least one opening. Add welcome.md, a nonempty alternate in openings/, prologue in card.json, or opening.html with rules.json or card.css so the page is included in the push, then run `hearthroom card push %s` and submit again.", dir)
 				}
 			}
 			if err := a.RequireAuth(); err != nil {
@@ -648,7 +648,7 @@ func presetTagMissingLocalError(dir, language string) error {
 }
 
 func hasSubmitOpening(f *card.Folder) bool {
-	if card.Body(f.Welcome) != "" || f.OpeningPage != nil && strings.TrimSpace(*f.OpeningPage) != "" {
+	if card.Body(f.Welcome) != "" || f.HasOpeningPageForPush() {
 		return true
 	}
 	for _, opening := range f.Alternates {

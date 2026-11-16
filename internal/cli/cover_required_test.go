@@ -39,6 +39,7 @@ func TestSubmitOpeningPreflight(t *testing.T) {
 
 func TestSubmitOpeningFormats(t *testing.T) {
 	page := "<p>At the harbor</p>"
+	css := ".canvas-root { color: inherit; }"
 	cases := []struct {
 		name   string
 		folder card.Folder
@@ -48,6 +49,7 @@ func TestSubmitOpeningFormats(t *testing.T) {
 		{"alternate", card.Folder{Alternates: []card.Opening{{Text: "Welcome"}}}, true},
 		{"legacy choices", card.Folder{Manifest: card.Manifest{Prologue: []string{"Enter"}}}, true},
 		{"page", card.Folder{OpeningPage: &page, Rules: &card.Rules{}}, true},
+		{"page with card.css", card.Folder{OpeningPage: &page, CardCSS: &css}, true},
 		{"unsent page", card.Folder{OpeningPage: &page}, false},
 		{"empty mode", card.Folder{Rules: &card.Rules{OpeningMode: "page"}}, false},
 		{"placeholder", card.Folder{Welcome: "<!-- Write an opening -->"}, false},

@@ -34,6 +34,7 @@ h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; text-wrap: balance;
 h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
 h3 { font-size: 1.25rem; }
 p { margin: 0 0 1rem; }
+:lang(ko) { word-break: keep-all; overflow-wrap: break-word; }
 .wrap { width: min(1080px, 100% - 32px); margin: 0 auto; }
 .skip { position: absolute; left: -999px; }
 .skip:focus { left: 16px; top: 8px; background: var(--surface); padding: 8px 12px; border-radius: var(--r-sm); z-index: 10; }

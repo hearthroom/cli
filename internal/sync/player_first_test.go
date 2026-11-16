@@ -21,6 +21,7 @@ func TestPlayerSpeaksFirst(t *testing.T) {
 		{"opening choices", card.Folder{}, map[string]any{"prologue": []string{"我推開門。"}}, true},
 		{"blank choices", card.Folder{}, map[string]any{"prologue": []string{"  "}}, false},
 		{"opening page with rules.json", card.Folder{OpeningPage: &page, Rules: &card.Rules{}}, map[string]any{}, true},
+		{"opening page with card.css", card.Folder{OpeningPage: &page, CardCSS: &empty}, map[string]any{}, true},
 		{"opening page without rules.json is not pushed", card.Folder{OpeningPage: &page}, map[string]any{}, false},
 		{"empty opening page", card.Folder{OpeningPage: &empty, Rules: &card.Rules{}}, map[string]any{}, false},
 		{"page presentation without choices", card.Folder{Rules: &card.Rules{OpeningMode: "page"}}, map[string]any{"prologue": []string{}}, true},

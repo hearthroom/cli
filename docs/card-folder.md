@@ -525,9 +525,7 @@ The service checks the actual version submitted for review. With the CLI, push l
 edits do not count. This rule applies to new review submissions and does not retroactively remove cards that are already
 public. Meeting the character minimum does not guarantee review approval.
 
-Public submissions and public restoration require a portrait cover in the saved version. Set `media.portrait` or the compatible `media.background` field, then push before submitting. Landscape and link-preview images are optional. Private and unlisted cards can be saved without a portrait.
-
-Public submissions also need a name, a platform preset category, a character definition and at least one opening. The opening can be `welcome.md`, a nonempty alternate under `openings/`, a `prologue` choice in `card.json`, or content in `opening.html`. Push the completed fields before submitting. The server checks the saved version again.
+Public submissions, updates to published cards, and restoring `public` visibility require a portrait cover (`media.portrait` or the compatible `media.background` field) and at least one opening (`welcome.md`, a nonempty file in `openings/`, `prologue` in `card.json`, or `opening.html`), in addition to a name and character definition. Push local changes before submitting. Landscape and link-preview images remain optional, and `private` or `unlisted` cards can be saved without a portrait cover or opening.
 
 `opening.html` travels with the author settings from `rules.json` or `card.css`. Keep one of those files in the folder when pushing an opening page.
 

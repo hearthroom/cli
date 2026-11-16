@@ -116,6 +116,9 @@ func ratingFolder(t *testing.T, state card.State) string {
 		t.Fatal(err)
 	}
 	f.Manifest.Tags = []string{"Roleplay"}
+	f.Manifest.Media.Portrait = "https://images.example.test/cover.png"
+	f.Definition = "A captain keeping watch at the harbor."
+	f.Welcome = "Welcome aboard."
 	if err := f.Save(); err != nil {
 		t.Fatal(err)
 	}

@@ -279,3 +279,15 @@ func TestRetainedRewardRejectsVisibilityWithoutLosingDeadline(t *testing.T) {
 		t.Fatal("rejected lock persisted a new operation")
 	}
 }
+
+func TestVisibilityCoverRefusalExplainsHowToUpload(t *testing.T) {
+	srv, dir, cfg := visibilityFixture(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(422)
+		_, _ = w.Write([]byte(`{"error":"cover_required"}`))
+	}, func(w http.ResponseWriter, r *http.Request) { t.Fatal("unexpected operation read") })
+	defer srv.Close()
+	_, err := visibilityRun(t, srv, dir, cfg, "set", "public")
+	if err == nil || !strings.Contains(err.Error(), "media.portrait") {
+		t.Fatalf("missing actionable cover guidance: %v", err)
+	}
+}

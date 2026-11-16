@@ -141,8 +141,11 @@ func (a *App) runVisibility(cmd *cobra.Command, args []string, target string) er
 					if e = clear(); e != nil {
 						return e
 					}
-					if remote.Code == "cover_required" || remote.Code == "publication_fields_required" {
-						return submitError(err, dir)
+					if remote.Code == "cover_required" {
+						return output.Exit(2, fmt.Errorf("%w: restoring public access requires a portrait cover, and the approved version has none. Set media.portrait (or media.background) in card.json, push with `hearthroom card push %s`, and submit the updated card with `hearthroom card submit %s`", err, dir, dir))
+					}
+					if remote.Code == "publication_fields_required" {
+						return output.Exit(2, fmt.Errorf("%w: restoring public access requires a name, preset category, character definition and at least one opening, and the approved version is missing one or more of them. Complete the missing fields, push with `hearthroom card push %s`, and submit the updated card with `hearthroom card submit %s`", err, dir, dir))
 					}
 					if remote.Code == "preset_tag_required" {
 						return output.Exit(2, fmt.Errorf("%w: restoring public access requires at least one platform preset category or play-style tag, and the approved version has none (custom tags do not count). Run `hearthroom tags --preset` to list valid tag names, add at least one display name (not its key) to `tags` in card.json, push with `hearthroom card push %s`, and submit the updated card with `hearthroom card submit %s`", err, dir, dir))

@@ -24,6 +24,7 @@ card-writing skills are: https://github.com/hearthroom/skills.
 - [`hearthroom card rate`](/manual/card/rate/) — Answer the content-rating questionnaire and write rating.json
 - [`hearthroom card render`](/manual/card/render/) — Show an opening after the card's display rules, as the player's renderer receives it
 - [`hearthroom card revert`](/manual/card/revert/) — Revert a card's draft to its published version
+- [`hearthroom card review-status`](/manual/card/review-status/) — Read your card's published version and latest review submission
 - [`hearthroom card state`](/manual/card/state/) — Show or manage the shared state players write on the linked card
 - [`hearthroom card status`](/manual/card/status/) — Show what a folder is linked to and which sections changed
 - [`hearthroom card submit`](/manual/card/submit/) — Submit the linked card for review on the community site, with its content rating

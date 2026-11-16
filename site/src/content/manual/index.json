@@ -50,6 +50,7 @@
       "card/rate",
       "card/render",
       "card/revert",
+      "card/review-status",
       "card/state",
       "card/status",
       "card/submit",
@@ -116,6 +117,12 @@
     "slug": "card/revert",
     "command": "hearthroom card revert",
     "short": "Revert a card's draft to its published version",
+    "parent": "card"
+  },
+  {
+    "slug": "card/review-status",
+    "command": "hearthroom card review-status",
+    "short": "Read your card's published version and latest review submission",
     "parent": "card"
   },
   {

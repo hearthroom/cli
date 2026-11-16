@@ -101,7 +101,7 @@ func (s *ratingSite) server(t *testing.T) *httptest.Server {
 		if s.listed {
 			listing = "approved"
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"id": body["roleId"], "status": listing, "versionId": "ver-1"})
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": body["roleId"], "status": listing, "versionId": "ver-1", "submissionId": "sub-1", "submissionStatus": "pending"})
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -391,7 +391,34 @@ func TestSubmitListedCardWaitsForReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout, `"review": "pending"`) {
+	if !strings.Contains(stdout, `"submissionId": "sub-1"`) || !strings.Contains(stdout, `"submissionStatus": "pending"`) || !strings.Contains(stdout, `"review": "pending"`) {
 		t.Fatalf("json: %s", stdout)
+	}
+}
+
+func TestSubmitReplayShowsCurrentSubmissionStatus(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"card-1","versionId":"ver-1","status":"approved","submissionId":"sub-1","submissionStatus":"approved"}`))
+	}))
+	defer srv.Close()
+	dir := ratingFolder(t, card.State{Target: "owned", RoleID: "role-1"})
+	if err := card.WriteRating(dir, &card.Rating{Answers: card.RatingAnswers{Version: 1, Other: "other.none"}, Rating: "G"}); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"card", "submit", dir, "--api", srv.URL, "--site", srv.URL, "--config-dir", cfg}
+	out, _, err := runCLI(t, append(args, "--json")...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result map[string]any
+	_ = json.Unmarshal([]byte(out), &result)
+	if result["review"] != "approved" || result["submissionId"] != "sub-1" {
+		t.Fatalf("replay result: %s", out)
+	}
+	out, _, err = runCLI(t, args...)
+	if err != nil || strings.Contains(out, "waiting for review") || !strings.Contains(out, "approved") {
+		t.Fatalf("replay human output %s %v", out, err)
 	}
 }

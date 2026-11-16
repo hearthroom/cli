@@ -13,6 +13,9 @@ Only a card you own can be submitted. A trial card cannot; to keep it first,
 run "hearthroom card push --create". The new card defaults to unlisted:
 anyone with its link can play the latest saved content before review.
 Local edits that were not pushed are not part of the submission.
+JSON includes submissionId and submissionStatus (initially pending); status is
+the public listing status. A replay returns the submission's current status.
+Use card review-status to check it later.
 
 Review uses the last pushed version. The combined character count for the character definition and enabled always-on Lorebook entries must reach 3001; content in either section counts toward the minimum. Opening messages and example conversations do not count. Public publication also requires at least one platform preset category or play-style tag in card.json tags (custom tags do not count; run "hearthroom tags --preset" to list valid display names).
 

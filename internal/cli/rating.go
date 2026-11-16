@@ -441,6 +441,9 @@ Only a card you own can be submitted. A trial card cannot; to keep it first,
 run "hearthroom card push --create". The new card defaults to unlisted:
 anyone with its link can play the latest saved content before review.
 Local edits that were not pushed are not part of the submission.
+JSON includes submissionId and submissionStatus (initially pending); status is
+the public listing status. A replay returns the submission's current status.
+Use card review-status to check it later.
 
 Review uses the last pushed version. The combined character count for the character definition and enabled always-on Lorebook entries must reach 3001; content in either section counts toward the minimum. Opening messages and example conversations do not count. Public publication also requires at least one platform preset category or play-style tag in card.json tags (custom tags do not count; run "hearthroom tags --preset" to list valid display names).
 
@@ -532,27 +535,38 @@ listing quota. Run it only when the author asks.`,
 			if err := f.SaveState(); err != nil {
 				return err
 			}
-			// The reply is the card as listed: its "status" is the listing's
-			// ("approved" once an earlier version is up), not this submission's.
-			// A submission the site accepted always waits for review.
+			// Listing status and submission status are separate. An idempotent
+			// replay may return a submission that reviewers have already decided.
 			var out struct {
-				Status    string `json:"status"`
-				VersionID string `json:"versionId"`
+				Status           string `json:"status"`
+				VersionID        string `json:"versionId"`
+				SubmissionID     string `json:"submissionId"`
+				SubmissionStatus string `json:"submissionStatus"`
 			}
 			_ = json.Unmarshal(raw, &out)
+			if out.SubmissionStatus == "" {
+				out.SubmissionStatus = "pending"
+			} // Older community servers.
 			if a.Out.JSON {
 				reply := map[string]any{}
 				if err := json.Unmarshal(raw, &reply); err != nil {
 					return a.Out.JSONValue(raw)
 				}
-				reply["review"] = "pending"
+				reply["review"] = out.SubmissionStatus
 				return a.Out.JSONValue(reply)
 			}
-			a.Out.Line("Submitted card %s for review with rating %s: waiting for review", f.State.RoleID, rating.Rating)
+			statusText := out.SubmissionStatus
+			if statusText == "pending" {
+				statusText = "waiting for review"
+			}
+			a.Out.Line("Submitted card %s for review with rating %s: %s", f.State.RoleID, rating.Rating, statusText)
+			if out.SubmissionID != "" {
+				a.Out.Line("  submission: %s", out.SubmissionID)
+			}
 			if out.VersionID != "" {
 				a.Out.Line("  version: %s", out.VersionID)
 			}
-			if out.Status == "approved" {
+			if out.Status == "approved" && out.SubmissionStatus == "pending" {
 				a.Out.Line("  the listed version stays up until reviewers approve this one")
 			}
 			return nil

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hearthroom/cli/internal/cardtools"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -45,6 +46,7 @@ const (
 // Manifest is card.json. Short structured fields live here; long text lives
 // in Markdown files. Unknown keys are kept in Extra and written back.
 type Manifest struct {
+	Tools              json.RawMessage  `json:"tools,omitempty"`
 	FormatVersion      int              `json:"formatVersion"`
 	Name               string           `json:"name"`
 	Summary            string           `json:"summary,omitempty"`
@@ -534,7 +536,7 @@ func (m Manifest) MarshalJSON() ([]byte, error) {
 		obj[k] = b
 	}
 	order := []string{"formatVersion", "name", "summary", "tags", "type", "sex", "playerName", "nickname", "language",
-		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "media"}
+		"outputContract", "customInstructions", "talkExample", "prologue", "tools", "cardMeta", "responseDefaults", "media"}
 	seen := map[string]bool{}
 	var b strings.Builder
 	b.WriteString("{\n")
@@ -579,13 +581,16 @@ func (m *Manifest) UnmarshalJSON(raw []byte) error {
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return err
 	}
+	if _, err := cardtools.Parse(p.Tools); err != nil {
+		return fmt.Errorf("card.json: tools: invalid declaration; use the supported JSON Schema subset and limits")
+	}
 	var all map[string]any
 	if err := json.Unmarshal(raw, &all); err != nil {
 		return err
 	}
 	known := map[string]bool{}
 	for _, k := range []string{"formatVersion", "name", "summary", "tags", "type", "sex", "playerName", "nickname", "language",
-		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "media"} {
+		"outputContract", "customInstructions", "talkExample", "prologue", "tools", "cardMeta", "responseDefaults", "media"} {
 		known[k] = true
 	}
 	for k, v := range all {

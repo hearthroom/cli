@@ -116,17 +116,19 @@ func StartNew(ctx context.Context, c *api.Client, roleID string, greetingIndex, 
 
 // Message is one row of a conversation.
 type Message struct {
-	ID           int64  `json:"id"`
-	ChatID       string `json:"chatId"`
-	Role         string `json:"chatRole"`
-	Text         string `json:"chatMessage"`
-	Thinking     string `json:"contentThinking,omitempty"`
-	IsFirst      bool   `json:"isFirst"`
-	IsComplete   bool   `json:"isComplete"`
-	IsSummary    bool   `json:"isSummary"`
-	Model        string `json:"model,omitempty"`
-	FinishReason string `json:"finishReason,omitempty"`
-	CreateTime   string `json:"createTime"`
+	ToolCall     json.RawMessage `json:"toolCall,omitempty"`
+	ToolReason   string          `json:"reason,omitempty"`
+	ID           int64           `json:"id"`
+	ChatID       string          `json:"chatId"`
+	Role         string          `json:"chatRole"`
+	Text         string          `json:"chatMessage"`
+	Thinking     string          `json:"contentThinking,omitempty"`
+	IsFirst      bool            `json:"isFirst"`
+	IsComplete   bool            `json:"isComplete"`
+	IsSummary    bool            `json:"isSummary"`
+	Model        string          `json:"model,omitempty"`
+	FinishReason string          `json:"finishReason,omitempty"`
+	CreateTime   string          `json:"createTime"`
 }
 
 // MessagesResponse is GET /open/v1/conversation/messages.
@@ -233,6 +235,7 @@ func ParseFrame(frame string) (Event, error) {
 
 // TurnOptions describe one streamed turn.
 type TurnOptions struct {
+	Tool                  string
 	DebugRecall           bool
 	ConversationID        string
 	Message               string
@@ -251,6 +254,8 @@ type TurnOptions struct {
 
 // TurnResult summarises a finished turn.
 type TurnResult struct {
+	ToolCall     json.RawMessage `json:"toolCall,omitempty"`
+	ToolReason   string          `json:"reason,omitempty"`
 	RecallDebug  json.RawMessage `json:"recallDebug,omitempty"`
 	StreamID     string          `json:"streamId,omitempty"`
 	ChatID       string          `json:"chatId,omitempty"`
@@ -288,6 +293,11 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 	if opts.ConversationID == "" {
 		return nil, errors.New("conversationId is required")
 	}
+	if opts.Tool != "" {
+		if err := ensureCardToolContract(ctx, c, opts); err != nil {
+			return nil, err
+		}
+	}
 	if opts.ClientOperationID == "" {
 		opts.ClientOperationID = NewClientOperationID()
 	}
@@ -309,6 +319,9 @@ func Turn(ctx context.Context, c *api.Client, opts TurnOptions) (*TurnResult, er
 		"clientOperationId": opts.ClientOperationID,
 		"operationKind":     opts.OperationKind,
 		"from":              "hearthroom-cli",
+	}
+	if opts.Tool != "" {
+		frame["tool"] = opts.Tool
 	}
 	if opts.DebugRecall {
 		frame["debug"] = "recall"
@@ -573,6 +586,11 @@ func (s *turnStream) read(ctx context.Context, conn *websocket.Conn) (dropped bo
 			}
 		case "operationStatus":
 			res.Status = ev.Data
+			var status OperationStatus
+			if json.Unmarshal(ev.Data, &status) == nil && status.State != "running" && status.State != "accepted" {
+				res.ToolCall = append(json.RawMessage(nil), status.ToolCall...)
+				res.ToolReason = status.ToolReason
+			}
 		case "error":
 			var e struct {
 				Error     string `json:"error"`

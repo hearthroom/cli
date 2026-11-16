@@ -10,6 +10,13 @@ Fixtures are built in the tests themselves (PNG chunks, CHARX archives, MMD
 files, a fake OAuth provider, a fake WebSocket stream), so the suite runs
 offline on Linux, macOS and Windows.
 
+Workshop command regressions exercise create → list → get → full-draft update
+→ publish → unpublish against HTTP fixtures. They check bearer authentication,
+revision and intent tokens, derived metadata stripping, unsafe file rejection
+before writes, policy revision zero, and Provider denial propagation. These
+fixtures verify client requests, not durable Provider saves or public projection.
+See [Workshop extensions](workshop.md) for the user workflow.
+
 ## Sandbox SDK contract
 
 Stage generates `contract/sandbox-contract.json` from its runtime SDK in

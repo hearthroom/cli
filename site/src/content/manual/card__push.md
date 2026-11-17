@@ -61,6 +61,14 @@ pass --force to overwrite online Lorebook changes. Entries removed locally are
 deleted from an owned card only with --prune; otherwise push lists them and
 stops before writing the Lorebook. Entries created by other tools are kept.
 
+Advanced configurations can declare contexts/ with private preset documents,
+main.assembly in card.json, and stable sources in lorebooks/<id>.json. When the
+provider supports and enables contexts, push asks it to validate declarations
+and estimate each context before uploading assets. Reports include fixed-prefix
+size, materials and estimated credits; final charges follow actual usage.
+Named sources keep independent sync progress. Removing a tracked source from
+an owned configuration requires --prune; untracked books are kept.
+
 ## Usage
 
 ```
@@ -75,7 +83,7 @@ hearthroom card push [dir] [flags]
       --dry-run           check limits and show planned changes without uploading media or writing card content or local state
       --evict             free the least recently used trial slot when all are in use
       --force             send every section even if unchanged, overwrite online Lorebook changes, and skip the readiness check
-      --prune             delete CLI-managed Lorebook entries removed from the local file
+      --prune             delete removed CLI-managed entries and unbind removed tracked named Lorebooks
       --skip-media        do not upload assets; keep previously uploaded URLs
       --to string         write to a card you own by id instead of a trial card
       --validate          run the server validation after pushing

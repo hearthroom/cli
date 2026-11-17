@@ -40,6 +40,8 @@ type PushOptions struct {
 	Progress func(media.Progress)
 	// GroupProgress reports entries split before any writes.
 	GroupProgress     func(GroupedEntry)
+	contextKey        string
+	mainRecall        *bool
 	limits            pushLimits
 	sourceKeys        [][]string
 	entryKeys         []string
@@ -52,26 +54,28 @@ type PushOptions struct {
 
 // PushResult reports what happened.
 type PushResult struct {
-	PruneEntries   []string          `json:"pruneEntries,omitempty"`
-	Grouped        []GroupedEntry    `json:"grouped,omitempty"`
-	Warnings       []string          `json:"warnings,omitempty"`
-	Target         string            `json:"target"`
-	RoleID         string            `json:"roleId"`
-	RoleVisibility string            `json:"roleVisibility,omitempty"`
-	TrialKey       string            `json:"trialKey,omitempty"`
-	Created        bool              `json:"created"`
-	ExpiresAt      string            `json:"expiresAt,omitempty"`
-	Changed        []string          `json:"changed"`
-	Unchanged      []string          `json:"unchanged"`
-	Skipped        []string          `json:"skipped,omitempty"`
-	Assets         []media.Outcome   `json:"assets,omitempty"`
-	MediaDir       string            `json:"mediaFolder,omitempty"`
-	Slots          map[string]any    `json:"slots,omitempty"`
-	Sections       map[string]string `json:"sections,omitempty"`
-	DryRun         bool              `json:"dryRun,omitempty"`
-	RulesTotal     *RuleTotalSize    `json:"rulesTotal,omitempty"`
-	Rules          []RuleSize        `json:"rules,omitempty"`
-	AssetError     bool              `json:"assetErrors,omitempty"`
+	Contexts       []ContextPreflight `json:"contexts,omitempty"`
+	ContextQuotes  []ContextQuote     `json:"contextQuotes,omitempty"`
+	PruneEntries   []string           `json:"pruneEntries,omitempty"`
+	Grouped        []GroupedEntry     `json:"grouped,omitempty"`
+	Warnings       []string           `json:"warnings,omitempty"`
+	Target         string             `json:"target"`
+	RoleID         string             `json:"roleId"`
+	RoleVisibility string             `json:"roleVisibility,omitempty"`
+	TrialKey       string             `json:"trialKey,omitempty"`
+	Created        bool               `json:"created"`
+	ExpiresAt      string             `json:"expiresAt,omitempty"`
+	Changed        []string           `json:"changed"`
+	Unchanged      []string           `json:"unchanged"`
+	Skipped        []string           `json:"skipped,omitempty"`
+	Assets         []media.Outcome    `json:"assets,omitempty"`
+	MediaDir       string             `json:"mediaFolder,omitempty"`
+	Slots          map[string]any     `json:"slots,omitempty"`
+	Sections       map[string]string  `json:"sections,omitempty"`
+	DryRun         bool               `json:"dryRun,omitempty"`
+	RulesTotal     *RuleTotalSize     `json:"rulesTotal,omitempty"`
+	Rules          []RuleSize         `json:"rules,omitempty"`
+	AssetError     bool               `json:"assetErrors,omitempty"`
 }
 
 var trialKeyRe = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
@@ -195,6 +199,9 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 	if _, err := preflight(f, pre, language, false); err != nil {
 		return nil, err
 	}
+	if err := remoteContextPreflight(ctx, c, f, pre, target, res); err != nil {
+		return nil, err
+	}
 	// Preflight happens before media or remote mutations.
 	if f.Lorebook != nil {
 		limits, err := readPushLimits(ctx, c)
@@ -246,6 +253,20 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 		}
 		opts.limits.entryMax = limit
 
+	}
+
+	if f.Lorebooks != nil {
+		if f.Lorebook == nil {
+			limits, err := readPushLimits(ctx, c)
+			if err != nil {
+				return nil, err
+			}
+			opts.limits = limits
+			opts.limits.entryMax = limits.EntryContentMaxByLanguage[language]
+		}
+		if err := preflightNamedPayloads(f, &pre, owned, opts.limits, nil); err != nil {
+			return nil, err
+		}
 	}
 
 	// A local card picture must have an owned source identity before upload.
@@ -379,6 +400,10 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 		payload.Worldbook, opts.entryKeys, res.Grouped = prepareEntries(f, payload.Worldbook, opts.limits.entryMax)
 	}
 
+	if err := preflightNamedPayloads(f, &payload, owned, opts.limits, res); err != nil {
+		return nil, err
+	}
+
 	if err := preflightPrepared(payload, owned, opts.limits.entryMax, opts.limits.TrialMaxEntries, opts.Evict); err != nil {
 		return nil, err
 	}
@@ -403,13 +428,16 @@ func Push(ctx context.Context, c *api.Client, f *card.Folder, opts PushOptions) 
 }
 
 type trialResponse struct {
-	ClientKey string            `json:"clientKey"`
-	RoleID    string            `json:"roleId"`
-	Created   bool              `json:"created"`
-	ExpiresAt string            `json:"expiresAt"`
-	Slots     map[string]any    `json:"slots"`
-	Sections  map[string]string `json:"sections"`
-	Changed   []string          `json:"changed"`
+	ClientKey  string            `json:"clientKey"`
+	RoleID     string            `json:"roleId"`
+	Created    bool              `json:"created"`
+	ExpiresAt  string            `json:"expiresAt"`
+	Slots      map[string]any    `json:"slots"`
+	Sections   map[string]string `json:"sections"`
+	Changed    []string          `json:"changed"`
+	Worldbooks map[string]struct {
+		WorldbookID string `json:"worldbookId"`
+	} `json:"worldbooks"`
 	Worldbook *struct {
 		WorldbookID string `json:"worldbookId"`
 	} `json:"worldbook"`
@@ -480,6 +508,13 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	}
 	if tr.Worldbook != nil && tr.Worldbook.WorldbookID != "" {
 		f.State.LorebookID = tr.Worldbook.WorldbookID
+	}
+
+	if tr.Worldbooks != nil {
+		f.State.Lorebooks = map[string]card.LorebookSync{}
+		for key, book := range tr.Worldbooks {
+			f.State.Lorebooks[key] = card.LorebookSync{ID: book.WorldbookID, Digest: card.Digest(p.Worldbooks[key])}
+		}
 	}
 	// The trial contract ignores image fields; the trial role is still an
 	// owned private card, so its images go through the document route.
@@ -671,6 +706,20 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			res.Unchanged = append(res.Unchanged, card.SectionAuthorAsset)
 		}
 	}
+
+	// Named books must be bound before the private declaration references them.
+	if p.Worldbooks != nil {
+		if err := pushNamedLorebooks(ctx, c, f, roleID, p.Worldbooks, opts, res); err != nil {
+			return nil, err
+		}
+
+		if opts.Force || f.State.LocalHashes[card.SectionWorldbooks] != digests[card.SectionWorldbooks] {
+			res.Changed = append(res.Changed, card.SectionWorldbooks)
+		} else {
+			res.Unchanged = append(res.Unchanged, card.SectionWorldbooks)
+		}
+		f.State.LocalHashes[card.SectionWorldbooks] = digests[card.SectionWorldbooks]
+	}
 	// card fields. A Chinese card can switch between zh-Hant and zh-Hans after
 	// creation, so its language rides with the card fields and counts toward
 	// their digest; other languages are fixed and never sent.
@@ -790,8 +839,10 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 
 type bindingsOutput struct {
 	Bindings []struct {
-		WorldbookID string `json:"worldbookId"`
-		Name        string `json:"name"`
+		WorldbookID string  `json:"worldbookId"`
+		ContextKey  *string `json:"contextKey"`
+		MainRecall  *bool   `json:"mainRecall"`
+		Name        string  `json:"name"`
 	} `json:"bindings"`
 }
 

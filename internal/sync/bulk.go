@@ -399,7 +399,7 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 	alreadyBound := opts.remoteBookBound && opts.remoteBookID == bookID && bookID != ""
 	remoteName := opts.remoteBookName
 	remoteVersion := opts.remoteBookVersion
-	if bookID == "" {
+	if bookID == "" && opts.contextKey == "" {
 		var bindings bindingsOutput
 		if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {roleID}}, &bindings); err != nil {
 			return fmt.Errorf("read Lorebook bindings: %w", err)
@@ -539,7 +539,7 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 			f.State.LorebookVersion = remoteVersion
 		}
 	}
-	for upload.Next < len(upload.Ops) || (len(upload.Ops) == 0 && upload.CompletedBatches == 0 && (metaNeeded || !alreadyBound)) {
+	for upload.Next < len(upload.Ops) || (len(upload.Ops) == 0 && upload.CompletedBatches == 0 && (metaNeeded || !alreadyBound || opts.contextKey != "")) {
 		end := min(upload.Next+upload.BatchSize, len(upload.Ops))
 		batch := upload.Ops[upload.Next:end]
 		// Save intent before sending: a crash or lost reply is reconciled by
@@ -561,8 +561,15 @@ func pushLorebook(ctx context.Context, c *api.Client, f *card.Folder, roleID str
 			if metaNeeded {
 				doc["metadata"] = map[string]any{"name": explicitName}
 			}
-			if !alreadyBound {
-				doc["binding"] = map[string]any{"roleId": roleID}
+			if !alreadyBound || opts.contextKey != "" {
+				binding := map[string]any{"roleId": roleID}
+				if opts.contextKey != "" {
+					binding["contextKey"] = opts.contextKey
+					if opts.mainRecall != nil {
+						binding["mainRecall"] = *opts.mainRecall
+					}
+				}
+				doc["binding"] = binding
 			}
 		}
 		if !opts.Force && upload.BaseVersion > 0 {

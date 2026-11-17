@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -57,30 +58,42 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	bookAbsent := false
 	entriesRead := false
 	var entries []card.RemoteEntry
-	if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {roleID}}, &b); err != nil {
+
+	bindingsRead := false
+	allBindings := bindingsOutput{}
+	if err := c.OpenGet(ctx, "/worldbook/bindings", url.Values{"roleId": {roleID}}, &allBindings); err != nil {
 		res.Warnings = append(res.Warnings, "Lorebook bindings could not be read: "+err.Error())
-	} else if len(b.Bindings) == 0 {
-		bookAbsent = true
 	} else {
-		bookID, bookName, _ = latestBinding(b)
-		if err := c.OpenGet(ctx, "/worldbook/detail", url.Values{"worldbookId": {bookID}}, &bookDetail); err != nil {
-			if !api.IsStatus(err, 404) {
-				res.Warnings = append(res.Warnings, "Lorebook detail could not be read: "+err.Error())
+		bindingsRead = true
+		for _, binding := range allBindings.Bindings {
+			if binding.ContextKey == nil || *binding.ContextKey == "" {
+				b.Bindings = append(b.Bindings, binding)
 			}
-		} else if bookDetail.Name != "" {
-			bookName = bookDetail.Name
 		}
-		var el entryListOutput
-		if err := c.OpenGet(ctx, "/worldbook/entry/list", url.Values{"worldbookId": {bookID}}, &el); err != nil {
-			res.Warnings = append(res.Warnings, "Lorebook entries could not be read: "+err.Error())
+		if len(b.Bindings) == 0 {
+			bookAbsent = true
 		} else {
-			entries = el.Entries
-			entriesRead = true
-		}
-		if len(b.Bindings) > 1 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("card has %d bound Lorebooks; only the latest bound Lorebook was pulled", len(b.Bindings)))
+			bookID, bookName, _ = latestBinding(b)
+			if err := c.OpenGet(ctx, "/worldbook/detail", url.Values{"worldbookId": {bookID}}, &bookDetail); err != nil {
+				if !api.IsStatus(err, 404) {
+					res.Warnings = append(res.Warnings, "Lorebook detail could not be read: "+err.Error())
+				}
+			} else if bookDetail.Name != "" {
+				bookName = bookDetail.Name
+			}
+			var el entryListOutput
+			if err := c.OpenGet(ctx, "/worldbook/entry/list", url.Values{"worldbookId": {bookID}}, &el); err != nil {
+				res.Warnings = append(res.Warnings, "Lorebook entries could not be read: "+err.Error())
+			} else {
+				entries = el.Entries
+				entriesRead = true
+			}
+			if len(b.Bindings) > 1 {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("card has %d bound Lorebooks; only the latest bound Lorebook was pulled", len(b.Bindings)))
+			}
 		}
 	}
+
 	var asset *card.RemoteAsset
 	assetRead := true
 	var ra card.RemoteAsset
@@ -108,6 +121,30 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	stale, err := stalePullOpenings(f)
 	if err != nil {
 		return nil, err
+	}
+
+	contextStale, err := staleContextFiles(f)
+	if err != nil {
+		return nil, err
+	}
+	stale = append(stale, contextStale...)
+	if bindingsRead {
+		keep, err := pullNamedBooks(ctx, c, f, allBindings, res)
+		if err != nil {
+			return nil, err
+		}
+		filenames := map[string]bool{}
+		for key := range keep {
+			filenames[key+".json"] = true
+		}
+		bookStale, err := stalePrivateFiles(f.Dir, card.LorebooksDir, filenames)
+		if err != nil {
+			return nil, err
+		}
+		stale = append(stale, bookStale...)
+	} else if old, err := card.Load(dir); err == nil {
+		f.Lorebooks = old.Lorebooks
+		f.State.Lorebooks = old.State.Lorebooks
 	}
 	// Keep the card's media folder: the one this folder already chose, else
 	// the library folder its images are served from.
@@ -183,7 +220,14 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	if err := f.Save(); err != nil {
 		return nil, err
 	}
-	res.Files = []string{card.ManifestFile, card.DefinitionFile, card.WelcomeFile}
+	res.Files = append(res.Files, card.ManifestFile, card.DefinitionFile, card.WelcomeFile)
+	for _, raw := range f.Contexts {
+		var context struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(raw, &context)
+		res.Files = append(res.Files, card.ContextsDir+"/"+context.ID+".json", card.ContextsDir+"/"+context.ID+".preset.json")
+	}
 	if f.Intro != nil {
 		res.Files = append(res.Files, card.IntroFile)
 	} else {

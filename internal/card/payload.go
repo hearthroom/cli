@@ -11,13 +11,14 @@ const (
 	SectionCard        = "card"
 	SectionWelcome     = "welcome"
 	SectionWorldbook   = "worldbook"
+	SectionWorldbooks  = "worldbooks"
 	SectionAuthorAsset = "authorAsset"
 	// SectionState is the card's variables (variables.json).
 	SectionState = "state"
 )
 
 // Sections is the stable order of sections.
-var Sections = []string{SectionCard, SectionWelcome, SectionWorldbook, SectionAuthorAsset, SectionState}
+var Sections = []string{SectionCard, SectionWelcome, SectionWorldbook, SectionAuthorAsset, SectionState, SectionWorldbooks}
 
 // Payload is the trial-card document built from a folder. Each section is
 // nil when the folder has nothing for it.
@@ -26,6 +27,7 @@ type Payload struct {
 	Card        map[string]any
 	Welcome     map[string]any
 	Worldbook   map[string]any
+	Worldbooks  map[string]any
 	AuthorAsset map[string]any
 	State       map[string]any
 	// StateRemoved: variables.json is empty, so the card's variables are removed.
@@ -42,6 +44,8 @@ func (p Payload) Section(name string) map[string]any {
 		return p.Card
 	case SectionWelcome:
 		return p.Welcome
+	case SectionWorldbooks:
+		return p.Worldbooks
 	case SectionWorldbook:
 		return p.Worldbook
 	case SectionAuthorAsset:
@@ -147,6 +151,9 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 	if u := resolveMedia(m.Media.Share, urls); u != "" {
 		fields["roleShareImage"] = u
 	}
+	if err := f.contextCardFields(fields); err != nil {
+		return Payload{}, err
+	}
 	p.Card = fields
 
 	welcome := map[string]any{}
@@ -219,6 +226,24 @@ func (f *Folder) Build(urls map[string]string) (Payload, error) {
 			wb["format"] = f.Lorebook.Format
 		}
 		p.Worldbook = wb
+	}
+
+	if f.Lorebooks != nil {
+		p.Worldbooks = map[string]any{}
+		for key, book := range f.Lorebooks {
+			if !contextIDPattern.MatchString(key) || book == nil {
+				return Payload{}, fmt.Errorf("Invalid Lorebook id in lorebooks/; use a stable ASCII filename.")
+			}
+			nested, err := (&Folder{Manifest: Manifest{Name: name}, Lorebook: book}).Build(urls)
+			if err != nil {
+				return Payload{}, err
+			}
+			nested.Worldbook["id"] = key
+			if book.MainRecall != nil {
+				nested.Worldbook["mainRecall"] = *book.MainRecall
+			}
+			p.Worldbooks[key] = nested.Worldbook
+		}
 	}
 
 	if f.Rules != nil || f.CardCSS != nil {
@@ -335,6 +360,8 @@ type RemoteDetail struct {
 	CustomInstructions      string            `json:"customInstructions"`
 	CardMeta                json.RawMessage   `json:"cardMeta"`
 	ResponseDefaults        map[string]string `json:"responseDefaults"`
+	Contexts                json.RawMessage   `json:"contexts"`
+	Main                    json.RawMessage   `json:"main"`
 	Language                string            `json:"language"`
 	Visibility              string            `json:"roleVisibility"`
 	ReviewStatus            string            `json:"reviewStatus"`
@@ -402,6 +429,17 @@ func FromRemote(dir string, d RemoteDetail, lorebookID, lorebookName string, ent
 	}
 	if len(d.ResponseDefaults) > 0 {
 		f.Manifest.ResponseDefaults = ResponseDefaults(d.ResponseDefaults)
+	}
+
+	if len(d.Contexts) > 0 && string(d.Contexts) != "null" {
+		f.ContextsPresent = true
+		_ = json.Unmarshal(d.Contexts, &f.Contexts)
+		if len(f.Contexts) == 0 {
+			f.Manifest.Contexts = json.RawMessage(`[]`)
+		}
+	}
+	if len(d.Main) > 0 && string(d.Main) != "null" {
+		f.Manifest.Main = d.Main
 	}
 	f.Definition = d.RoleDetailDesc
 	if strings.TrimSpace(d.RoleReadme) != "" {

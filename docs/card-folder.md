@@ -327,6 +327,143 @@ Each turn, newly triggered entries can take up to about one-eighth of the model'
 
 The allowance follows the selected context tier, measured in tokens, and includes the entry's formatting. Always-on entries and entries retained from earlier turns do not use this new-entry allowance. Among new entries, current-message keyword matches come before matches from recent messages, followed by semantic candidates; competing entries are ordered by reranker score when available. Selected entries are sent in author order. Keep each entry to roughly 500 characters where possible, and keep always-on entries concise; this is writing advice, not an upload limit.
 
+## contexts/ and named Lorebooks
+
+Contexts let one configuration keep separate model histories, presets and Lorebooks.
+This format requires a provider that has enabled contexts. Push runs an author-only
+preflight before uploading assets or writing configuration content; a disabled or
+unsupported provider stops the push. The same format works for owned and trial cards.
+
+```
+my-card/
+  contexts/
+    settle.json
+    settle.preset.json
+  lorebooks/
+    rules.json
+    faction.json
+```
+
+The filename is the stable source ID, using 1–64 ASCII letters, digits, `_` or `-`.
+The `id` inside the file must match it. A context cannot use the reserved ID `main`.
+These IDs survive publishing and restoring versions, even when the provider creates
+new internal copies of the books. They are not remote UUIDs.
+
+This example was written for this guide. `contexts/settle.json`:
+
+```json
+{
+  "id": "settle",
+  "name": "Turn settlement",
+  "preset": "contexts/settle.preset.json",
+  "worldbooks": ["rules"],
+  "history": "none",
+  "assembly": "platform",
+  "playerLore": "deny",
+  "stream": false,
+  "visible": true,
+  "input": {
+    "schema": {
+      "type": "object",
+      "properties": {"turn": {"type": "integer"}},
+      "required": ["turn"],
+      "additionalProperties": false
+    },
+    "maxBytes": 16384
+  },
+  "contextBudget": 64000,
+  "maxOutputTokens": 2048
+}
+```
+
+`name` is required and limited to 100 characters on one line; keep it within
+16 characters when possible so it fits a player tab. `visible: false` hides the
+tab contents, while call counts and charged credits remain visible to the player.
+A context may reference only this configuration's declared tools and its author's
+bound Lorebooks; a DLC uses its own tools and Lorebook sources.
+
+The preset file contains the same preset document format as a custom preset:
+
+```json
+{
+  "schemaVersion": "hearthroom.st-preset.v1",
+  "st": {
+    "prompts": [
+      {"identifier": "main", "role": "system", "content": "Resolve the supplied turn using the configuration's rules."},
+      {"identifier": "chatHistory", "marker": true},
+      {"identifier": "input", "role": "user", "content": "{{lastUserMessage}}"}
+    ],
+    "prompt_order": [{"character_id": 0, "order": [
+      {"identifier": "main", "enabled": true},
+      {"identifier": "chatHistory", "enabled": true},
+      {"identifier": "input", "enabled": true}
+    ]}]
+  },
+  "selection": {"profileId": 0, "excludedEntryIds": [], "acceptedAdaptationIds": [], "excludedFields": []}
+}
+```
+
+The CLI sends the document, never the local path. Preset paths must stay inside
+the configuration folder; absolute paths and symlinks that escape it are refused.
+The provider freezes the compiler version and compiled plan with the configuration
+version. Preset documents and declarations are readable only by their author;
+player SDK operations cannot list or download them.
+
+`lorebooks/rules.json` keeps a separate source identity and sync state:
+
+```json
+{
+  "id": "rules",
+  "name": "Settlement rules",
+  "mainRecall": false,
+  "entries": [{"name": "Turn order", "content": "Resolve travel before encounters.", "keywords": []}]
+}
+```
+
+The existing `lorebook.json` remains supported independently. `mainRecall: false`
+keeps a named book out of the main conversation's recall pool; its declared contexts
+can still use it. Each named book preserves its own remote ID, version, entry mapping
+and interrupted-batch progress in `.hearthroom/state.json`. The CLI never substitutes
+the most recently bound book for a missing named source.
+
+| Context field | Values and default |
+| --- | --- |
+| `history` | `append` (default), `none`, or `window` |
+| `assembly` | `platform` (default) or `client` |
+| `playerLore` | `deny` (default) or `allow` for player-added Lorebook candidates |
+| `tools` | IDs of tools declared by the same source; omitted means none |
+| `include` | `{"from":"main","turns":4}` or `{"from":"another_id","instance":"npc_1","entries":4}`; only visible conversation text is included |
+| `model.family` | An existing public catalog family; omitted uses the player's current model |
+| `input` | A bounded object JSON Schema; default maximum 16 KiB, configurable up to 64 KiB |
+| `contextBudget` | Input/output context budget in tokens; default 64000 |
+| `maxOutputTokens` | Output allowance; default 2048, within the context budget |
+| `maxChargePerCall` | Optional admission-estimate ceiling in credits; not a guarantee of the final usage charge |
+
+A configuration can declare up to 32 contexts and bind up to 64 named Lorebooks.
+Preflight reports each context's compiled fixed-prefix size, included materials and
+provider-estimated credits. It rejects fixed material that does not fit the budget.
+The estimate includes possible compaction; the final charge follows actual usage.
+The CLI does not calculate model prices. Enabling `playerLore: "allow"` also prints
+an author warning to keep high-value private material out of that context.
+
+For advanced main-history composition, add `"main": {"assembly": "client"}` to
+`card.json`. The script must register its main compose handler and provide the round's
+messages; static preflight cannot prove that handler runs. Try the card before sharing
+it. Platform assembly preserves the platform's prefix behavior; with client assembly,
+prefix stability depends on how the script maintains its messages.
+
+To remove all context declarations, remove their declaration files and add
+`"contexts": []` to `card.json`. To remove all tracked named sources, remove their
+files, add `"lorebooks": []`, and push with `--prune`. An empty directory by itself
+does not clear a remote section. On an owned card, `--prune` unbinds only named sources
+tracked by this folder; it keeps untracked books and their content. An explicit trial
+`worldbooks` section replaces its named sources; omitting it preserves them. Removing
+a source still referenced by a context is rejected before the trial is changed.
+
+A successful pull writes every named book and private preset separately. It removes
+obsolete managed JSON files after successful reads; a failed optional read keeps that
+source file and reports a warning. Resolve pull warnings before pushing again.
+
 ## card.css
 
 `card.css` contains plain CSS for the whole card, without `<style>` tags or a

@@ -58,6 +58,9 @@ type Manifest struct {
 	TalkExample        []TalkExample    `json:"talkExample,omitempty"`
 	Prologue           []string         `json:"prologue,omitempty"`
 	CardMeta           json.RawMessage  `json:"cardMeta,omitempty"`
+	Lorebooks          json.RawMessage  `json:"lorebooks,omitempty"` // Only []: explicit removal of tracked named sources.
+	Contexts           json.RawMessage  `json:"contexts,omitempty"`  // Only []: explicit removal; declarations live in contexts/.
+	Main               json.RawMessage  `json:"main,omitempty"`
 	ResponseDefaults   ResponseDefaults `json:"responseDefaults,omitempty"`
 	Media              Media            `json:"media"`
 	Language           string           `json:"language,omitempty"`
@@ -90,6 +93,7 @@ type Media struct {
 
 // Lorebook is lorebook.json.
 type Lorebook struct {
+	MainRecall  *bool           `json:"mainRecall,omitempty"`
 	ID          string          `json:"id,omitempty"` // remote id after pull/push to an owned card
 	Name        string          `json:"name"`
 	Description string          `json:"description,omitempty"`
@@ -149,9 +153,10 @@ type DisplayRule struct {
 
 // Folder is a loaded card folder.
 type Folder struct {
-	Dir        string
-	Manifest   Manifest
-	Definition string
+	Dir           string
+	SaveStateHook func() error `json:"-"`
+	Manifest      Manifest
+	Definition    string
 	// Intro is intro.md; nil when the file does not exist, so the field is
 	// left alone on push. An existing empty file clears it.
 	Intro *string
@@ -161,11 +166,14 @@ type Folder struct {
 	// CardCSS is card.css; absence preserves the stored style, an empty file clears it.
 	CardCSS *string
 	// WelcomePresent distinguishes an empty welcome.md from a missing file.
-	WelcomePresent bool
-	Welcome        string
-	Alternates     []Opening
-	Lorebook       *Lorebook
-	Rules          *Rules
+	WelcomePresent  bool
+	Welcome         string
+	Alternates      []Opening
+	Lorebook        *Lorebook
+	Lorebooks       map[string]*Lorebook
+	Contexts        []json.RawMessage
+	ContextsPresent bool
+	Rules           *Rules
 	// Variables is variables.json (with variables.md and panel.hbs); nil when
 	// the file does not exist.
 	Variables *Variables
@@ -210,30 +218,31 @@ type CardImageProvision struct {
 }
 
 type State struct {
-	CardImageProvision  *CardImageProvision `json:"cardImageProvision,omitempty"`
-	CardImages          map[string]Asset    `json:"cardImages,omitempty"`
-	CardImagesRoleID    string              `json:"cardImagesRoleId,omitempty"`
-	LorebookSourceIDs   map[string]string   `json:"lorebookSourceIds,omitempty"`
-	LorebookEntryHashes map[string]string   `json:"lorebookEntryHashes,omitempty"`
-	IgnoreLocalLorebook bool                `json:"ignoreLocalLorebook,omitempty"`
-	PrivatePending      bool                `json:"privatePending,omitempty"`
-	OwnedPushPending    bool                `json:"ownedPushPending,omitempty"`
-	LorebookEntryMap    map[string]string   `json:"lorebookEntryMap,omitempty"`
-	LorebookUpload      *LorebookUpload     `json:"lorebookUpload,omitempty"`
-	Target              string              `json:"target,omitempty"` // "trial" or "owned"
-	RoleID              string              `json:"roleId,omitempty"`
-	TrialKey            string              `json:"trialKey,omitempty"`
-	API                 string              `json:"api,omitempty"`
-	Sections            map[string]string   `json:"sections,omitempty"` // server hashes by section
-	LocalHashes         map[string]string   `json:"localHashes,omitempty"`
-	Assets              map[string]Asset    `json:"assets,omitempty"` // by relative path
-	AuthorAssetVersion  int64               `json:"authorAssetVersion,omitempty"`
-	LorebookID          string              `json:"lorebookId,omitempty"`
-	LorebookName        string              `json:"lorebookName,omitempty"`
-	LorebookVersion     int32               `json:"lorebookVersion,omitempty"`
-	LorebookEntryIDs    []string            `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
-	ConversationID      string              `json:"conversationId,omitempty"`
-	AssetFolder         string              `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
+	Lorebooks           map[string]LorebookSync `json:"lorebooks,omitempty"`
+	CardImageProvision  *CardImageProvision     `json:"cardImageProvision,omitempty"`
+	CardImages          map[string]Asset        `json:"cardImages,omitempty"`
+	CardImagesRoleID    string                  `json:"cardImagesRoleId,omitempty"`
+	LorebookSourceIDs   map[string]string       `json:"lorebookSourceIds,omitempty"`
+	LorebookEntryHashes map[string]string       `json:"lorebookEntryHashes,omitempty"`
+	IgnoreLocalLorebook bool                    `json:"ignoreLocalLorebook,omitempty"`
+	PrivatePending      bool                    `json:"privatePending,omitempty"`
+	OwnedPushPending    bool                    `json:"ownedPushPending,omitempty"`
+	LorebookEntryMap    map[string]string       `json:"lorebookEntryMap,omitempty"`
+	LorebookUpload      *LorebookUpload         `json:"lorebookUpload,omitempty"`
+	Target              string                  `json:"target,omitempty"` // "trial" or "owned"
+	RoleID              string                  `json:"roleId,omitempty"`
+	TrialKey            string                  `json:"trialKey,omitempty"`
+	API                 string                  `json:"api,omitempty"`
+	Sections            map[string]string       `json:"sections,omitempty"` // server hashes by section
+	LocalHashes         map[string]string       `json:"localHashes,omitempty"`
+	Assets              map[string]Asset        `json:"assets,omitempty"` // by relative path
+	AuthorAssetVersion  int64                   `json:"authorAssetVersion,omitempty"`
+	LorebookID          string                  `json:"lorebookId,omitempty"`
+	LorebookName        string                  `json:"lorebookName,omitempty"`
+	LorebookVersion     int32                   `json:"lorebookVersion,omitempty"`
+	LorebookEntryIDs    []string                `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
+	ConversationID      string                  `json:"conversationId,omitempty"`
+	AssetFolder         string                  `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
 	// Submission is a review submission that has not been confirmed yet. Its
 	// operation id is sent again on retry, so a lost reply cannot submit twice.
 	Submission          *Submission          `json:"submission,omitempty"`
@@ -242,6 +251,7 @@ type State struct {
 
 // ResetLorebook clears target-bound Lorebook identity, version, and entry tracking.
 func (s *State) ResetLorebook() {
+	s.Lorebooks = nil
 	s.LorebookID = ""
 	s.LorebookName = ""
 	s.LorebookVersion = 0
@@ -401,6 +411,9 @@ func Load(dir string) (*Folder, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	if err := f.loadContextsAndBooks(); err != nil {
+		return nil, err
+	}
 	f.migrateLegacyCardCSS()
 	if f.Variables, err = LoadVariables(dir); err != nil {
 		return nil, err
@@ -415,6 +428,10 @@ func Load(dir string) (*Folder, error) {
 
 // Save writes every file of the folder (state included).
 func (f *Folder) Save() error {
+	if err := f.saveContextsAndBooks(); err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(f.Dir, 0o755); err != nil {
 		return err
 	}
@@ -484,6 +501,9 @@ func (f *Folder) Save() error {
 
 // SaveState writes only .hearthroom/state.json.
 func (f *Folder) SaveState() error {
+	if f.SaveStateHook != nil {
+		return f.SaveStateHook()
+	}
 	if err := os.MkdirAll(filepath.Join(f.Dir, StateDir), 0o755); err != nil {
 		return err
 	}
@@ -539,7 +559,7 @@ func (m Manifest) MarshalJSON() ([]byte, error) {
 		obj[k] = b
 	}
 	order := []string{"formatVersion", "name", "summary", "tags", "type", "sex", "playerName", "nickname", "language",
-		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "media"}
+		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "main", "contexts", "lorebooks", "media"}
 	seen := map[string]bool{}
 	var b strings.Builder
 	b.WriteString("{\n")
@@ -590,7 +610,7 @@ func (m *Manifest) UnmarshalJSON(raw []byte) error {
 	}
 	known := map[string]bool{}
 	for _, k := range []string{"formatVersion", "name", "summary", "tags", "type", "sex", "playerName", "nickname", "language",
-		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "media"} {
+		"outputContract", "customInstructions", "talkExample", "prologue", "cardMeta", "responseDefaults", "main", "contexts", "lorebooks", "media"} {
 		known[k] = true
 	}
 	for k, v := range all {

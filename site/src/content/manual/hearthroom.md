@@ -34,6 +34,7 @@ AGENTS.md in the folder that says so).
 - [`hearthroom version`](/manual/version/) — Print the version
 - [`hearthroom wallet`](/manual/wallet/) — Show your credit balance and plans
 - [`hearthroom whoami`](/manual/whoami/) — Show the signed-in account on the provider and the community site
+- [`hearthroom workshop`](/manual/workshop/) — Create, edit and publish author DLC or player Lorebook extensions
 
 ## Options
 

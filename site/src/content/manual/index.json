@@ -282,7 +282,8 @@
       "upgrade",
       "version",
       "wallet",
-      "whoami"
+      "whoami",
+      "workshop"
     ]
   },
   {
@@ -448,5 +449,69 @@
     "command": "hearthroom whoami",
     "short": "Show the signed-in account on the provider and the community site",
     "parent": "hearthroom"
+  },
+  {
+    "slug": "workshop",
+    "command": "hearthroom workshop",
+    "short": "Create, edit and publish author DLC or player Lorebook extensions",
+    "parent": "hearthroom",
+    "children": [
+      "workshop/create",
+      "workshop/get",
+      "workshop/list",
+      "workshop/policy",
+      "workshop/policy-set",
+      "workshop/publish",
+      "workshop/unpublish",
+      "workshop/update"
+    ]
+  },
+  {
+    "slug": "workshop/create",
+    "command": "hearthroom workshop create",
+    "short": "Create an empty extension draft for an agent configuration",
+    "parent": "workshop"
+  },
+  {
+    "slug": "workshop/get",
+    "command": "hearthroom workshop get",
+    "short": "Read your extension draft as JSON, including its revision",
+    "parent": "workshop"
+  },
+  {
+    "slug": "workshop/list",
+    "command": "hearthroom workshop list",
+    "short": "List your own Workshop drafts and publications",
+    "parent": "workshop"
+  },
+  {
+    "slug": "workshop/policy",
+    "command": "hearthroom workshop policy",
+    "short": "Read an agent configuration's Workshop opt-in policy",
+    "parent": "workshop"
+  },
+  {
+    "slug": "workshop/policy-set",
+    "command": "hearthroom workshop policy-set",
+    "short": "Change Workshop opt-in for your original agent configuration",
+    "parent": "workshop"
+  },
+  {
+    "slug": "workshop/publish",
+    "command": "hearthroom workshop publish",
+    "short": "Publish your draft directly, without content review",
+    "parent": "workshop"
+  },
+  {
+    "slug": "workshop/unpublish",
+    "command": "hearthroom workshop unpublish",
+    "short": "Unpublish your extension while retaining its draft",
+    "parent": "workshop"
+  },
+  {
+    "slug": "workshop/update",
+    "command": "hearthroom workshop update",
+    "short": "Replace your draft's editable content with a JSON file",
+    "parent": "workshop"
   }
 ]

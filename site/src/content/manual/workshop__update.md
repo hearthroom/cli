@@ -11,6 +11,8 @@ Replace all editable content in an extension draft (not a partial patch).
 Start with "workshop get <workshopId> --json", edit that JSON, and pass the saved
 revision with --expected-revision. Omitted fields are cleared by the provider.
 Player extensions must omit rules and opening (empty structures from get are safe).
+DLC drafts may also carry contexts and their own card tools; contexts can name only
+those tools. Player extensions omit both.
 Use --file - to read from stdin. Local media paths are not uploaded or rewritten.
 
 ## Usage

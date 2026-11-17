@@ -116,7 +116,7 @@ var workshopEditableFields = map[string]bool{
 	"name": true, "summary": true, "readme": true, "coverUrl": true,
 	"rating": true, "ratingAnswers": true, "worldbook": true, "rules": true,
 	"opening": true, "updateNote": true,
-	"contexts": true,
+	"contexts": true, "tools": true,
 }
 
 // A get response can be edited and sent back. Only editable extension fields
@@ -162,6 +162,8 @@ func (a *App) workshopUpdate() *cobra.Command {
 Start with "workshop get <workshopId> --json", edit that JSON, and pass the saved
 revision with --expected-revision. Omitted fields are cleared by the provider.
 Player extensions must omit rules and opening (empty structures from get are safe).
+DLC drafts may also carry contexts and their own card tools; contexts can name only
+those tools. Player extensions omit both.
 Use --file - to read from stdin. Local media paths are not uploaded or rewritten.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requiredWorkshopIntent(operationID); err != nil {

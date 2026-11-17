@@ -144,7 +144,15 @@ checks the Lorebook version recorded in .hearthroom/state.json and stops on a
 online edits are not silently overwritten; run card pull --force to merge, or
 pass --force to overwrite online Lorebook changes. Entries removed locally are
 deleted from an owned card only with --prune; otherwise push lists them and
-stops before writing the Lorebook. Entries created by other tools are kept.`,
+stops before writing the Lorebook. Entries created by other tools are kept.
+
+Advanced configurations can declare contexts/ with private preset documents,
+main.assembly in card.json, and stable sources in lorebooks/<id>.json. When the
+provider supports and enables contexts, push asks it to validate declarations
+and estimate each context before uploading assets. Reports include fixed-prefix
+size, materials and estimated credits; final charges follow actual usage.
+Named sources keep independent sync progress. Removing a tracked source from
+an owned configuration requires --prune; untracked books are kept.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {
@@ -218,7 +226,7 @@ stops before writing the Lorebook. Entries created by other tools are kept.`,
 	c.Flags().BoolVar(&opts.Create, "create", false, "create a new owned card (unlisted by default) and write to it")
 	c.Flags().BoolVar(&opts.Evict, "evict", false, "free the least recently used trial slot when all are in use")
 	c.Flags().BoolVar(&opts.DryRun, "dry-run", false, "check limits and show planned changes without uploading media or writing card content or local state")
-	c.Flags().BoolVar(&opts.Prune, "prune", false, "delete CLI-managed Lorebook entries removed from the local file")
+	c.Flags().BoolVar(&opts.Prune, "prune", false, "delete removed CLI-managed entries and unbind removed tracked named Lorebooks")
 	c.Flags().BoolVar(&opts.Force, "force", false, "send every section even if unchanged, overwrite online Lorebook changes, and skip the readiness check")
 	c.Flags().BoolVar(&opts.SkipMedia, "skip-media", false, "do not upload assets; keep previously uploaded URLs")
 	c.Flags().BoolVar(&validate, "validate", false, "run the server validation after pushing")
@@ -260,6 +268,13 @@ func (a *App) printPush(res *sync.PushResult) {
 	}
 	if res.MediaDir != "" && len(res.Assets) > 0 {
 		a.Out.Line("  media folder:       %s", res.MediaDir)
+	}
+
+	for _, context := range res.Contexts {
+		a.Out.Line("Context %s: fixed prefix %d tokens; materials: %s", context.ID, context.FixedPrefixTokens, strings.Join(context.Materials, ", "))
+	}
+	for _, quote := range res.ContextQuotes {
+		a.Out.Line("  %s estimated admission: %d credits (%s; final charge follows usage)", quote.ID, quote.MaxCharge, quote.Model.Name)
 	}
 	if len(res.Rules) > 0 {
 		a.Out.Line("Display rule replacement sizes after URL rewriting (UTF-8 bytes):")
@@ -509,7 +524,7 @@ remote Lorebook version and per-entry digests in .hearthroom/state.json.
 
 If the folder also keeps worldbook/*.md source files, pull updates lorebook.json
 only and warns before you run lorebook build so pulled changes are not overwritten.`,
-		Args:  cobra.RangeArgs(1, 2),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := a.RequireAuth(); err != nil {
 				return err

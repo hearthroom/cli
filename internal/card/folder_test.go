@@ -105,6 +105,12 @@ func TestBuildProducesSectionsAndStableDigests(t *testing.T) {
 	p2, _ := f.Build(urls)
 	d2 := p2.Digests()
 	for _, s := range Sections {
+		if s == SectionWorldbooks && p.Worldbooks == nil {
+			if d1[s] != "" || d2[s] != "" {
+				t.Fatal("absent named books changed legacy digests")
+			}
+			continue
+		}
 		if d1[s] == "" || d1[s] != d2[s] {
 			t.Fatalf("digest %s unstable: %s vs %s", s, d1[s], d2[s])
 		}

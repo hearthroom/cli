@@ -22,6 +22,7 @@ hearthroom workshop update <workshopId> --file <draft.json> [flags]
 ## Options
 
 ```
+      --context-root string     DLC folder containing contexts/ and private preset files; overrides contexts in --file
       --expected-revision int   require this draft revision before writing (required)
       --file string             complete editable draft JSON, or '-' for stdin (required)
       --operation-id string     stable intent token for retrying this update (required)

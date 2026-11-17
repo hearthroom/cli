@@ -105,32 +105,10 @@ func (f *Folder) loadContextsAndBooks() error {
 				f.Lorebooks[id] = &book
 				continue
 			}
-			var c map[string]json.RawMessage
-			if json.Unmarshal(raw, &c) != nil || c == nil {
-				return fmt.Errorf("%s must contain a context declaration object.", ref)
-			}
-			var declared, name, presetRef string
-			if json.Unmarshal(c["id"], &declared) != nil || declared != id || id == "main" {
-				return fmt.Errorf("%s: id must match its filename and cannot be main.", ref)
-			}
-			if json.Unmarshal(c["name"], &name) != nil || strings.TrimSpace(name) == "" || utf8.RuneCountInString(name) > 100 || strings.ContainsAny(name, "\x00\r\n") {
-				return fmt.Errorf("%s: name must contain 1–100 characters on one line.", ref)
-			}
-			if json.Unmarshal(c["preset"], &presetRef) != nil {
-				return fmt.Errorf("%s: preset must name a private preset document file inside contexts/.", ref)
-			}
-			preset, err := readPrivateJSON(f.Dir, presetRef)
+			normalized, _, err := expandContextDeclaration(f.Dir, raw, ref, id, false)
 			if err != nil {
-				return fmt.Errorf("%s: %w", ref, err)
+				return err
 			}
-			var document map[string]json.RawMessage
-			if json.Unmarshal(preset, &document) != nil || document == nil {
-				return fmt.Errorf("%s: the preset must be a JSON document object.", ref)
-			}
-			c["preset"] = preset
-			delete(c, "compilerVersion")
-			delete(c, "compiledPreset")
-			normalized, _ := json.Marshal(c)
 			f.Contexts = append(f.Contexts, normalized)
 			f.ContextsPresent = true
 		}

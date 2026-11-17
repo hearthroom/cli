@@ -116,6 +116,7 @@ var workshopEditableFields = map[string]bool{
 	"name": true, "summary": true, "readme": true, "coverUrl": true,
 	"rating": true, "ratingAnswers": true, "worldbook": true, "rules": true,
 	"opening": true, "updateNote": true,
+	"contexts": true,
 }
 
 // A get response can be edited and sent back. Only editable extension fields
@@ -154,7 +155,7 @@ func workshopSaveBody(data []byte, workshopID string, revision int64, operationI
 }
 
 func (a *App) workshopUpdate() *cobra.Command {
-	var file, operationID string
+	var file, operationID, contextRoot string
 	var revision int64
 	c := &cobra.Command{Use: "update <workshopId> --file <draft.json>", Short: "Replace your draft's editable content with a JSON file", Args: cobra.ExactArgs(1),
 		Long: `Replace all editable content in an extension draft (not a partial patch).
@@ -180,17 +181,33 @@ Use --file - to read from stdin. Local media paths are not uploaded or rewritten
 			if err != nil {
 				return err
 			}
+			if err := expandWorkshopContexts(body, file, contextRoot); err != nil {
+				return err
+			}
 			if err := a.RequireAuth(); err != nil {
+				return err
+			}
+			preflight, err := a.workshopContextPreflight(cmd.Context(), body)
+			if err != nil {
 				return err
 			}
 			var raw json.RawMessage
 			if err := a.Client().OpenPost(cmd.Context(), "/workshop/draft/save", body, &raw); err != nil {
 				return err
 			}
+			if len(preflight) > 0 {
+				var result map[string]json.RawMessage
+				if json.Unmarshal(raw, &result) != nil || result == nil {
+					return fmt.Errorf("The provider returned an invalid Workshop save result; read the draft before retrying.")
+				}
+				result["contextPreflight"] = preflight
+				raw, _ = json.Marshal(result)
+			}
 			return a.workshopResult(raw)
 		},
 	}
 	c.Flags().StringVar(&file, "file", "", "complete editable draft JSON, or '-' for stdin (required)")
+	c.Flags().StringVar(&contextRoot, "context-root", "", "DLC folder containing contexts/ and private preset files; overrides contexts in --file")
 	c.Flags().Int64Var(&revision, "expected-revision", 0, "require this draft revision before writing (required)")
 	c.Flags().StringVar(&operationID, "operation-id", "", "stable intent token for retrying this update (required)")
 	return c

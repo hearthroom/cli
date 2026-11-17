@@ -19,7 +19,7 @@ func TestWorkshopContextsPreflightBeforeSave(t *testing.T) {
 			t.Setenv(auth.EnvToken, "tok")
 			root := t.TempDir()
 			_ = os.Mkdir(filepath.Join(root, "contexts"), 0700)
-			_ = os.WriteFile(filepath.Join(root, "draft.json"), []byte(`{"name":"Synthetic DLC","worldbook":[]}`), 0600)
+			_ = os.WriteFile(filepath.Join(root, "draft.json"), []byte(`{"name":"Synthetic DLC","worldbook":[],"tools":[{"name":"report_turn","description":"Report","schema":{"type":"object"}}]}`), 0600)
 			_ = os.WriteFile(filepath.Join(root, "contexts", "settle.json"), []byte(`{"id":"settle","name":"Settlement","preset":"contexts/settle.preset.json","worldbooks":["self"],"compilerVersion":"untrusted","compiledPreset":{"private":"untrusted"}}`), 0600)
 			_ = os.WriteFile(filepath.Join(root, "contexts", "settle.preset.json"), []byte(`{"schemaVersion":"hearthroom.st-preset.v1","st":{},"selection":{}}`), 0600)
 			var paths []string
@@ -40,6 +40,10 @@ func TestWorkshopContextsPreflightBeforeSave(t *testing.T) {
 					t.Errorf("unexpected private/base lookup: %s", r.URL)
 					w.WriteHeader(500)
 					return
+				}
+				// A DLC's own tools travel with the draft to preflight and save.
+				if tools, _ := body["tools"].([]any); len(tools) != 1 {
+					t.Errorf("%s lost the DLC tools: %v", r.URL.Path, body["tools"])
 				}
 				c := body["contexts"].([]any)[0].(map[string]any)
 				if _, ok := c["preset"].(map[string]any); !ok {

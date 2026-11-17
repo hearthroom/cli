@@ -650,3 +650,14 @@ history. It does not prove complete live membership or cross-device change
 handling; cards must keep a readable fallback when this capability is missing.
 Verify actual delete, truncate and rewrite recovery through an isolated signed-in
 browser against the candidate Provider and stage before publishing.
+
+## Starting the selected opening
+
+On the live host (classic and sandbox), before a conversation exists, omit the index to preserve the player's selected opening, including an author DLC opening:
+
+```js
+await sdk.archive.start()
+const { openingSource } = await sdk.workshop.list()
+```
+
+`start(0)` explicitly selects the main opening; `start(1)` selects the first alternate. Starting creates a conversation without sending a player message or calling the model. Handle a rejected start before continuing. Classic currently provides `archive.start` only from the archive group; both modes provide `sdk.workshop.list()`. The existing `openingSource` identifies the recorded base index or `{kind: "workshop", workshopId, openingId}`; before a conversation exists it is `null`. The CLI's offline preview does not reproduce the live host's pending DLC selection.

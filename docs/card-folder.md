@@ -115,7 +115,7 @@ so the next plain push from that pulled folder creates a new trial slot.
 | `prologue` | opening prologue options | player-side first lines |
 | `cardMeta` | `cardMeta` | Character Card V3 provenance, kept verbatim |
 | `responseDefaults` | `responseDefaults` | optional author defaults for the player's response preferences (see [Response defaults](#response-defaults)) |
-| `tools` | `tools` | Private terminal output declarations; omission preserves, `[]` clears. See [Terminal tools](card-tools.md). |
+| `tools` | `tools` | Private terminal output declarations; omission preserves, `[]` clears. See [Terminal tools](https://github.com/hearthroom/cli/blob/main/docs/card-tools.md). |
 | `media.portrait` | `roleAvatar` | relative path under `assets/` or an absolute URL |
 | `media.background` | `roleBackground` | same; on HarperHarbor the portrait doubles as the background |
 | `media.folder` | — | media-library folder for body/display assets; defaults to the card name on the first push (see [Media folder](#media-folder)) |

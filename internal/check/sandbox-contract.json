@@ -412,6 +412,12 @@
       "idempotencyKeyPattern": "^[A-Za-z0-9_.:-]{1,128}$",
       "listLimitMax": 100,
       "quoteManyMax": 16,
+      "quoteManyMaxBytes": 2097152,
+      "quoteAcceptsMessages": true,
+      "retryAfterOn": [
+        "PAUSED",
+        "RATE_LIMITED"
+      ],
       "run": {
         "resolvesOn": "terminal",
         "statuses": [
@@ -471,6 +477,7 @@
         "INSUFFICIENT",
         "CHARGE_LIMIT",
         "PAUSED",
+        "RATE_LIMITED",
         "MODEL_UNSUPPORTED",
         "BATCH_CLOSED",
         "NETWORK"

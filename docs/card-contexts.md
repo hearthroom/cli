@@ -25,7 +25,7 @@ if (result.status === 'complete' && result.toolCall?.valid) applyMove(result.too
 else if (result.status === 'complete') showText(result.text);
 ```
 
-`run` resolves when the call ends. `status` is `complete`, `interrupted`, `stopped`, `failed`, `moderated` or `discarded`, and each is a normal resolution; only a refusal before any spending rejects. The result carries `callId`, `text`, `toolCall` and `reason` (the same shapes as card tools), `charged` and `settled`. `settled: false` means the charge is not final yet.
+`run` resolves when the call ends. `status` is `complete`, `interrupted`, `stopped`, `failed`, `moderated` or `discarded`, and each is a normal resolution; only a refusal before any spending rejects. The result carries `callId`, `text`, `toolCall` and `reason` (the same shapes as card tools), `charged` and `settled`. `settled: false` means the charge is not final yet. If the model lane is unavailable after admission, the terminal result, replay, and assistant entry carry `reason: 'service_unavailable'` and `toolCall: null`. Read `charged` and `settled` for the final cost. A new attempt uses a new idempotency key.
 
 | Option | Meaning |
 | --- | --- |

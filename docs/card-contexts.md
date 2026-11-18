@@ -27,6 +27,8 @@ else if (result.status === 'complete') showText(result.text);
 
 `run` resolves when the call ends. `status` is `complete`, `interrupted`, `stopped`, `failed`, `moderated` or `discarded`, and each is a normal resolution; only a refusal before any spending rejects. The result carries `callId`, `text`, `toolCall` and `reason` (the same shapes as card tools), `charged` and `settled`. `settled: false` means the charge is not final yet. If the model lane is unavailable after admission, the terminal result, replay, and assistant entry carry `reason: 'service_unavailable'` and `toolCall: null`. Read `charged` and `settled` for the final cost. A new attempt uses a new idempotency key.
 
+For a main turn sent with `sdk.message.send`, the Promise resolves on acceptance. Read `message:done` for the terminal result. For a tool turn on an unavailable lane, `message:done` adds `reasonCode: "service_unavailable"` to the existing tool result. `sdk.context.run` reports the same condition in its terminal `reason`. See [Card tools](card-tools.md).
+
 | Option | Meaning |
 | --- | --- |
 | `instance` | Short key (`[A-Za-z0-9_-]`, 1–64). One declaration can have many instances, each with its own history and memory, up to 64 per declaration and 256 per conversation. Omitted is the default instance |

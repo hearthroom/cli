@@ -25,17 +25,18 @@ Use a released SDK with the feature available, and detect it before passing opti
 if (!sdk.message.capabilities?.().tools) throw new Error('Card tools unavailable');
 const capabilities = sdk.model.get().capabilities;
 const canForceTool = capabilities?.tools === 'supported' && capabilities?.forcedTools === 'supported';
-await sdk.message.send('Choose a move.', canForceTool ? {tool: 'report_turn'} : undefined);
 sdk.on('message:done', message => {
   if (message.toolCall?.valid) drawDecision(message.toolCall.args);
   else if (message.toolCall) handleInvalidArguments(message.toolCall.args);
-  else if (message.reason) handleTextFallback(message.content, message.reason);
+  else if (message.reason) handleTextFallback(message.content, message.reasonCode ?? message.reason);
 });
+await sdk.message.send('Choose a move.', canForceTool ? {tool: 'report_turn'} : undefined);
 ```
 
 - `sdk.message.send` resolves when the server accepts the turn, not when the model finishes. Wait for `message:done`.
 - If the server refuses the send before the turn starts, the Promise rejects with an error code (for example `INSUFFICIENT`). Nothing was sent or charged; handle the error instead of waiting for `message:done`.
 - `message:done` and `sdk.history.list({content:true})` carry `toolCall:{name,args,valid,error?}`. Valid `args` is an object; invalid `args` is the model's raw string plus a fixed `error` code.
+- When the model lane is temporarily unavailable after acceptance, the main turn’s `message:done` includes `reasonCode: "service_unavailable"` alongside `toolCall: null` and `reason: "interrupted"`. An ordinary interruption has `reason: "interrupted"` and no `reasonCode`. Check `reasonCode` first when you need to distinguish them. The event can have empty `content`. If the tool was unsupported and the text fallback also encounters this outage, the event keeps `reason: "unsupported"` alongside the same `reasonCode`.
 - Treat `args` as untrusted: escape it before showing it, and never run it as code.
 - The server does not run the call, send a tool result back, loop or retry.
 - Prose, if the model writes any, follows the player's streaming setting; `args` arrive only when the turn finishes. A turn with only a tool call is still one AI message.

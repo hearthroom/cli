@@ -77,13 +77,13 @@ A declaration's `model.family` restricts the context to one public model family.
 
 | Field | Meaning |
 | --- | --- |
-| `expectedCharge` | Typical charge, or `null` when there is not enough data. `null` is unknown, not free |
-| `maxCharge` | Admission estimate, `requestMaxCharge` + `compactionMaxCharge` |
-| `generatedAt`, `expiresAt` | A quote lasts at least 60 seconds and is not a locked price |
+| `expectedCharge` | Estimated reply charge in whole credits using the projected input and configured output budget at uncached rates. Use it to display “Estimated cost: N credits” |
+| `maxCharge` | Admission estimate, `requestMaxCharge` + `compactionMaxCharge`. Use it for batch funding |
+| `generatedAt`, `expiresAt` | A quote lasts at least 60 seconds. Admission recalculates the estimate |
 
-The final charge follows actual usage, as with any turn. `run` re-estimates before spending and returns `CHARGE_LIMIT` if the estimate exceeds the declaration's `maxChargePerCall`. The platform does not force a confirmation. Draw your own dialog from the quote, ask once for several calls, or call without asking; the page, not the script, reads the click gesture.
+`compactionMaxCharge` is zero when the projected history and request leave no paid compaction to reserve. If paid compaction is possible, its allowance is part of `maxCharge`. Local assembly quotes without messages use the declared context budget for the displayed estimate. The final charge follows actual usage, including any compaction that ran. `run` re-estimates before spending and returns `CHARGE_LIMIT` if the estimate exceeds the declaration's `maxChargePerCall`. The platform does not force a confirmation. Draw your own dialog from the quote, ask once for several calls, or call without asking; the page, not the script, reads the click gesture.
 
-For several calls under one approval, open a batch:
+For several calls under one approval, add their `maxCharge` values to fund the batch.
 
 ```js
 const batch = await sdk.batch.open({maxCharge: 120});

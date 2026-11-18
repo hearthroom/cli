@@ -59,6 +59,7 @@ The server is authoritative; the CLI uses the same validator. The accepted subse
 - At most 16 declarations; names match `^[A-Za-z][A-Za-z0-9_]{0,63}$`.
 - Reserved names: `submit_reply`, `write_draft`, `finish_preparation`, `record_format_notes`.
 - Description: 2 KiB UTF-8; schema: 32 KiB each, depth 32; complete group: 128 KiB; arguments: 64 KiB.
+- A number in arguments or a schema is at most 64 characters, with its exponent in float64 range.
 - String lengths use Unicode code points. Referenced schema graphs have a bounded expansion budget.
 
 Game-specific legality, authorization, costs and turn settlement remain the card's responsibility. Static schemas may express an operation enum; per-turn subsets and dynamically replaced schemas are not supported.

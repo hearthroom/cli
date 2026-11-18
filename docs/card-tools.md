@@ -51,6 +51,8 @@ hearthroom play ./my-card -m "Choose a move." --tool report_turn --agent off --a
 
 `--allow-spend` is required, as for any turn. Before sending, the CLI checks that the server supports card tools. A fixed-price model charges one turn's price; a usage-priced model charges the full request, including the tool arguments. Invalid JSON or schema is not retried and is still charged for the usage it consumed. The existing exemptions for server-side failures and for Stop still apply.
 
+A context declared in `card.json` can run a tool the same way; see [Card contexts](card-contexts.md).
+
 ## Schema limits
 
 The server is authoritative; the CLI uses the same validator. The accepted subset is JSON Schema 2020-12 with a root object, types, properties, required, additionalProperties, propertyNames, enum/const, array/string/numeric bounds, anyOf/oneOf/allOf and local `$defs`/`$ref`. Remote and cyclic references, duplicate JSON keys, unknown keywords and duplicate names are rejected.

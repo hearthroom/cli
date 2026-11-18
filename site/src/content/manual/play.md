@@ -65,6 +65,7 @@ hearthroom play [dir] [flags]
       --show-thinking             print reasoning deltas to stderr
       --stop                      stop the reply currently being generated
       --thinking string           thinking depth override for models that support it
+      --tool string               run this turn with one tool declared in card.json; not available in Agent or world mode
 ```
 
 ## Global options

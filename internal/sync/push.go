@@ -846,12 +846,16 @@ type bindingsOutput struct {
 	} `json:"bindings"`
 }
 
+// latestBinding returns the card's main Lorebook: the last binding without a
+// contextKey. Named Lorebooks share the same list and are tracked separately.
 func latestBinding(b bindingsOutput) (string, string, bool) {
-	if len(b.Bindings) == 0 {
-		return "", "", false
+	for i := len(b.Bindings) - 1; i >= 0; i-- {
+		if k := b.Bindings[i].ContextKey; k != nil && *k != "" {
+			continue
+		}
+		return b.Bindings[i].WorldbookID, b.Bindings[i].Name, true
 	}
-	last := b.Bindings[len(b.Bindings)-1]
-	return last.WorldbookID, last.Name, true
+	return "", "", false
 }
 
 func checkOwnedBoundLorebook(ctx context.Context, c *api.Client, f *card.Folder, target, bookID string, sameCard bool, opts *PushOptions, res *PushResult) (string, error) {

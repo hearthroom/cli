@@ -2,20 +2,20 @@
 
 A context is a separate model conversation a card declares next to the chat itself, which scripts call `main`. Each context has its own history, private preset, Lorebooks and tools, and may pin a model family. Use one when a part of the card must reason only from what it is handed (a faction, a character, a referee) or must answer in its own format. Players see each context the card has used as a tab beside `main`; its output never enters `main` unless your script sends it there.
 
-This page covers running contexts from the chat page and what the CLI does for them. Declaration files (`contexts/<id>.json`, the preset file, named Lorebooks) are described in the card folder guide under "contexts/ and named Lorebooks".
+This page covers running contexts from the chat page and what the CLI does for them. Declaration files (`contexts/<id>.json`, the preset file, named Lorebooks) are described in the [card folder guide](card-folder.md#contexts-and-named-lorebooks).
 
-Contexts need a provider that has turned them on. Until then, push refuses a card that declares them, and `sdk.capabilities().contexts` is `false`. Feature-detect it before every new call; without it, each `sdk.context`, `sdk.batch` and `sdk.state.set` call, and each new `message.send` option, throws `NOT_SUPPORTED`. A new option is never sent as plain text on an older host. Only sandbox chat pages have `sdk.context`; classic pages do not. There is no MCP route for this feature: the CLI and the public skills are the external interface.
+Contexts need a provider that has turned them on. Until then, push refuses a card that declares them, and `sdk.capabilities().contexts` is `false`. Feature-detect it before every new call (`sdk.capabilities?.().contexts`, so an older SDK without the method does not throw); without it, each `sdk.context`, `sdk.batch` and `sdk.state.set` call, and each new `message.send` option, throws `NOT_SUPPORTED`. A new option is never sent as plain text on an older host. Only sandbox chat pages have `sdk.context`; classic pages do not. There is no tool-protocol server for this feature either: external agents use the CLI and the public skills.
 
 ## Check before you push
 
 `hearthroom card push` calls the author-only preflight `POST /open/v1/role/context-preflight` (scope `role.write`) before it uploads anything. The server compiles every declared preset with the same compiler that will run it and returns, per context, the fixed-prefix size, the included materials and a provider-estimated credit range. Fixed material that does not fit `contextBudget` is an error; nothing is trimmed for you. The CLI shows the numbers as estimates and does not price anything itself. Workshop drafts use `POST /open/v1/workshop/context-preflight` through `hearthroom workshop update`.
 
-A script that runs from an author-asset reader can check whether a platform has the feature on: `GET /open/v1/role/author-asset/serve?...&includeFeatures=cardContexts` adds `features.cardContexts` (a boolean for the whole platform, not per card). A provider that predates it leaves the field out; treat that as off.
+A host or integration that needs the platform switch can read it: `GET /open/v1/role/author-asset/serve?...&includeFeatures=cardContexts` adds `features.cardContexts` (a boolean for the whole platform, not per card). A provider that predates it leaves the field out; treat that as off.
 
 ## Run a context
 
 ```js
-if (!sdk.capabilities().contexts) return showPlainFlow();
+if (!sdk.capabilities?.().contexts) return showPlainFlow();
 
 const quote = await sdk.context.quote('settle', {turn: 7});
 if (!(await askPlayer(quote))) return;          // your own dialog; the platform adds none
@@ -49,7 +49,9 @@ One call per instance runs at a time (`BUSY`); `main` and other instances run in
 | `none` | Every call stands alone; records are kept but not sent back |
 | `window` | Recent turns kept; older turns dropped in one large step, never summarized |
 
-`assembly: "platform"` is the default: the platform assembles history and keeps the prefix cache stable for that context. `assembly: "client"` is for CLI-pushed cards that assemble their own prompt: every `run` carries `messages` (1–1,000 entries of role `user` or `assistant`, at most 1 MiB, the last a non-empty `user`). The platform still adds the preset, Lorebooks, tools and its safety text on the server, but it does not compact; a request that does not fit is refused before spending. Cache hits then depend on your script only appending.
+`assembly: "platform"` is the default: the platform assembles history and keeps the prefix cache stable for that context. `assembly: "client"` is for CLI-pushed cards that assemble their own prompt: every `run` carries `messages` (1–1,000 entries of role `user` or `assistant`, at most 1 MiB, the last a non-empty `user`). The platform still adds the preset, Lorebooks, tools and its safety text on the server (and the player's persona when they have one), but it does not compact; a request that does not fit is refused before spending. Cache hits then depend on your script only appending.
+
+What the player's own settings add to `main` (response preferences, standing instructions, notebook, card values, custom system prompt) never enters a context; pass what it needs as `vars`.
 
 `include` lets a context read visible dialogue text from `main` (`{"from":"main","turns":4}`) or from another context (`{"from":"id","instance":"key","entries":4}`). It never carries a preset, a Lorebook or a summary.
 

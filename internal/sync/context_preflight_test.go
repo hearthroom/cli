@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
@@ -9,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -39,5 +42,45 @@ func TestContextPreflightBeforeAnyPushMutation(t *testing.T) {
 	after, _ := os.ReadFile(filepath.Join(f.Dir, card.StateDir, card.StateFile))
 	if err == nil || calls != 1 || writes != 0 || string(before) != string(after) {
 		t.Fatalf("preflight did not stop writes: err=%v calls=%d writes=%d stateChanged=%v", err, calls, writes, string(before) != string(after))
+	}
+}
+
+func TestContextPreflightRejectionNamesFileAndField(t *testing.T) {
+	cases := []struct {
+		detail string
+		want   []string
+	}{
+		{`{"index":0,"context":"settle","field":"history","reason":"invalid"}`, []string{"contexts/settle.json", "history"}},
+		{`{"index":1,"field":"id","reason":"invalid"}`, []string{"contexts/advisor.json", "id"}},
+		{`{"index":0,"context":"settle","field":"contextBudget","reason":"over_budget"}`, []string{"contexts/settle.json", "contextBudget", "maxOutputTokens"}},
+		{`{"index":0,"context":"settle","field":"worldbooks","reason":"not_found"}`, []string{"contexts/settle.json", "worldbooks", "Lorebook"}},
+		{`{"index":0,"context":"settle","field":"secret","reason":"unknown"}`, []string{"contexts/settle.json", "secret"}},
+		{`{"field":"main.assembly","reason":"not_allowed"}`, []string{"main.assembly"}},
+	}
+	for _, tc := range cases {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(400)
+			fmt.Fprintf(w, `{"error":"invalid_arguments","message":"card_context_invalid","retryable":false,"detail":%s}`, tc.detail)
+		}))
+		f := &card.Folder{ContextsPresent: true, Contexts: []json.RawMessage{json.RawMessage(`{"id":"settle"}`), json.RawMessage(`{"id":"advisor"}`)}}
+		client := api.New(server.URL, server.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+		err := remoteContextPreflight(context.Background(), client, f, card.Payload{}, "", &PushResult{})
+		server.Close()
+		if err == nil {
+			t.Fatalf("%s: accepted", tc.detail)
+		}
+		for _, w := range tc.want {
+			if !strings.Contains(err.Error(), w) {
+				t.Fatalf("%s: %q lacks %q", tc.detail, err, w)
+			}
+		}
+		if strings.Contains(err.Error(), "supports contexts") {
+			t.Fatalf("%s: field error blamed on provider support: %q", tc.detail, err)
+		}
+		var apiErr *api.Error
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("%s: lost the structured error for --json", tc.detail)
+		}
 	}
 }

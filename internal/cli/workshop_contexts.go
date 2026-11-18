@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/hearthroom/cli/internal/card"
+	"github.com/hearthroom/cli/internal/sync"
 )
 
 func expandWorkshopContexts(body map[string]json.RawMessage, file, root string) error {
@@ -48,6 +49,9 @@ func (a *App) workshopContextPreflight(ctx context.Context, body map[string]json
 	}
 	var raw json.RawMessage
 	if err := a.Client().OpenPost(ctx, "/workshop/context-preflight", body, &raw); err != nil {
+		if where := sync.ContextRejection(declarations, err, func(id string) string { return "Context " + id }); where != "" {
+			return nil, fmt.Errorf("%s (%w)", where, err)
+		}
 		return nil, fmt.Errorf("Workshop context preflight was not accepted. Check that this provider supports DLC contexts and has enabled them before updating again: %w", err)
 	}
 	var result struct {

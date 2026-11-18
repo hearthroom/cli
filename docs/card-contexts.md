@@ -94,7 +94,7 @@ await Promise.all([
 const done = await sdk.batch.close(batch.batchId);  // {status: 'closing'|'closed', charged, settled}
 ```
 
-Calls draw from the batch reserve. When a context call settles, its unused reserve becomes available for later calls in the same open batch. A shortfall is `INSUFFICIENT` before spending. `closing` means a call is still settling and `charged` is the running total. Close again later for the final value. A call on a closed or expired batch is `BATCH_CLOSED`. `message.send(text, {batch})` also joins a batch.
+Calls draw from the batch reserve. When a context call settles, its unused reserve becomes available for later calls in the same open batch. A main turn sent with `message.send(text, {batch})` also returns its unused reserve to the batch. Any unused reserve from its separate background memory job returns to the wallet. A shortfall is `INSUFFICIENT` before spending. `closing` means a call is still settling and `charged` is the running total. Close again later for the final value. A call on a closed or expired batch is `BATCH_CLOSED`.
 
 Two limits apply. Per account, quotes, `quoteMany` and `batch.open` share one request limit (60 per minute by default). Over it the server answers 429 with `Retry-After`, which the SDK reports as `RATE_LIMITED`. `quoteMany` counts one request per item (1–16) and is refused whole when the allowance is short; `batch.close` is not limited. Separately the server watches call frequency: an unusual, sustained rate is recorded and then pauses only the conversation that triggered it (`PAUSED`, with a retry delay). Normal play, including background calls from your script, is not capped by credit amount.
 

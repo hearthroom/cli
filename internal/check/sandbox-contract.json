@@ -817,6 +817,7 @@
       "author-stage",
       "composer",
       "composer-row",
+      "context-tabs",
       "header",
       "header-actions",
       "header-back",
@@ -848,7 +849,8 @@
         "data-lt-theme",
         "data-composer",
         "data-chrome",
-        "data-busy"
+        "data-busy",
+        "data-context-view"
       ],
       "classes": [
         "canvas-root",

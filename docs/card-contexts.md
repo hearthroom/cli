@@ -51,9 +51,13 @@ A context's preset is a complete copy of the custom preset feature: the same doc
 | `none` | Every call stands alone; records are kept but not sent back |
 | `window` | Recent turns kept; older turns dropped in one large step, never summarized |
 
-`assembly: "platform"` is the default: the platform assembles history and keeps the prefix cache stable for that context. `assembly: "client"` is for CLI-pushed cards that assemble their own prompt: every `run` carries `messages` (1–1,000 entries of role `user` or `assistant`, at most 1 MiB, the last a non-empty `user`). The platform still adds the preset, Lorebooks, tools and its safety text on the server (and the player's persona when they have one), but it does not compact; a request that does not fit is refused before spending. Cache hits then depend on your script only appending.
+`assembly: "platform"` is the default: the platform assembles history and keeps the prefix cache stable for that context. `assembly: "client"` is for CLI-pushed cards that assemble their own prompt: every `run` carries `messages` (1–1,000 entries of role `user` or `assistant`, at most 1 MiB, the last a non-empty `user`). The platform still adds the preset, Lorebooks, tools and its safety text on the server (and the player's persona by default), but it does not compact; a request that does not fit is refused before spending. Cache hits then depend on your script only appending.
 
 What the player's own settings add to `main` (response preferences, standing instructions, notebook, card values, custom system prompt) never enters a context; pass what it needs as `vars`.
+
+By default a context also gets the player's persona. Set `"playerPersona": "omit"` in its declaration to leave the persona out and keep only the player's name; the platform's safety text stays either way. `include` or omitting the field keeps the default.
+
+A context's `input.schema` uses the same JSON Schema subset as card tools, with cost caps that preflight enforces: at most 1,024 regular-expression instructions in total, 32 non-string `enum`/`const` values, 1,024 string `enum` values, and schema nodes plus `required` keys within min(256, 768 ÷ `maxBytes` in KiB), which is 48 at 16 KiB and 12 at 64 KiB. Numbers in tool arguments and schemas are at most 64 characters, with exponents in float64 range.
 
 `include` lets a context read visible dialogue text from `main` (`{"from":"main","turns":4}`) or from another context (`{"from":"id","instance":"key","entries":4}`). It never carries a preset, a Lorebook or a summary.
 

@@ -33,7 +33,8 @@ sdk.on('message:done', message => {
 });
 ```
 
-- `sdk.message.send` resolves when the host accepts the request, not when the model finishes. Wait for `message:done`.
+- `sdk.message.send` resolves when the server accepts the turn, not when the model finishes. Wait for `message:done`.
+- If the server refuses the send before the turn starts, the Promise rejects with an error code (for example `INSUFFICIENT`). Nothing was sent or charged; handle the error instead of waiting for `message:done`.
 - `message:done` and `sdk.history.list({content:true})` carry `toolCall:{name,args,valid,error?}`. Valid `args` is an object; invalid `args` is the model's raw string plus a fixed `error` code.
 - Treat `args` as untrusted: escape it before showing it, and never run it as code.
 - The server does not run the call, send a tool result back, loop or retry.

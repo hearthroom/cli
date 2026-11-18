@@ -8,7 +8,7 @@ Contexts need a provider that has turned them on. Until then, push refuses a car
 
 ## Check before you push
 
-`hearthroom card push` calls the author-only preflight `POST /open/v1/role/context-preflight` (scope `role.write`) before it uploads anything. The server compiles every declared preset with the same compiler that will run it and returns, per context, the fixed-prefix size, the included materials and a provider-estimated credit range. Fixed material that does not fit `contextBudget` is an error; nothing is trimmed for you. The CLI shows the numbers as estimates and does not price anything itself. Workshop drafts use `POST /open/v1/workshop/context-preflight` through `hearthroom workshop update`.
+`hearthroom card push` calls the author-only preflight `POST /open/v1/role/context-preflight` (scope `role.write`) before it uploads anything. The server compiles every declared preset with the same compiler that will run it and returns, per context, the fixed-prefix size, the included materials and a provider-estimated credit range. Fixed material plus `maxOutputTokens` that does not fit `contextBudget` is an error; nothing is trimmed for you. The CLI shows the numbers as estimates and does not price anything itself. Workshop drafts use `POST /open/v1/workshop/context-preflight` through `hearthroom workshop update`.
 
 A host or integration that needs the platform switch can read it: `GET /open/v1/role/author-asset/serve?...&includeFeatures=cardContexts` adds `features.cardContexts` (a boolean for the whole platform, not per card). A provider that predates it leaves the field out; treat that as off.
 
@@ -88,13 +88,13 @@ const done = await sdk.batch.close(batch.batchId);  // {status: 'closing'|'close
 
 Calls draw only from the batch reserve and never top up from the player's wallet; a shortfall is `INSUFFICIENT` before spending. `closing` means a call is still settling and `charged` is the running total; close again later for the final value. A call on a closed or expired batch is `BATCH_CLOSED`. `message.send(text, {batch})` also joins a batch.
 
-Two limits apply per account. Quotes and `batch.open` share 60 requests per minute (`RATE_LIMITED`, with a retry delay; `quoteMany` counts per item). Separately the server watches call frequency: an unusual, sustained rate is recorded and then paused (`PAUSED`, with a retry delay). Normal play, including background calls from your script, is not capped by credit amount.
+Two limits apply. Per account, quotes and `batch.open` share a request limit (60 per minute by default; `RATE_LIMITED`, with a retry delay; `quoteMany` counts per item). Separately the server watches call frequency: an unusual, sustained rate is recorded and then pauses only the conversation that triggered it (`PAUSED`, with a retry delay). Normal play, including background calls from your script, is not capped by credit amount.
 
 ## Getting a result into `main`
 
 Nothing is written back automatically. Choose what your script does:
 
-- `sdk.message.send(text, {as: 'card', from: {context: 'north'}})` sends a player-role message that the page labels as sent by the card, with "@" and the context's name. The model sees an ordinary player message.
+- `sdk.message.send(text, {as: 'card', from: {context: 'north'}})` sends a player-role message that the page labels as sent by the card, with "@" and the context's name when `from` names one. The model sees an ordinary player message.
 - `sdk.state.set({money: 73})` writes card values (existing paths only, 16 KiB at most, `BUSY` while `main` is generating). It calls no model.
 - Pass the result as `vars` to another context.
 
@@ -117,7 +117,7 @@ An author's DLC may declare contexts bound to its own Lorebook entries and its o
 | `CONTEXT_UNAVAILABLE` | Unknown, disabled or denied context |
 | `CONFLICT` | Same idempotency key with another intent, or changed instance books or label |
 | `BUSY` | Instance already running, concurrency limit, or `main` generating for `state.set` |
-| `LIMIT_REACHED` | Instance count limit |
+| `LIMIT_REACHED` | Instance count limit, or fixed material and the latest turn do not fit the context budget |
 | `INSUFFICIENT` | Credits or batch budget too low |
 | `CHARGE_LIMIT` | Estimate above `maxChargePerCall` |
 | `PAUSED`, `RATE_LIMITED` | Frequency pause or quote rate limit; wait the retry delay |

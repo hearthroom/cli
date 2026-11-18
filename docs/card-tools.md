@@ -23,7 +23,9 @@ Use a released SDK with the feature available, and detect it before passing opti
 
 ```js
 if (!sdk.message.capabilities?.().tools) throw new Error('Card tools unavailable');
-await sdk.message.send('Choose a move.', {tool: 'report_turn'});
+const capabilities = sdk.model.get().capabilities;
+const canForceTool = capabilities?.tools === 'supported' && capabilities?.forcedTools === 'supported';
+await sdk.message.send('Choose a move.', canForceTool ? {tool: 'report_turn'} : undefined);
 sdk.on('message:done', message => {
   if (message.toolCall?.valid) drawDecision(message.toolCall.args);
   else if (message.toolCall) handleInvalidArguments(message.toolCall.args);
@@ -60,5 +62,7 @@ The server is authoritative; the CLI uses the same validator. The accepted subse
 Game-specific legality, authorization, costs and turn settlement remain the card's responsibility. Static schemas may express an operation enum; per-turn subsets and dynamically replaced schemas are not supported.
 
 `hearthroom models` and `/open/v1/models` list each lane's capabilities: `tools`, `forcedTools`, `jsonSchema` and `imageInput`, each `supported`, `unsupported` or `unknown`. `unknown` means not verified yet; it does not mean supported. `jsonSchema` means the model's native strict response format, separate from tool-argument schemas. Capabilities are verified per lane and per thinking setting, and a verification stops applying when the lane changes. Whether a model can run in Agent mode is a separate setting.
+
+Before sending, read `sdk.model.get().capabilities` for the player's current lane and thinking setting. Read it again when `model:change` fires; capability updates also trigger that event. Missing evidence and older hosts give `unknown` (an older SDK may omit the object). Only select a tool when both `tools` and `forcedTools` are `supported`. For `unknown` or `unsupported`, offer the card's ordinary text path without trying another paid model call. This choice does not make a text turn free; normal usage charges still apply.
 
 MCP is not applicable to this server, which has no MCP transport. External AI clients use this CLI and the public skills.

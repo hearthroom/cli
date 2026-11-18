@@ -134,6 +134,12 @@ func ContextRejection(declarations []json.RawMessage, err error, place func(id s
 	if !errors.As(err, &apiErr) {
 		return ""
 	}
+	var envelope struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(apiErr.Envelope, &envelope) != nil || envelope.Message != "card_context_invalid" {
+		return ""
+	}
 	detail, _ := apiErr.Detail.(map[string]any)
 	reason, _ := detail["reason"].(string)
 	if reason == "" {

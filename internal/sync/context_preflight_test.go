@@ -84,3 +84,19 @@ func TestContextPreflightRejectionNamesFileAndField(t *testing.T) {
 		}
 	}
 }
+
+// Other rejections can carry a detail.reason too; only card_context_invalid is explained.
+func TestContextRejectionIgnoresOtherReasons(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(400)
+		fmt.Fprint(w, `{"error":"invalid_request","message":"validation failed","detail":{"reason":"invalid","field":"name"}}`)
+	}))
+	defer server.Close()
+	f := &card.Folder{ContextsPresent: true, Contexts: []json.RawMessage{json.RawMessage(`{"id":"settle"}`)}}
+	client := api.New(server.URL, server.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+	err := remoteContextPreflight(context.Background(), client, f, card.Payload{}, "", &PushResult{})
+	if err == nil || !strings.Contains(err.Error(), "supports contexts") {
+		t.Fatalf("explained a rejection that is not card_context_invalid: %v", err)
+	}
+}

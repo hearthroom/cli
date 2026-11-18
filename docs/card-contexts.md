@@ -1,6 +1,6 @@
 # Card contexts
 
-A context is a separate model conversation a card declares next to the chat itself, which scripts call `main`. Each context has its own history, private preset, Lorebooks and tools, and may pin a model family. Use one when a part of the card must reason only from what it is handed (a faction, a character, a referee) or must answer in its own format. Players see each context the card has used as a tab beside `main`; its output never enters `main` unless your script sends it there.
+A context is a separate model conversation a card declares next to the chat itself, which scripts call `main`. Each context has its own history, private preset, Lorebooks and tools, and may pin a model family. Use one when a part of the card must reason only from what it is handed (a faction, a character, a referee) or must answer in its own format. Players see each context the card has used as a tab beside `main` (the main tab's player-facing name is "主對話" in Traditional Chinese); its output never enters `main` unless your script sends it there.
 
 This page covers running contexts from the chat page and what the CLI does for them. Declaration files (`contexts/<id>.json`, the preset file, named Lorebooks) are described in the [card folder guide](card-folder.md#contexts-and-named-lorebooks).
 
@@ -43,6 +43,8 @@ One call per instance runs at a time (`BUSY`); `main` and other instances run in
 
 ## History and who assembles it
 
+A context's preset is a complete copy of the custom preset feature: the same document, compiler and node placement. As in a custom preset, inserting text by depth inside the history is not supported.
+
 | `history` | Behavior |
 | --- | --- |
 | `append` | History grows; the platform compacts it when needed (charged at the standard rate) |
@@ -59,7 +61,7 @@ What the player's own settings add to `main` (response preferences, standing ins
 
 ## Tools and models
 
-A context may list only the card tools declared by the same source: the card's own, or a DLC's own tools. See [Card tools](card-tools.md) for declarations and schemas. Before choosing a tool, read `sdk.model.get().capabilities`; `tools` and `forcedTools` are `supported`, `unsupported` or `unknown`. `unknown` means the platform has no measurement for the selected line and thinking setting. Treat it like `unsupported`: offer ordinary text, which still bills at the normal rate. The server never swaps model or supplier on its own.
+A context may list only the card tools declared by the same source: the card's own, or a DLC's own tools. See [Card tools](card-tools.md) for declarations and schemas. Before choosing a tool, read `sdk.model.get().capabilities`; `tools` and `forcedTools` are `supported`, `unsupported` or `unknown`. Select a tool only when both are `supported`; otherwise run ordinary text. `unknown` means the platform has no measurement for the selected line and thinking setting. Treat it like `unsupported`: offer ordinary text, which still bills at the normal rate. The server never swaps model or supplier on its own.
 
 A declaration's `model.family` restricts the context to one public model family. Without it the player's current model is used. A card can let the player pick with `sdk.context.models(id)` and `sdk.context.setModel(id, modelId)`; a model that cannot do the context's tool is `MODEL_UNSUPPORTED`.
 
@@ -88,7 +90,7 @@ const done = await sdk.batch.close(batch.batchId);  // {status: 'closing'|'close
 
 Calls draw only from the batch reserve and never top up from the player's wallet; a shortfall is `INSUFFICIENT` before spending. `closing` means a call is still settling and `charged` is the running total; close again later for the final value. A call on a closed or expired batch is `BATCH_CLOSED`. `message.send(text, {batch})` also joins a batch.
 
-Two limits apply. Per account, quotes and `batch.open` share a request limit (60 per minute by default; `RATE_LIMITED`, with a retry delay; `quoteMany` counts per item). Separately the server watches call frequency: an unusual, sustained rate is recorded and then pauses only the conversation that triggered it (`PAUSED`, with a retry delay). Normal play, including background calls from your script, is not capped by credit amount.
+Two limits apply. Per account, quotes, `quoteMany` and `batch.open` share one request limit (60 per minute by default). Over it the server answers 429 with `Retry-After`, which the SDK reports as `RATE_LIMITED`. `quoteMany` counts one request per item (1–16) and is refused whole when the allowance is short; `batch.close` is not limited. Separately the server watches call frequency: an unusual, sustained rate is recorded and then pauses only the conversation that triggered it (`PAUSED`, with a retry delay). Normal play, including background calls from your script, is not capped by credit amount.
 
 ## Getting a result into `main`
 

@@ -350,6 +350,10 @@ The `id` inside the file must match it. A context cannot use the reserved ID `ma
 These IDs survive publishing and restoring versions, even when the provider creates
 new internal copies of the books. They are not remote UUIDs.
 
+`card pull --force` rewrites `contexts/` from the provider: it keeps only
+`<id>.json` and `<id>.preset.json` for each declared context and removes other
+JSON files in that folder. Keep notes or shared preset drafts elsewhere.
+
 This example was written for this guide. `contexts/settle.json`:
 
 ```json

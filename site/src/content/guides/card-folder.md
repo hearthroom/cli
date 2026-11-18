@@ -30,6 +30,45 @@ my-card/
 
 `--create` defaults to **unlisted**: anyone with the link can play the latest saved content, including changes that have not passed review. Creating a card does not submit it for review or add it to public listings. To change an owned card's visibility, use `hearthroom card visibility set private my-card`, `set unlisted my-card` or `set public my-card`. Later pushes preserve its visibility. Trial cards stay private.
 
+## One source folder, several cards
+
+A folder remembers one default target in `.hearthroom/state.json`. After
+`push --create`, `push --to <id>` or pulling an owned card, a plain `push`
+updates that owned card. It does not switch back to a trial card. Use
+`card status <dir>` to check the current link.
+
+You can use one complete source folder for a private backup and another owned
+card. Set `BACKUP_ID` and `FORMAL_ID` to your own card IDs, then push the same
+files to each:
+
+```sh
+hearthroom card status my-card
+hearthroom card push my-card --to "$BACKUP_ID" --force
+hearthroom card push my-card --to "$FORMAL_ID" --force
+```
+
+Switching from one linked owned card to another requires `--force`; the CLI
+sends the folder's current content to the new target. If edit A remains in the
+folder when you add edit B, both go to the target, even if that target never
+received A before. There is no merge between remote cards. Each push preserves
+the target's visibility and does not submit an update for review. Public-card
+players still receive the approved copy until an update passes review.
+
+Keep the complete working files in version control. To compare another remote
+card, pull it into a new folder, inspect the differences, then apply the wanted
+changes to your source. `pull <id> my-card --force` replaces the local source
+with that remote copy; pushing it elsewhere can overwrite a newer version.
+When optional reads succeed, pull removes obsolete CLI-managed files, including
+`lorebook.json`, `rules.json` and extra immediate `openings/*.md` files. It keeps
+notes, assets, non-Markdown files and nested directories. Older CLI releases
+can leave those optional files behind; a fresh comparison folder avoids mixing
+them. Treat pull warnings as an incomplete read and resolve them before pushing.
+
+For trial testing alongside owned cards, keep a separate trial folder with its
+own sync state and copy the wanted authoring content into it. There is no
+`--trial` switch. Pulling a trial card does not recover its original trial key,
+so the next plain push from that pulled folder creates a new trial slot.
+
 ## card.json
 
 ```json
@@ -76,13 +115,36 @@ my-card/
 | `prologue` | opening prologue options | player-side first lines |
 | `cardMeta` | `cardMeta` | Character Card V3 provenance, kept verbatim |
 | `responseDefaults` | `responseDefaults` | optional author defaults for the player's response preferences (see [Response defaults](#response-defaults)) |
+| `tools` | `tools` | Private terminal output declarations; omission preserves, `[]` clears. See [Terminal tools](https://github.com/hearthroom/cli/blob/main/docs/card-tools.md). |
 | `media.portrait` | `roleAvatar` | relative path under `assets/` or an absolute URL |
 | `media.background` | `roleBackground` | same; on HarperHarbor the portrait doubles as the background |
-| `media.folder` | — | media-library folder for `assets/`; defaults to the card name on the first push (see [Media folder](#media-folder)) |
+| `media.folder` | — | media-library folder for body/display assets; defaults to the card name on the first push (see [Media folder](#media-folder)) |
 | `media.backgroundLandscape` | `roleBackgroundLandscape` | optional landscape (16:9) background; the chat page prefers it on wide screens and falls back to the portrait one. Both are cropped to cover the screen, so keep important elements in the central 75% |
 | `media.share` | `roleShareImage` | optional 1.91:1 link-preview image (1200×630) shown when the card's link is shared on Discord, LINE, X and similar. Put the title and main subject in the centre and keep the sides to background only, since some platforms crop to 2:1 or show a square thumbnail. Without it, previews use `media.backgroundLandscape`, then the portrait |
 
 Unknown keys are preserved on load and save and never sent to the provider.
+
+### Clearing opening content
+
+Opening fields are independent on push:
+
+| Local source | Explicitly clear | Leave the remote field alone |
+|---|---|---|
+| `welcome.md` | Keep the file empty (or only its placeholder comment) | Omit the file |
+| `openings/*.md` | Keep an empty `openings/` directory | Omit the directory |
+| `card.json.prologue` | Set `"prologue": []` | Omit the key |
+
+For a page opening, set `"openingMode": "page"` in `rules.json`, empty
+`welcome.md`, remove the alternate Markdown files while keeping `openings/`,
+and set `"prologue": []` to clear all three. Only clear the opening choices if
+you also intend to remove them. `welcome` in `card.json` is not the opening
+message; the message lives in `welcome.md`.
+
+Owned cards still skip an empty opening message unless the card uses the page
+presentation, has an opening page, or supplies opening choices. The author
+asset is saved before the opening message. Trial updates read the existing
+opening fields and carry forward those absent locally, because their API
+replaces the whole opening section.
 
 ### Response defaults
 
@@ -150,7 +212,15 @@ checks the values before a push.
 
 ## Media folder
 
-Everything under `assets/` is uploaded into one folder of your media library,
+Card image fields use separate card-bound storage. `card push` obtains the
+private owned/trial card identity before uploading local card images. Equal
+filenames never overwrite another card's image. New card images are absent
+from the personal library, cannot be deleted there, and do not consume its
+quota. Picking an owned image URL creates an independent card copy; arbitrary
+new external URLs require downloading the image into `assets/` first. The
+avatar aliases the background slot; an explicit background takes precedence.
+
+Body/display assets are uploaded into one folder of your media library,
 and the served URL mirrors the path: `assets/art/expr/happy.webp` becomes
 `<libraryPrefix>/<folder>/art/expr/happy.webp`. Paths are case-sensitive;
 non-ASCII folder names are percent-escaped in the URL.
@@ -166,7 +236,8 @@ is refused; export the video as MP4 (H.264) first.
   not move its files. A folder that already held uploads before this field
   existed keeps its old name until `media.folder` is set.
 - To rename the card's folder, run `media mv <old> <new>`: it shows which of
-  your cards still mention the old URLs, and `--yes` moves the files. A file's
+  your cards still mention the old URLs, and `--yes` confirms the move. Legacy
+  card-image references block a move even with confirmation. A file's
   URL is its path, so the old URLs stop working. Then set `media.folder` to the
   new name. A push also follows files that were renamed or moved on the
   website, and uploads again any that were deleted there.
@@ -175,7 +246,8 @@ is refused; export the video as MP4 (H.264) first.
   `media rm` remove them.
 - On the first push into a folder this card has not uploaded to, the CLI stops
   if the folder already holds other files, because an upload with the same
-  path replaces that file for every card that uses it. Set `media.folder` to a
+  path updates body/display references. Legacy card-image references block
+  replacement. Set `media.folder` to a
   new name, or to that name to share the folder on purpose (one series, one
   folder).
 - A directory reference is uploaded whole: `"assets/art/expr/"`, or a path
@@ -184,6 +256,22 @@ is refused; export the video as MP4 (H.264) first.
   directory is uploaded and the directory part is rewritten to its served URL,
   so file names can be chosen at runtime. Name such files after the values the
   card produces (`happy.webp` for `<face>happy</face>`).
+- Generated images: `media generate --out assets/portrait.png` downloads the
+  result into the folder, so the card references it like any other asset;
+  `media generate --dir <folder>` saves it in the library instead and prints
+  its URL. A card image field adopts it as an independent copy; Markdown
+  continues to use the library URL. `--dir` is optional and consumes quota.
+  Later images of the same character take the portrait as a reference:
+  `--image <library path or owned image URL>` keeps the face, hair and outfit.
+
+Existing library-backed card images remain library items and count toward
+quota pending a separately authorized migration. An unchanged `card pull
+--download` followed by push retains its previous image URLs; changing a
+local card image uploads a new card-bound copy. A file used both in a card
+image field and in Markdown has separate destinations and sync records.
+Unattached completed uploads can be cleaned up after 24 hours; images used by
+retained card versions remain available. The CLI persists creation identity
+and completed image URLs so a retry can resume the same card.
 
 ## lorebook.json
 
@@ -198,6 +286,7 @@ Lorebook keywords and secondary keywords need `/pattern/flags` syntax for regula
       "content": "The lamp burns whale oil and must be trimmed at dusk.",
       "keywords": ["lamp", "light"],
       "secondaryKeywords": [],
+      "semanticRecall": false,
       "constant": false,
       "disabled": false,
       "triggerRegion": "both",
@@ -229,6 +318,16 @@ When an author edits a Lorebook in the web editor while an AI agent or collabora
 
 Each write sends `expectedVersion` from `.hearthroom/state.json` (or `--expected-version <n>` after inspecting live entries on a `409` conflict) and updates that entry's content, hash, and version in local `lorebook.json` and `.hearthroom/state.json`, so a subsequent `hearthroom card push` treats the entry as already synced. Markdown source files under `worldbook/*.md` are not rewritten automatically.
 
+`semanticRecall` defaults to on for new entries. Set it to `false` to allow only keyword or regular-expression activation; constant entries and content already retained in a conversation stay available. Set it to `true` to enable semantic recall again. An omitted field in a patch preserves the saved setting. Markdown entry sources accept `semanticRecall: false` or `semanticRecall: true` in their frontmatter.
+
+Turn off semantic recall on an entry when it must only appear once its keywords match, for example to keep a story reveal in order. Agent semantic lookup also excludes it; explicit list, read and text search remain available. Split pieces of one logical entry stay together: if any piece has semantic recall off, the group is keyword-only.
+
+### Lorebook recall allowance
+
+Each turn, newly triggered entries can take up to about one-eighth of the model's context; entries matching the current message come first, and an entry too long to fit is skipped for the next one.
+
+The allowance follows the selected context tier, measured in tokens, and includes the entry's formatting. Always-on entries and entries retained from earlier turns do not use this new-entry allowance. Among new entries, current-message keyword matches come before matches from recent messages, followed by semantic candidates; competing entries are ordered by reranker score when available. Selected entries are sent in author order. Keep each entry to roughly 500 characters where possible, and keep always-on entries concise; this is writing advice, not an upload limit.
+
 ## contexts/ and named Lorebooks
 
 Contexts let one configuration keep separate model histories, presets and Lorebooks.
@@ -250,6 +349,10 @@ The filename is the stable source ID, using 1–64 ASCII letters, digits, `_` or
 The `id` inside the file must match it. A context cannot use the reserved ID `main`.
 These IDs survive publishing and restoring versions, even when the provider creates
 new internal copies of the books. They are not remote UUIDs.
+
+`card pull --force` rewrites `contexts/` from the provider: it keeps only
+`<id>.json` and `<id>.preset.json` for each declared context and removes other
+JSON files in that folder. Keep notes or shared preset drafts elsewhere.
 
 This example was written for this guide. `contexts/settle.json`:
 
@@ -370,16 +473,21 @@ source file and reports a warning. Resolve pull warnings before pushing again.
 
 `card.css` contains plain CSS for the whole card, without `<style>` tags or a
 find pattern. It applies once per play page, below styles in display rules, and
-never enters the model prompt. The play page maps known AI Fengyue chat-element
-selectors automatically; authors do not choose a style source.
+never enters the model prompt. Only this stylesheet automatically maps known
+AI Fengyue chat-element selectors; other selectors apply as written, and
+authors do not choose a style source. Put new Fengyue CSS here rather than in
+display rules.
 
 The file is optional: absence preserves the stored CSS, and an existing empty
 file clears it. Its limit is 524288 UTF-8 bytes after relative asset URLs are
 rewritten. `assets/...` URLs use the same upload and rewrite path as rules.
 `card import` writes AI Fengyue's built-in CSS and RiliAI's `injectStyles` here.
+Reimport an older Fengyue card to use the latest Fengyue compatibility.
 
 Imports and older folders may carry `cardCssDialect` in `rules.json`
-(`fengyue-v2`, `fengyue`, `rili`, `tavern`, `mmd`, or an explicit empty string). This is a compatibility
+(`rili`, `fengyue-v2`, `fengyue`, `tavern`, `mmd`, or an explicit empty string). New
+Fengyue imports use `fengyue-v2` for source-platform base styles; RiliAI imports
+use `rili`; older hints keep their original rendering. This is a compatibility
 hint: retain it on round-trip, omit it for new handwritten CSS, and use an empty
 string to clear a stored hint. Omitting the key preserves the stored hint.
 
@@ -401,11 +509,13 @@ string to clear a stored hint. Omitting the key preserves the stored hint.
 
 `cardFormat` is empty (MMD-style), `tavern` (styles scoped to messages) or
 `fengyue` (imported from AI Fengyue: page-wide styles that follow the light or
-dark theme, and tapping an opening choice sends it instead of filling the input).
+dark theme).
 
-Older rules may retain `cssDialect` (`fengyue`, `tavern`, or `mmd`). The CLI
-preserves those values; new handwritten styles do not need a source selection.
-Without a hint, display-rule styles follow `cardFormat`. AI Fengyue imports put
+Display-rule styles keep their original policy: existing `cssDialect` values
+(`fengyue`, `tavern`, or `mmd`) and compiled style markers remain in effect;
+otherwise styles follow `cardFormat`. The CLI preserves saved hints on
+round-trip. Display rules do not gain automatic Fengyue selector mapping.
+AI Fengyue imports put
 page-wide styles in `card.css`, rather than adding a rule that matches the last
 character of each message. Ordinary display rules still require a non-blank
 `find`; use `card.css` for styles that do not replace message text.
@@ -413,6 +523,15 @@ character of each message. Ordinary display rules still require a non-blank
 When styles meet, platform defaults and the site's theme come first, then
 `card.css`, then enabled display-rule styles. Existing Fengyue hints retain their
 compatibility behavior, including dark-mode selectors and mapped chat elements.
+
+`openingMode` is how a new chat opens: `greeting` (the opening message in
+`welcome.md` starts it; tapping an opening choice fills the player's input) or
+`page` (the player starts from `opening.html` and the opening choices; tapping a
+choice sends it as the player's first message, and `welcome.md` may be empty).
+Without the key the site keeps the card's current choice; a new card opens with
+`page` when `cardFormat` is `fengyue` and with `greeting` otherwise. `card import`
+writes `page` for AI Fengyue and RiliAI cards, and `card pull` writes the key only
+when it differs from that default.
 
 `sharedState` declares the polls and counters players can write on this card:
 
@@ -534,6 +653,24 @@ computes the rating from the answers. `hearthroom card rate` asks the questions
 (or takes `--answers` from an agent) and writes this file;
 `hearthroom card submit` sends the answers with the card.
 
+Each new review submission must contain more than 3,000 counted characters, meaning a minimum of 3,001, across the
+character definition and the content of enabled always-on Lorebook entries. The two parts contribute to one combined
+total; neither has a separate minimum.
+
+The count is based on Unicode letters and numbers after NFC normalization. English is counted by character, not by word.
+Spaces, punctuation, symbols and emoji do not count. HTML tags, comments, script and style contents, template variables,
+Markdown link destinations and images are excluded; readable link text counts. Markdown code blocks are not excluded as
+a whole: their letters and numbers still count. Entry names and keywords, opening messages, example conversations,
+custom instructions, disabled entries and entries that are not always on do not contribute to the minimum.
+
+The service checks the actual version submitted for review. With the CLI, push local changes before submitting; unpushed
+edits do not count. This rule applies to new review submissions and does not retroactively remove cards that are already
+public. Meeting the character minimum does not guarantee review approval.
+
+Public submissions, updates to published cards, and restoring `public` visibility require a portrait cover (`media.portrait` or the compatible `media.background` field) and at least one opening (`welcome.md`, a nonempty file in `openings/`, `prologue` in `card.json`, or `opening.html`), in addition to a name and character definition. Push local changes before submitting. Landscape and link-preview images remain optional, and `private` or `unlisted` cards can be saved without a portrait cover or opening.
+
+`opening.html` travels with the author settings from `rules.json` or `card.css`. Keep one of those files in the folder when pushing an opening page.
+
 Public submissions, updates to published cards, and restoring `public` visibility also require at least one platform preset category or play-style tag in `card.json` `tags` (run `hearthroom tags --preset` for valid display names; custom tags do not count). Cards already public without a preset tag remain listed until their next published update or public restoration.
 
 ```json
@@ -571,6 +708,26 @@ the last push, so only changed sections are sent.
 | `authorAsset` | `rules.json` |
 | `state` | `variables.json` + `variables.md` + `panel.hbs` |
 
+## Push preflight and partial updates
+
+`card push --dry-run` checks limits without uploading media, writing card
+content or changing local state. It reports each display rule's replacement
+size after URL rewriting in UTF-8 bytes, its limit and the bytes remaining.
+JSON includes `push.rules[]` and `push.rulesTotal`.
+
+Owned pushes write display rules before configuration text, openings and
+Lorebook entries. If the rules are not confirmed as saved, the push stops
+before writing those sections. A later section can still fail after the rules
+have been saved, so a push is not an atomic whole-card update. Keep
+`.hearthroom/state.json` to preserve resume progress. If a save result is
+unknown, check the saved rules before pushing again; otherwise, correct the
+reported problem and rerun the same command to resume.
+
+If the provider assigns new media URLs only after upload, dry-run cannot
+report exact rewritten sizes for content that uses those URLs. A real push
+uploads the media and checks sizes before writing card content. Uploaded
+media and its local resume progress may remain even if that check fails.
+
 ## .hearthroom/state.json
 
 Written by the CLI. Keep this file when resuming an interrupted push: it links the
@@ -589,7 +746,12 @@ Korean, and 12000 for English; a bound book's detail response provides its actua
 
 A long entry without `matchOptions.groupId` or `groupOrder` is split for upload at
 paragraph or sentence boundaries, with shared `groupId` and increasing `groupOrder`.
-Joining the parts exactly restores the original text; the local file stays unsplit.
+Joining the parts exactly restores the original text. Push reports the entry, limit
+and number of parts; the first part updates its existing entry ID and later parts
+reuse their saved IDs. Source files, including IDs and unsplit content, stay unchanged;
+sync identities live in `.hearthroom/state.json`, which must stay with the folder.
+Obsolete split parts are removed automatically. Other known removed entries require
+`--prune`; unknown remote entries stay untouched and need explicit author cleanup.
 Existing group settings are preserved, so an oversized author-grouped entry must
 be shortened by its author. Grouped parts count separately toward the trial limit.
 
@@ -630,3 +792,14 @@ history. It does not prove complete live membership or cross-device change
 handling; cards must keep a readable fallback when this capability is missing.
 Verify actual delete, truncate and rewrite recovery through an isolated signed-in
 browser against the candidate Provider and stage before publishing.
+
+## Starting the selected opening
+
+On the live host (classic and sandbox), before a conversation exists, omit the index to preserve the player's selected opening, including an author DLC opening:
+
+```js
+await sdk.archive.start()
+const { openingSource } = await sdk.workshop.list()
+```
+
+`start(0)` explicitly selects the main opening; `start(1)` selects the first alternate. Starting creates a conversation without sending a player message or calling the model. Handle a rejected start before continuing. Classic currently provides `archive.start` only from the archive group; both modes provide `sdk.workshop.list()`. The existing `openingSource` identifies the recorded base index or `{kind: "workshop", workshopId, openingId}`; before a conversation exists it is `null`. The CLI's offline preview does not reproduce the live host's pending DLC selection.

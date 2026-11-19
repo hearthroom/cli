@@ -29,7 +29,7 @@ else if (result.settled && result.text && (result.status === 'complete' || resul
 
 For a main turn sent with `sdk.message.send`, the Promise resolves on acceptance. Read `message:done` for the terminal result. For a tool turn on an unavailable lane, `message:done` adds `reasonCode: "service_unavailable"` to the existing tool result. `sdk.context.run` reports the same condition in its terminal `reason`. See [Card tools](card-tools.md).
 
-When a context reaches its output limit, `reasonCode: 'output_limit'` identifies the cutoff in the terminal result, replay and assistant entry. With a declared tool, the interrupted result has `reason: 'interrupted'` and `toolCall: null`. If `text` contains a partial reply, the card can display it without applying a tool-driven state change. The script decides whether later steps can run with that text. The batch stays eligible for later calls within its remaining budget until it is closed or expires. Closing releases the unused reserve.
+When a context tool reply with partial prose reaches its output limit, the SDK returns `status: "interrupted"`, `toolCall: null`, `reason: "interrupted"`, and `reasonCode: "output_limit"` together. Replay and the assistant entry carry the same reason fields. If `text` contains a partial reply, the card can display it without applying a tool-driven state change. The script decides whether later steps can run with that text. The batch stays eligible for later calls within its remaining budget until it is closed or expires. Closing releases the unused reserve.
 
 | Option | Meaning |
 | --- | --- |

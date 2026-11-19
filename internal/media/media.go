@@ -89,18 +89,18 @@ type uploadResponse struct {
 // with growing pauses; a named upload replaces the same library path, so
 // sending it again after a lost reply does no harm.
 func Upload(ctx context.Context, c *api.Client, localPath, relativePath, roleID string) (UploadResult, error) {
-	if roleID != "" {
-		return uploadCard(ctx, c, localPath, roleID)
+	result, err := uploadViaTicket(ctx, c, localPath, relativePath, roleID)
+	if !errors.Is(err, errUploadIntentUnavailable) {
+		return result, err
 	}
+	// Multipart also supports older providers and files without a known type.
 	for attempt := 1; ; attempt++ {
-		res, err := uploadOnce(ctx, c, localPath, relativePath, roleID)
+		res, err := uploadOnce(ctx, c, localPath, relativePath)
 		if err == nil || attempt >= uploadAttempts || !retryable(ctx, err) {
 			return res, err
 		}
-		select {
-		case <-ctx.Done():
-			return UploadResult{}, ctx.Err()
-		case <-time.After(retryDelay(attempt, err)):
+		if err := waitUploadRetry(ctx, attempt, err); err != nil {
+			return UploadResult{}, err
 		}
 	}
 }
@@ -132,14 +132,15 @@ func retryable(ctx context.Context, err error) bool {
 func retryDelay(attempt int, err error) time.Duration {
 	var e *api.Error
 	if errors.As(err, &e) && e.RetryAfter > 0 {
-		return min(time.Duration(e.RetryAfter)*time.Second, time.Minute)
+		minimum := min(time.Duration(e.RetryAfter)*time.Second, time.Minute)
+		return min(minimum+time.Duration(rand.Int64N(int64(minimum/2)+1)), time.Minute)
 	}
 	d := retryBase << (attempt - 1)
 	// ±50% so parallel workers that failed together do not retry together.
 	return d/2 + time.Duration(rand.Int64N(int64(d)+1))
 }
 
-func uploadOnce(ctx context.Context, c *api.Client, localPath, relativePath, roleID string) (UploadResult, error) {
+func uploadOnce(ctx context.Context, c *api.Client, localPath, relativePath string) (UploadResult, error) {
 	name := filepath.Base(localPath)
 	if isQuickTimeName(name) {
 		return UploadResult{}, errors.New(quickTimeMessage(name))
@@ -152,9 +153,6 @@ func uploadOnce(ctx context.Context, c *api.Client, localPath, relativePath, rol
 	fields := map[string][]string{}
 	if relativePath != "" {
 		fields["relativePath"] = []string{relativePath}
-	}
-	if roleID != "" {
-		fields["roleId"] = []string{roleID}
 	}
 	var resp uploadResponse
 	if err := c.UploadFile(ctx, "/image/upload", fields, "file", name, ContentType(name), f, &resp); err != nil {

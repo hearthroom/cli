@@ -20,6 +20,10 @@ func uploadServer(t *testing.T, status int, body string) (*api.Client, *atomic.I
 	var partType atomic.Value
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
+		if r.URL.Path != "/open/v1/image/upload" {
+			http.NotFound(w, r)
+			return
+		}
 		if err := r.ParseMultipartForm(1 << 20); err != nil {
 			t.Error(err)
 			return

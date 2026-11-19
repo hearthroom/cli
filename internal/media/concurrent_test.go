@@ -302,7 +302,7 @@ func TestUploadGivesUpAfterLimitedAttempts(t *testing.T) {
 }
 
 func TestRetryDelayFollowsRetryAfter(t *testing.T) {
-	if d := retryDelay(1, &api.Error{Status: 429, RetryAfter: 7}); d != 7*time.Second {
+	if d := retryDelay(1, &api.Error{Status: 429, RetryAfter: 7}); d < 7*time.Second || d > 10500*time.Millisecond {
 		t.Fatalf("retry_after 7: %v", d)
 	}
 	if d := retryDelay(1, &api.Error{Status: 429, RetryAfter: 600}); d != time.Minute {

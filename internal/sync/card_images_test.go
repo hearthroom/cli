@@ -25,15 +25,18 @@ func TestPushSeparatesCardPicturesFromInlineLibraryAssets(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{"roleName": "Scope", "language": "en", "roleVisibility": "private"})
 		case r.URL.Path == "/open/v1/image/list":
 			json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"imageList": []any{}, "capabilities": map[string]any{"relativePaths": true}, "libraryPrefix": "https://cdn.test/u/owner"}})
-		case r.URL.Path == "/open/v1/image/upload":
-			r.ParseMultipartForm(1 << 20)
-			path := r.FormValue("relativePath")
+		case r.URL.Path == "/open/v1/image/uploadIntent":
+			json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"uploadId": "inline-ticket", "uploadUrl": origin + "/put-inline", "contentType": "image/png"}})
+		case r.URL.Path == "/open/v1/image/uploadComplete":
+			var in struct{ RelativePath string }
+			json.NewDecoder(r.Body).Decode(&in)
+			path := in.RelativePath
 			named = append(named, path)
 			json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"imageId": "library", "imageUrl": "https://cdn.test/u/owner/" + path, "fileName": path}})
 		case r.URL.Path == "/open/v1/role/existing/images/uploadIntent":
 			intents++
 			json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"uploadId": "cover-ticket", "uploadUrl": origin + "/put-cover", "contentType": "image/png"}})
-		case r.URL.Path == "/put-cover":
+		case r.URL.Path == "/put-cover" || r.URL.Path == "/put-inline":
 			io.Copy(io.Discard, r.Body)
 			w.WriteHeader(http.StatusOK)
 		case r.URL.Path == "/open/v1/role/existing/images/uploadComplete":

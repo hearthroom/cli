@@ -324,17 +324,23 @@ func TestProviderWithoutPredictableURLs(t *testing.T) {
 	for _, dry := range []bool{true, false} {
 		t.Run(fmt.Sprint(dry), func(t *testing.T) {
 			var writes []string
+			var origin string
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != "GET" {
 					writes = append(writes, r.URL.Path)
 				}
-				if strings.HasSuffix(r.URL.Path, "/image/upload") {
+				if strings.HasSuffix(r.URL.Path, "/image/uploadIntent") {
+					fmt.Fprintf(w, `{"data":{"uploadId":"icon-ticket","uploadUrl":%q,"contentType":"image/svg+xml"}}`, origin+"/put-icon")
+					return
+				}
+				if strings.HasSuffix(r.URL.Path, "/image/uploadComplete") {
 					w.Write([]byte(`{"data":{"imageId":"1","imageUrl":"https://cdn.example/random.svg"}}`))
 					return
 				}
 				w.Write([]byte(`{}`))
 			}))
 			defer srv.Close()
+			origin = srv.URL
 			f, _ := card.Init(t.TempDir(), "Unknown", "en")
 			os.MkdirAll(filepath.Join(f.Dir, "assets"), 0755)
 			os.WriteFile(filepath.Join(f.Dir, "assets/icon.svg"), []byte("svg"), 0644)
@@ -349,7 +355,8 @@ func TestProviderWithoutPredictableURLs(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if len(writes) < 3 || !strings.HasSuffix(writes[0], "/image/upload") || !strings.HasSuffix(writes[1], "/author-asset") || !strings.HasSuffix(writes[2], "/document") {
+				if len(writes) < 5 || !strings.HasSuffix(writes[0], "/image/uploadIntent") || writes[1] != "/put-icon" ||
+					!strings.HasSuffix(writes[2], "/image/uploadComplete") || !strings.HasSuffix(writes[3], "/author-asset") || !strings.HasSuffix(writes[4], "/document") {
 					t.Fatalf("writes=%v", writes)
 				}
 				if res.Rules[0].RewrittenBytes != len(`<img src="https://cdn.example/random.svg">`) {

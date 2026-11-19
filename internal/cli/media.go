@@ -83,7 +83,7 @@ func (a *App) mediaCommand() *cobra.Command {
 		},
 	}
 	up.Flags().StringVar(&relPath, "path", "", "author-side relative path (single file), e.g. my-card/bg.png")
-	up.Flags().StringVar(&roleID, "role", "", "attribute the upload to a card id")
+	up.Flags().StringVar(&roleID, "role", "", "store images on a card (up to four concurrent uploads per account)")
 
 	var q, kind, scope string
 	var page, size int

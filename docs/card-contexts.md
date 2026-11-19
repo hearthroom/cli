@@ -21,13 +21,15 @@ const quote = await sdk.context.quote('settle', {turn: 7});
 if (!(await askPlayer(quote))) return;          // your own dialog; the platform adds none
 
 const result = await sdk.context.run('settle', {turn: 7}, {instance: 'north', label: 'North'});
-if (result.status === 'complete' && result.toolCall?.valid) applyMove(result.toolCall.args);
-else if (result.status === 'complete') showText(result.text);
+if (result.settled && result.status === 'complete' && result.toolCall?.valid) applyMove(result.toolCall.args);
+else if (result.settled && result.text && (result.status === 'complete' || result.reasonCode === 'output_limit')) showText(result.text);
 ```
 
 `run` resolves when the call ends. `status` is `complete`, `interrupted`, `stopped`, `failed`, `moderated` or `discarded`, and each is a normal resolution; only a refusal before any spending rejects. The result carries `callId`, `text`, `toolCall` and `reason` (the same shapes as card tools), `charged` and `settled`. `settled: false` means the charge is not final yet. If the model lane is unavailable after admission, the terminal result, replay, and assistant entry carry `reason: 'service_unavailable'` and `toolCall: null`. Read `charged` and `settled` for the final cost. A new attempt uses a new idempotency key.
 
 For a main turn sent with `sdk.message.send`, the Promise resolves on acceptance. Read `message:done` for the terminal result. For a tool turn on an unavailable lane, `message:done` adds `reasonCode: "service_unavailable"` to the existing tool result. `sdk.context.run` reports the same condition in its terminal `reason`. See [Card tools](card-tools.md).
+
+When a context reaches its output limit, `reasonCode: 'output_limit'` identifies the cutoff in the terminal result, replay and assistant entry. With a declared tool, the interrupted result has `reason: 'interrupted'` and `toolCall: null`. If `text` contains a partial reply, the card can display it without applying a tool-driven state change. The script decides whether later steps can run with that text. The batch stays eligible for later calls within its remaining budget until it is closed or expires. Closing releases the unused reserve.
 
 | Option | Meaning |
 | --- | --- |

@@ -19,19 +19,18 @@ See [Workshop extensions](workshop.md) for the user workflow.
 
 ## Sandbox SDK contract
 
-Stage generates `contract/sandbox-contract.json` from its runtime SDK in
-`src/sandbox/__tests__/contract.spec.ts`. To synchronize the CLI, copy that
-generated file to `internal/check/sandbox-contract.json`, then run:
+Download the [public sandbox contract](https://github.com/hearthroom/hearthroom/blob/main/web/public/contracts/sandbox-contract.json)
+and compare it with the copy embedded in the CLI:
 
 ```sh
-HEARTHROOM_STAGE_SOURCE=/path/to/stage \
+HEARTHROOM_SANDBOX_CONTRACT=/path/to/sandbox-contract.json \
   go test ./internal/check -run TestSandboxSDKContract -v
 ```
 
-The test compares SDK keys, capabilities, share properties and event names.
-CI runs it against stage's latest `main`. Local runs explicitly skip this
-cross-repository check when the variable is unset; ordinary card regressions
-still run offline. This verifies source agreement, not a deployed SDK.
+CI downloads the public contract and checks SDK keys, capabilities, share
+properties and event names. If it reports drift, copy the public file to
+`internal/check/sandbox-contract.json` and run the comparison again. Local runs
+without a contract file still run the ordinary offline card regressions.
 
 ## End-to-end tests
 

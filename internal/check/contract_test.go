@@ -8,14 +8,18 @@ import (
 	"testing"
 )
 
-// Stage generates this contract from createSdk's runtime object. CI checks its
-// latest main so a newly added capability cannot silently leave the CLI behind.
+// Compare the embedded SDK with the author's published contract. An internal
+// Stage checkout can also validate a candidate before the contract is published.
 func TestSandboxSDKContract(t *testing.T) {
-	root := os.Getenv("HEARTHROOM_STAGE_SOURCE")
-	if root == "" {
-		t.Skip("set HEARTHROOM_STAGE_SOURCE to a stage checkout for SDK contract verification")
+	path := os.Getenv("HEARTHROOM_SANDBOX_CONTRACT")
+	if path == "" {
+		root := os.Getenv("HEARTHROOM_STAGE_SOURCE")
+		if root == "" {
+			t.Skip("set HEARTHROOM_SANDBOX_CONTRACT to the public contract file")
+		}
+		path = filepath.Join(root, "contract", "sandbox-contract.json")
 	}
-	raw, err := os.ReadFile(filepath.Join(root, "contract", "sandbox-contract.json"))
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,6 +28,6 @@ func TestSandboxSDKContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(contract.SDK, stage.SDK) || !reflect.DeepEqual(contract.Events, stage.Events) {
-		t.Fatal("embedded SDK keys, capabilities, properties or events differ from stage; copy stage's generated contract/sandbox-contract.json to internal/check/sandbox-contract.json")
+		t.Fatal("embedded SDK keys, capabilities, properties or events differ from the author contract; copy the public sandbox contract to internal/check/sandbox-contract.json")
 	}
 }

@@ -14,20 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: hearthroom/moonstage
-          ref: main
-          path: .stage-source
-          sparse-checkout: contract
-          persist-credentials: false
+      - name: Download the public author's sandbox contract
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://raw.githubusercontent.com/hearthroom/hearthroom/main/web/public/contracts/sandbox-contract.json \
+            --output "$RUNNER_TEMP/sandbox-contract.json"
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test ./internal/check -run TestSandboxSDKContract -v
-        env:
-          HEARTHROOM_STAGE_SOURCE: ${{ github.workspace }}/.stage-source
+      - run: HEARTHROOM_SANDBOX_CONTRACT="$RUNNER_TEMP/sandbox-contract.json" go test ./internal/check -run TestSandboxSDKContract -v
 
   test:
     name: test (${{ matrix.os }})

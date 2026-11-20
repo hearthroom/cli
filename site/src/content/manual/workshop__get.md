@@ -26,4 +26,4 @@ hearthroom workshop get <workshopId>
 
 ## See also
 
-- [`hearthroom workshop`](/manual/workshop/) — Create, edit and publish author DLC or player Lorebook extensions
+- [`hearthroom workshop`](/manual/workshop/) — Create and edit workshop extensions, or publish your own author DLC

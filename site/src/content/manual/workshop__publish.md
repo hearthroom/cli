@@ -1,13 +1,13 @@
 ---
 slug: "workshop/publish"
 command: "hearthroom workshop publish"
-short: "Publish your draft directly, without content review"
+short: "Publish your own author DLC"
 parent: "workshop"
 ---
 
 # hearthroom workshop publish
 
-Publish your draft directly, without content review
+Publish your own author DLC
 
 ## Usage
 
@@ -33,4 +33,4 @@ hearthroom workshop publish <workshopId> [flags]
 
 ## See also
 
-- [`hearthroom workshop`](/manual/workshop/) — Create, edit and publish author DLC or player Lorebook extensions
+- [`hearthroom workshop`](/manual/workshop/) — Create and edit workshop extensions, or publish your own author DLC

@@ -453,7 +453,7 @@
   {
     "slug": "workshop",
     "command": "hearthroom workshop",
-    "short": "Create, edit and publish author DLC or player Lorebook extensions",
+    "short": "Create and edit workshop extensions, or publish your own author DLC",
     "parent": "hearthroom",
     "children": [
       "workshop/create",
@@ -499,13 +499,13 @@
   {
     "slug": "workshop/publish",
     "command": "hearthroom workshop publish",
-    "short": "Publish your draft directly, without content review",
+    "short": "Publish your own author DLC",
     "parent": "workshop"
   },
   {
     "slug": "workshop/unpublish",
     "command": "hearthroom workshop unpublish",
-    "short": "Unpublish your extension while retaining its draft",
+    "short": "Unpublish your own author DLC and retain its draft",
     "parent": "workshop"
   },
   {

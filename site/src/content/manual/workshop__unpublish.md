@@ -1,13 +1,13 @@
 ---
 slug: "workshop/unpublish"
 command: "hearthroom workshop unpublish"
-short: "Unpublish your extension while retaining its draft"
+short: "Unpublish your own author DLC and retain its draft"
 parent: "workshop"
 ---
 
 # hearthroom workshop unpublish
 
-Unpublish your extension while retaining its draft
+Unpublish your own author DLC and retain its draft
 
 ## Usage
 
@@ -33,4 +33,4 @@ hearthroom workshop unpublish <workshopId> [flags]
 
 ## See also
 
-- [`hearthroom workshop`](/manual/workshop/) — Create, edit and publish author DLC or player Lorebook extensions
+- [`hearthroom workshop`](/manual/workshop/) — Create and edit workshop extensions, or publish your own author DLC

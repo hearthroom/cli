@@ -39,7 +39,7 @@ func TestWorkshopLifecycleUsesProviderContracts(t *testing.T) {
 			if r.URL.Query().Get("workshopId") != "my-extension" {
 				t.Fatal(r.URL.String())
 			}
-			_, _ = w.Write([]byte(`{"workshopId":"my-extension","revision":3,"kind":"dlc","card":{"roleId":"source-role"},"name":"Harbor scenario","worldbook":[],"rules":{"rules":[]},"opening":{"mode":"greeting","welcome":"Welcome."}}`))
+			_, _ = w.Write([]byte(`{"workshopId":"my-extension","revision":3,"kind":"dlc","card":{"roleId":"source-role"},"name":"Harbor scenario","worldbook":[{"id":"harbor","packId":"5168c881-178b-4a2f-8a83-cc158709143e"}],"lorePacks":[{"id":"5168c881-178b-4a2f-8a83-cc158709143e","name":"Harbor","defaultEnabled":true}],"scriptCanSwitchPacks":true,"rules":{"rules":[]},"opening":{"mode":"greeting","welcome":"Welcome."}}`))
 		case "/open/v1/workshop/draft/save":
 			if body["workshopId"] != "my-extension" || body["expectedRevision"] != float64(3) || body["idempotencyKey"] != "save-intent" {
 				t.Fatalf("save=%v", body)
@@ -52,6 +52,15 @@ func TestWorkshopLifecycleUsesProviderContracts(t *testing.T) {
 			}
 			if body["opening"].(map[string]any)["welcome"] != "Welcome." {
 				t.Fatal("opening lost")
+			}
+			packs, ok := body["lorePacks"].([]any)
+			if !ok || len(packs) != 1 || body["scriptCanSwitchPacks"] != true {
+				t.Fatal("author pack settings lost")
+			}
+			pack := packs[0].(map[string]any)
+			entries := body["worldbook"].([]any)
+			if pack["name"] != "Harbor" || pack["defaultEnabled"] != true || entries[0].(map[string]any)["packId"] != pack["id"] {
+				t.Fatal("pack membership lost")
 			}
 			_, _ = w.Write([]byte(`{"revision":4,"constantChars":0,"errors":[]}`))
 		case "/open/v1/workshop/publish", "/open/v1/workshop/unpublish":

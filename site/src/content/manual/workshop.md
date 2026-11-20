@@ -1,7 +1,7 @@
 ---
 slug: "workshop"
 command: "hearthroom workshop"
-short: "Create, edit and publish author DLC or player Lorebook extensions"
+short: "Create and edit workshop extensions, or publish your own author DLC"
 parent: "hearthroom"
 ---
 
@@ -29,8 +29,8 @@ projection may become available later. Every command accepts --json.
 - [`hearthroom workshop list`](/manual/workshop/list/) — List your own Workshop drafts and publications
 - [`hearthroom workshop policy`](/manual/workshop/policy/) — Read an agent configuration's Workshop opt-in policy
 - [`hearthroom workshop policy-set`](/manual/workshop/policy-set/) — Change Workshop opt-in for your original agent configuration
-- [`hearthroom workshop publish`](/manual/workshop/publish/) — Publish your draft directly, without content review
-- [`hearthroom workshop unpublish`](/manual/workshop/unpublish/) — Unpublish your extension while retaining its draft
+- [`hearthroom workshop publish`](/manual/workshop/publish/) — Publish your own author DLC
+- [`hearthroom workshop unpublish`](/manual/workshop/unpublish/) — Unpublish your own author DLC and retain its draft
 - [`hearthroom workshop update`](/manual/workshop/update/) — Replace your draft's editable content with a JSON file
 
 ## Global options

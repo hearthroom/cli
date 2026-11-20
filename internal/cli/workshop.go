@@ -16,7 +16,7 @@ func init() {
 
 func (a *App) workshopCommand() *cobra.Command {
 	c := &cobra.Command{
-		Use: "workshop", Short: "Create, edit and publish author DLC or player Lorebook extensions",
+		Use: "workshop", Short: "Create and edit workshop extensions, or publish your own author DLC",
 		Long: `Manage extensions through the connected provider's Workshop API.
 An original author can add openings, response formatting rules and Lorebook entries
 as DLC. Other creators can add Lorebook entries only. The provider derives the kind
@@ -117,6 +117,7 @@ var workshopEditableFields = map[string]bool{
 	"rating": true, "ratingAnswers": true, "worldbook": true, "rules": true,
 	"opening": true, "updateNote": true,
 	"contexts": true, "tools": true,
+	"lorePacks": true, "scriptCanSwitchPacks": true,
 }
 
 // A get response can be edited and sent back. Only editable extension fields
@@ -160,7 +161,7 @@ func (a *App) workshopUpdate() *cobra.Command {
 	c := &cobra.Command{Use: "update <workshopId> --file <draft.json>", Short: "Replace your draft's editable content with a JSON file", Args: cobra.ExactArgs(1),
 		Long: `Replace all editable content in an extension draft (not a partial patch).
 Start with "workshop get <workshopId> --json", edit that JSON, and pass the saved
-revision with --expected-revision. Omitted fields are cleared by the provider.
+revision with --expected-revision. Omit DLC package settings to preserve them.
 Player extensions must omit rules and opening (empty structures from get are safe).
 DLC drafts may also carry contexts and their own card tools; contexts can name only
 those tools. Player extensions omit both.
@@ -218,9 +219,9 @@ Use --file - to read from stdin. Local media paths are not uploaded or rewritten
 func (a *App) workshopAction(action string) *cobra.Command {
 	var operationID string
 	var revision int64
-	short := "Publish your draft directly, without content review"
+	short := "Publish your own author DLC"
 	if action == "unpublish" {
-		short = "Unpublish your extension while retaining its draft"
+		short = "Unpublish your own author DLC and retain its draft"
 	}
 	c := &cobra.Command{Use: action + " <workshopId>", Short: short, Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

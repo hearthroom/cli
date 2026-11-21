@@ -47,7 +47,7 @@ func (r *ResponseDefaults) UnmarshalJSON(raw []byte) error {
 var responseOptions = map[string][]string{
 	"agency":      {"protect", "coauthor"},
 	"style":       {"default", "vivid", "guided", "card", "custom"},
-	"perspective": {"card", "first_character", "second_user", "third_limited", "third_omniscient"},
+	"perspective": {"card", "first_user", "second_user", "third_limited", "third_omniscient"},
 	"length":      {"auto", "recommended", "target"},
 	"pace":        {"natural", "linger", "advance"},
 }
@@ -79,6 +79,9 @@ func CheckResponseDefaults(r ResponseDefaults) []string {
 	for _, k := range keys {
 		v := r[k]
 		switch {
+		case k == "perspective" && v == "first_character":
+			// The server accepts this legacy value and stores it as card.
+			continue
 		case responseOptions[k] != nil:
 			if !containsString(responseOptions[k], v) {
 				add("%s.%s: %q is not one of %s", responseDefaultsField, k, v, strings.Join(responseOptions[k], ", "))

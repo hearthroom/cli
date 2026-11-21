@@ -61,6 +61,8 @@ func TestCheckResponseDefaults(t *testing.T) {
 	for _, ok := range []ResponseDefaults{
 		nil, {},
 		{"agency": "coauthor", "perspective": "third_omniscient", "pace": "linger"},
+		{"perspective": "first_user"},
+		{"perspective": "first_character"},
 		{"style": "vivid"},
 		{"length": "target", "lengthTarget": "2000", "lengthNote": "count narration only"},
 		{"style": "custom", "customStyle": "Terse noir"},
@@ -71,20 +73,20 @@ func TestCheckResponseDefaults(t *testing.T) {
 		}
 	}
 	for wantText, bad := range map[string]ResponseDefaults{
-		"agency":           {"agency": "everything"},
+		"agency": {"agency": "everything"},
 		// 2026-10-16 收成兩檔：舊值不再接受新推送，伺服器對已發布的卡仍會映射。
 		"protect, coauthor": {"agency": "lines"},
 		"assist":            {"agency": "assist"},
-		"lengthTarget":     {"length": "target"},
-		"length is target": {"lengthTarget": "1200"},
-		"1200":             {"length": "target", "lengthTarget": "1100"},
-		"customStyle":      {"style": "custom"},
-		"style is custom":  {"customStyle": "x"},
-		"plain":            {"style": "plain"},
-		"brief":            {"length": "brief"},
-		"blank":            {"paceNote": "  "},
-		"200":              {"paceNote": strings.Repeat("字", 201)},
-		"unknown key mood": {"mood": "x"},
+		"lengthTarget":      {"length": "target"},
+		"length is target":  {"lengthTarget": "1200"},
+		"1200":              {"length": "target", "lengthTarget": "1100"},
+		"customStyle":       {"style": "custom"},
+		"style is custom":   {"customStyle": "x"},
+		"plain":             {"style": "plain"},
+		"brief":             {"length": "brief"},
+		"blank":             {"paceNote": "  "},
+		"200":               {"paceNote": strings.Repeat("字", 201)},
+		"unknown key mood":  {"mood": "x"},
 	} {
 		problems := CheckResponseDefaults(bad)
 		if len(problems) == 0 || !strings.Contains(strings.Join(problems, "\n"), wantText) {

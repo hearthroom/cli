@@ -198,6 +198,12 @@ func (c *Client) SiteDo(ctx context.Context, method, path string, body, out any)
 	return c.do(ctx, method, c.Site+"/v1"+path, nil, body, out, authRequired)
 }
 
+// SiteDoKey calls a community endpoint that takes a fixed service key instead
+// of a signed-in bearer (the card-review identity). No bearer is sent.
+func (c *Client) SiteDoKey(ctx context.Context, method, path string, header http.Header, body, out any) error {
+	return c.doWith(ctx, method, c.Site+"/v1"+path, nil, body, out, authNone, header)
+}
+
 // Form posts application/x-www-form-urlencoded (OAuth token endpoint).
 func (c *Client) Form(ctx context.Context, path string, form url.Values, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.API+path, strings.NewReader(form.Encode()))

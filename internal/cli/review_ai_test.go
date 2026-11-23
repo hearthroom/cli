@@ -190,3 +190,31 @@ func TestReviewServerErrorExitsWithCode(t *testing.T) {
 		t.Fatalf("exit %d stdout %q stderr %q", code, out, errOut)
 	}
 }
+
+// The card-review identity runs unattended with a fixed key: no sign-in, no
+// bearer, and the key goes only to the reviewer routes (report stays signed in).
+func TestReviewKeyReplacesSignIn(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(EnvReviewKey, "k123")
+	var seen []http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Clone())
+		_, _ = w.Write([]byte(`{"count":0}`))
+	}))
+	t.Cleanup(srv.Close)
+	if _, _, err := runCLI(t, reviewAIArgs(srv, cfg, "review", "queue", "--unshadowed", "--count")...); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 1 || seen[0].Get("X-Review-Agent-Key") != "k123" || seen[0].Get("Authorization") != "" {
+		t.Fatalf("headers %v", seen)
+	}
+	seen = nil
+	if _, _, err := runCLI(t, reviewAIArgs(srv, cfg, "review", "report")...); err == nil {
+		t.Fatal("report without sign-in should fail")
+	}
+	for _, h := range seen {
+		if h.Get("X-Review-Agent-Key") != "" {
+			t.Fatalf("key sent to report: %v", h)
+		}
+	}
+}

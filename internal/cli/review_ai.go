@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -222,13 +223,24 @@ func (a *App) reviewReport() *cobra.Command {
 	return c
 }
 
-// reviewCall sends one signed-in community request and prints the response.
+// EnvReviewKey holds the card-review identity's fixed key. When set, the
+// reviewer commands (queue, show, suggest, tag) send it instead of signing in;
+// report stays a signed-in manager command.
+const EnvReviewKey = "HEARTHROOM_REVIEW_KEY"
+
+// reviewCall sends one community request and prints the response.
 func (a *App) reviewCall(cmd *cobra.Command, method, path string, body any) error {
-	if err := a.RequireAuth(); err != nil {
-		return err
-	}
 	var raw json.RawMessage
-	if err := a.Client().SiteDo(cmd.Context(), method, path, body, &raw); err != nil {
+	var err error
+	if key := strings.TrimSpace(os.Getenv(EnvReviewKey)); key != "" && !strings.HasPrefix(path, "/review-ai/report") {
+		err = a.Client().SiteDoKey(cmd.Context(), method, path, http.Header{"X-Review-Agent-Key": {key}}, body, &raw)
+	} else {
+		if err := a.RequireAuth(); err != nil {
+			return err
+		}
+		err = a.Client().SiteDo(cmd.Context(), method, path, body, &raw)
+	}
+	if err != nil {
 		return withErrorField(err)
 	}
 	if len(raw) == 0 {

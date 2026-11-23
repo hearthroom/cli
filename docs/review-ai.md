@@ -2,9 +2,13 @@
 
 `hearthroom review` lets an automated reviewer read card review submissions
 and record suggestions for them. It calls the community site's
-`/v1/review-ai/*` API with the account signed in through
-`hearthroom auth login`. The server decides which accounts may use each
-command; other accounts get an error.
+`/v1/review-ai/*` API.
+
+`queue`, `show`, `suggest` and `tag` authenticate with a fixed reviewer key
+taken from the `HEARTHROOM_REVIEW_KEY` environment variable, sent as the
+`X-Review-Agent-Key` header; no sign-in is needed and nothing expires. `report`
+is for signed-in managers (`hearthroom auth login`) and never sends the key.
+The server decides who may use each command; anyone else gets an error.
 
 A suggestion is advisory only. It is stored next to the submission and does not
 approve, reject or change the card.
@@ -49,7 +53,7 @@ summary (or `null`), the card, its stats, and the codes the server accepts:
 ```json
 {
   "submission": { "id": "…", "cardId": "…", "kind": "…", "reopen": false, "submittedAt": 0, "rating": "…", "attempt": 1, "previous": null, "phase": "…" },
-  "author": { "tier": "…", "batchSuspected": false },
+  "author": { "tier": "…", "batchSuspected": false },   // null once the card is decided
   "card": { },
   "stats": { },
   "allowed": { "verdicts": [], "reasons": [], "flags": [], "handoffCauses": [] }

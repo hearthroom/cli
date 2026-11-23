@@ -111,6 +111,7 @@ The import report lists every field that had no place to go. Nothing is dropped 
 | `media models` · `media generate --model … --prompt "…" --dir <folder> --allow-spend` | Image models with price and sizes; generate an image (purchased credits) and save it to your library |
 | `play [dir] -m "…" --allow-spend` | Send a turn and stream the reply; `--history`, `--stop`, `--model`, `--json` |
 | `models` · `wallet` · `whoami` | Provider catalog, balance, identity |
+| `review queue` · `review show <id>` · `review suggest <id>` · `review tag <id>` · `review report` | Staff card-review tools; the server decides who may use them. Prints JSON; see [docs/review-ai.md](docs/review-ai.md) |
 | `upgrade` | Update to the latest release (`--check` only reports) |
 
 `card visibility` works on a folder linked to an owned card. `private` lets the author and previous players continue conversations or

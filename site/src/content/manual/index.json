@@ -277,6 +277,7 @@
       "media",
       "models",
       "play",
+      "review",
       "search",
       "tags",
       "upgrade",
@@ -413,6 +414,49 @@
     "command": "hearthroom play",
     "short": "Talk to a card from the terminal (experimental)",
     "parent": "hearthroom"
+  },
+  {
+    "slug": "review",
+    "command": "hearthroom review",
+    "short": "Staff tools for card review (the server decides who may use them)",
+    "parent": "hearthroom",
+    "children": [
+      "review/queue",
+      "review/report",
+      "review/show",
+      "review/suggest",
+      "review/tag"
+    ]
+  },
+  {
+    "slug": "review/queue",
+    "command": "hearthroom review queue",
+    "short": "List review submissions",
+    "parent": "review"
+  },
+  {
+    "slug": "review/report",
+    "command": "hearthroom review report",
+    "short": "Summarize suggestions by criteria version over a time range",
+    "parent": "review"
+  },
+  {
+    "slug": "review/show",
+    "command": "hearthroom review show",
+    "short": "Read one review submission with its card and the allowed suggestion codes",
+    "parent": "review"
+  },
+  {
+    "slug": "review/suggest",
+    "command": "hearthroom review suggest",
+    "short": "Record an advisory suggestion for a review submission",
+    "parent": "review"
+  },
+  {
+    "slug": "review/tag",
+    "command": "hearthroom review tag",
+    "short": "Set flag codes on a review submission without changing your verdict",
+    "parent": "review"
   },
   {
     "slug": "search",

@@ -87,8 +87,9 @@ the human decision on the submission being judged.
 | `author-note <submissionId>` | Your note on the submission's author (`{ note, updatedAt }`); `--set TEXT` or `--file PATH` (`-` for stdin, plain text) replaces it, up to 2,000 characters, and an empty note deletes it | Keeping what you learned about an author for later reviews; one note per author, never shown to authors |
 
 Counts in `author` run up to `asOf`, which is now for a pending submission and the
-submission time for a decided one. `settingSimilarity` is `null` when the other
-card's text cannot be compared (rejected versions are not kept).
+submission time for a decided one. `settingSimilarity` covers the 30 most
+recently registered cards; it is `null` for the rest and when the other card's
+text is not kept (rejected versions are dropped).
 
 ### suggest
 

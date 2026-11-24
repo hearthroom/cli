@@ -132,8 +132,9 @@ reviewers set on the author with their reason and note. Your own note on the
 author is included (see author-note).
 
 Counts run up to asOf: now for a pending submission, the submission time for a
-decided one. Use it to judge mass production or a pattern of rejections; put
-what you learn in your suggestion's reviewer note, not in the note to the author.`,
+decided one. Use it to judge mass production or a pattern of rejections. These
+numbers may go in a suggestion's note (seen by reviewers only), never in its
+authorNote (shown to the card's author).`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.reviewCall(cmd, http.MethodGet, "/review-ai/submissions/"+url.PathEscape(args[0])+"/author", nil)
@@ -151,8 +152,8 @@ length). This submission's own card is not listed.
 
 settingSimilarity (0 to 1) is how much of this submission's setting also appears
 in that card. Several cards near 1 mean one setting template reused under new
-names. null means that card's text could not be compared (rejected versions are
-not kept for comparison).
+names. Only the 30 most recently registered cards are compared. null means that
+card was not compared or its text is not kept (rejected versions are dropped).
 
 Open a card's latest submission with show <latest.id>, or its live version with
 card <cardId>.`,

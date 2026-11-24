@@ -17,8 +17,9 @@ reviewers set on the author with their reason and note. Your own note on the
 author is included (see author-note).
 
 Counts run up to asOf: now for a pending submission, the submission time for a
-decided one. Use it to judge mass production or a pattern of rejections; put
-what you learn in your suggestion's reviewer note, not in the note to the author.
+decided one. Use it to judge mass production or a pattern of rejections. These
+numbers may go in a suggestion's note (seen by reviewers only), never in its
+authorNote (shown to the card's author).
 
 ## Usage
 

@@ -13,8 +13,8 @@ length). This submission's own card is not listed.
 
 settingSimilarity (0 to 1) is how much of this submission's setting also appears
 in that card. Several cards near 1 mean one setting template reused under new
-names. null means that card's text could not be compared (rejected versions are
-not kept for comparison).
+names. Only the 30 most recently registered cards are compared. null means that
+card was not compared or its text is not kept (rejected versions are dropped).
 
 Open a card's latest submission with show <latest.id>, or its live version with
 card <cardId>.

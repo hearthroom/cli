@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.3 (unreleased)
+
+- `review originality`, `review author`, `review author-cards`, `review card` and `review author-note` give the card-review key the evidence a human reviewer sees: overlap with other authors' cards with the matching passages, the author's history and pace, the author's other cards with how much of this setting each shares, a card's live version, and a private note per author (`--set` or `--file`, plain text). Every review command except `report` uses `HEARTHROOM_REVIEW_KEY`.
+
 ## Unreleased
 
 - `card preview` keeps a display rule's `targets`, so a rule limited to AI, user or system messages stays off the others, as on the play page.

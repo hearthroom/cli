@@ -218,3 +218,108 @@ func TestReviewKeyReplacesSignIn(t *testing.T) {
 		}
 	}
 }
+
+func TestReviewEvidenceReads(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	srv, got := reviewAIServer(t, 200, `{"ok":true}`)
+	cases := []struct {
+		args []string
+		path string
+	}{
+		{[]string{"review", "originality", "sub/1"}, "/v1/review-ai/submissions/sub%2F1/originality"},
+		{[]string{"review", "author", "sub-1"}, "/v1/review-ai/submissions/sub-1/author"},
+		{[]string{"review", "author-cards", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-cards"},
+		{[]string{"review", "card", "100123"}, "/v1/review-ai/cards/100123"},
+		{[]string{"review", "author-note", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-note"},
+	}
+	for _, c := range cases {
+		*got = nil
+		out, _, err := runCLI(t, reviewAIArgs(srv, cfg, c.args...)...)
+		if err != nil {
+			t.Fatalf("%v: %v", c.args, err)
+		}
+		if !strings.Contains(out, `"ok": true`) {
+			t.Fatalf("%v output %q", c.args, out)
+		}
+		if len(*got) != 1 || (*got)[0].method != "GET" || (*got)[0].path != c.path || (*got)[0].body != nil {
+			t.Fatalf("%v request %+v", c.args, *got)
+		}
+	}
+}
+
+func TestReviewAuthorNoteWrites(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	srv, got := reviewAIServer(t, 200, `{"note":"x","updatedAt":1}`)
+	put := func(stdin string, args ...string) map[string]any {
+		t.Helper()
+		*got = nil
+		app, _, _ := testApp()
+		app.In = strings.NewReader(stdin)
+		root := app.rootCommand()
+		root.SetArgs(reviewAIArgs(srv, cfg, append([]string{"review", "author-note", "sub-1"}, args...)...))
+		if err := root.Execute(); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if len(*got) != 1 || (*got)[0].method != "PUT" || (*got)[0].path != "/v1/review-ai/submissions/sub-1/author-note" {
+			t.Fatalf("%v request %+v", args, *got)
+		}
+		return (*got)[0].body
+	}
+	if b := put("", "--set", "reuses one setting template"); b["note"] != "reuses one setting template" || len(b) != 1 {
+		t.Fatalf("set body %v", b)
+	}
+	if b := put("", "--set", ""); b["note"] != "" {
+		t.Fatalf("clear body %v", b)
+	}
+	if b := put("line one\n{not json}\n", "--file", "-"); b["note"] != "line one\n{not json}\n" {
+		t.Fatalf("stdin body %v", b)
+	}
+}
+
+func TestReviewEvidenceRejectsBadInput(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	srv, got := reviewAIServer(t, 200, `{}`)
+	for name, args := range map[string][]string{
+		"set and file":  {"review", "author-note", "sub-1", "--set", "a", "--file", "-"},
+		"card not num":  {"review", "card", "abc"},
+		"card missing":  {"review", "card"},
+		"orig two args": {"review", "originality", "a", "b"},
+	} {
+		if _, _, err := runCLI(t, reviewAIArgs(srv, cfg, args...)...); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if len(*got) != 0 {
+		t.Fatalf("sent %d requests for invalid input", len(*got))
+	}
+}
+
+func TestReviewKeyOnEvidenceCommands(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(EnvReviewKey, "k123")
+	var seen []http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Clone())
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(srv.Close)
+	for _, args := range [][]string{
+		{"review", "originality", "s"}, {"review", "author", "s"}, {"review", "author-cards", "s"},
+		{"review", "card", "100001"}, {"review", "author-note", "s"}, {"review", "author-note", "s", "--set", "n"},
+	} {
+		if _, _, err := runCLI(t, reviewAIArgs(srv, cfg, args...)...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	for _, h := range seen {
+		if h.Get("X-Review-Agent-Key") != "k123" || h.Get("Authorization") != "" {
+			t.Fatalf("headers %v", h)
+		}
+	}
+	if len(seen) != 6 {
+		t.Fatalf("requests %d", len(seen))
+	}
+}

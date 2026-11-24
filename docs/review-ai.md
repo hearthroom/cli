@@ -4,7 +4,7 @@
 and record suggestions for them. It calls the community site's
 `/v1/review-ai/*` API.
 
-`queue`, `show`, `suggest` and `tag` authenticate with a fixed reviewer key
+Every command except `report` authenticates with a fixed reviewer key
 taken from the `HEARTHROOM_REVIEW_KEY` environment variable, sent as the
 `X-Review-Agent-Key` header; no sign-in is needed and nothing expires. `report`
 is for signed-in managers (`hearthroom auth login`) and never sends the key.
@@ -24,6 +24,11 @@ instead, as for every other command.
 ```sh
 hearthroom review queue [--scope pending|recent] [--unshadowed] [--criteria v1] [--count] [--limit 50]
 hearthroom review show <submissionId>
+hearthroom review originality <submissionId>
+hearthroom review author <submissionId>
+hearthroom review author-cards <submissionId>
+hearthroom review card <cardNumber>
+hearthroom review author-note <submissionId> [--set TEXT | --file PATH|-]
 hearthroom review suggest <submissionId> --criteria v1 --model <id> --verdict pass|reject|handoff \
   [--reason code]... [--flag code]... [--confidence 0.8] [--note text] [--handoff-cause cause] \
   [--input-tokens n] [--output-tokens n] [--cost-usd x] [--latency-ms n]
@@ -61,6 +66,29 @@ summary (or `null`), the card, its stats, and the codes the server accepts:
 ```
 
 Use the codes in `allowed`; the CLI does not keep its own list.
+
+`show` also reads decided submissions older than 7 days (`phase: "closed"`), for
+example the latest submission of a card listed by `author-cards`. Suggestions and
+tags can only be written while the submission is pending or within 7 days of
+submission (`410 review_ai_window_closed` otherwise).
+
+### Evidence commands
+
+These print the same evidence a human reviewer sees on the review page. They
+never include account ids, device ids or reviewer names, and none of them reveals
+the human decision on the submission being judged.
+
+| Command | Returns | When to use |
+|---|---|---|
+| `originality <submissionId>` | Overall setting similarity; for each similar card by another author: card number, name, similarity, whether it entered review earlier, status (`approved`, `pending`, `removed`) and the overlapping passages quoted from this submission (4,000 characters in all, `overlapChars` is the full length) | `show` reports high originality and you need to see what overlaps and with which card |
+| `author <submissionId>` | Account age; earlier approved and rejected submissions with a count per rejection reason; new-card and live-card-update submissions in the last 7 and 30 days; new-card submissions in the last 24 hours; accounts on the registering device; while pending, the author's tier, suspected batch submission and reviewers' author marks with their notes; your author note | Judging mass production, quota farming or a pattern of rejections |
+| `author-cards <submissionId>` | The author's other cards (not this one): card number, name, status, live or not, latest submission (id, kind, status, times, length) and `settingSimilarity` between this setting and that card | Checking whether the author reuses one setting template across cards; finding submissions to open with `show` |
+| `card <cardNumber>` | The card's live version in the same `card`/`stats` shape as `show`; `404 card_not_live` when it is not approved or is hidden | Comparing with another card from `author-cards` or `originality` |
+| `author-note <submissionId>` | Your note on the submission's author (`{ note, updatedAt }`); `--set TEXT` or `--file PATH` (`-` for stdin, plain text) replaces it, up to 2,000 characters, and an empty note deletes it | Keeping what you learned about an author for later reviews; one note per author, never shown to authors |
+
+Counts in `author` run up to `asOf`, which is now for a pending submission and the
+submission time for a decided one. `settingSimilarity` is `null` when the other
+card's text cannot be compared (rejected versions are not kept).
 
 ### suggest
 

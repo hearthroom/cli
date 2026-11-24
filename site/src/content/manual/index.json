@@ -421,12 +421,47 @@
     "short": "Staff tools for card review (the server decides who may use them)",
     "parent": "hearthroom",
     "children": [
+      "review/author",
+      "review/author-cards",
+      "review/author-note",
+      "review/card",
+      "review/originality",
       "review/queue",
       "review/report",
       "review/show",
       "review/suggest",
       "review/tag"
     ]
+  },
+  {
+    "slug": "review/author",
+    "command": "hearthroom review author",
+    "short": "Show the submitting author's history, pace, reviewer marks and your note on them",
+    "parent": "review"
+  },
+  {
+    "slug": "review/author-cards",
+    "command": "hearthroom review author-cards",
+    "short": "List the author's other cards and how much of this setting each one shares",
+    "parent": "review"
+  },
+  {
+    "slug": "review/author-note",
+    "command": "hearthroom review author-note",
+    "short": "Read or replace your private note on the submission's author",
+    "parent": "review"
+  },
+  {
+    "slug": "review/card",
+    "command": "hearthroom review card",
+    "short": "Read the version of a card that is live now",
+    "parent": "review"
+  },
+  {
+    "slug": "review/originality",
+    "command": "hearthroom review originality",
+    "short": "List other authors' cards whose setting overlaps this submission, with the overlapping text",
+    "parent": "review"
   },
   {
     "slug": "review/queue",

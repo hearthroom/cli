@@ -127,6 +127,12 @@ model-output | hearthroom review suggest <submissionId> --file - --criteria v1 -
 The CLI only checks that the verdict is `pass`, `reject` or `handoff` and that
 the criteria version looks like `v1`; the server validates everything else.
 
+Send every flag together with the verdict. A `pass` on an update of a card
+that already has an approved live version, with the same rating, may be
+approved right away (the AI fast track); flags sent in the same request keep it
+in the human queue. Flags added afterwards with `tag` do not undo an approval
+that already happened.
+
 ### tag
 
 `PUT /v1/review-ai/submissions/<id>/tags` with

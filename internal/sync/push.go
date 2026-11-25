@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/hearthroom/cli/internal/api"
@@ -467,12 +468,19 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	// is always sent and the server reports which ones actually changed by
 	// content hash. Only `card` may be omitted, and there is no reason to.
 	present := []string{}
+	var wireAsset map[string]any
+	var largePage *string
 	for _, s := range card.Sections {
 		if sec := p.Section(s); sec != nil {
+			if s == card.SectionAuthorAsset {
+				wireAsset, largePage = wireAuthorAsset(f, sec)
+				sec = wireAsset
+			}
 			body[s] = sec
 			present = append(present, s)
 		}
 	}
+	previousRole := f.State.RoleID
 	res.Changed = []string{}
 	res.Unchanged = []string{}
 	if opts.DryRun {
@@ -503,8 +511,34 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	if f.State.LocalHashes == nil {
 		f.State.LocalHashes = map[string]string{}
 	}
+	if previousRole != tr.RoleID {
+		delete(f.State.LocalHashes, openingPageHashKey)
+	}
 	for s, d := range digests {
-		f.State.LocalHashes[s] = d
+		if s != card.SectionAuthorAsset {
+			f.State.LocalHashes[s] = d
+		}
+	}
+	// The trial document is capped well below the largest opening page, so a large page follows
+	// it with the raw upload once the trial card exists.
+	if largePageChanged(f, largePage, opts.Force) {
+		var cur card.RemoteAsset
+		err := c.OpenGet(ctx, "/role/author-asset", url.Values{"roleId": {tr.RoleID}}, &cur)
+		if err == nil {
+			_, err = putOpeningPage(ctx, c, tr.RoleID, cur.Version, *largePage)
+		}
+		if err != nil {
+			delete(f.State.LocalHashes, card.SectionAuthorAsset)
+			_ = f.SaveState()
+			return nil, err
+		}
+		if !slices.Contains(tr.Changed, card.SectionAuthorAsset) {
+			tr.Changed = append(tr.Changed, card.SectionAuthorAsset)
+		}
+	}
+	if d, ok := digests[card.SectionAuthorAsset]; ok {
+		f.State.LocalHashes[card.SectionAuthorAsset] = d
+		noteOpeningPage(f, p.AuthorAsset, wireAsset, largePage)
 	}
 	if tr.Worldbook != nil && tr.Worldbook.WorldbookID != "" {
 		f.State.LorebookID = tr.Worldbook.WorldbookID
@@ -629,6 +663,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			}
 		}
 		f.State.AuthorAssetVersion = 0
+		f.State.OpeningPageSent = false
 		if err := f.SaveState(); err != nil {
 			return nil, err
 		}
@@ -642,6 +677,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.ResetLorebook()
 		f.State.IgnoreLocalLorebook = true
 		f.State.AuthorAssetVersion = 0
+		f.State.OpeningPageSent = false
 		f.State.PrivatePending = false
 		if f.Lorebook != nil {
 			f.Lorebook.ID = ""
@@ -670,9 +706,10 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	// display rules
 	if p.AuthorAsset != nil {
 		if changed(card.SectionAuthorAsset) {
-			body := map[string]any{}
-			for k, v := range p.AuthorAsset {
-				body[k] = v
+			body, largePage := wireAuthorAsset(f, p.AuthorAsset)
+			wire := make(map[string]any, len(body))
+			for k, v := range body {
+				wire[k] = v
 			}
 			body["version"] = f.State.AuthorAssetVersion
 			var out struct {
@@ -695,6 +732,19 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			} else {
 				f.State.AuthorAssetVersion++
 			}
+			// A large page follows with the raw upload, under the version this save produced. Until it
+			// is confirmed the section stays unsynced, so a rerun sends both again.
+			if largePageChanged(f, largePage, opts.Force) {
+				if err := f.SaveState(); err != nil {
+					return nil, err
+				}
+				v, err := putOpeningPage(ctx, c, roleID, f.State.AuthorAssetVersion, *largePage)
+				if err != nil {
+					return nil, fmt.Errorf("Display rules were saved, but the opening page was not; push again to send it: %w", err)
+				}
+				f.State.AuthorAssetVersion = v
+			}
+			noteOpeningPage(f, p.AuthorAsset, wire, largePage)
 			f.State.LocalHashes[card.SectionAuthorAsset] = digests[card.SectionAuthorAsset]
 			// Persist accepted rules before another section can fail. A retry must not resend them.
 			if err := f.SaveState(); err != nil {

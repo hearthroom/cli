@@ -198,9 +198,13 @@ checks the values before a push.
   to put a line in the player's input or `hearthroom.send(text)` to send it as
   the player's first message (sent only right after the player clicks; otherwise
   filled), and text the page copies to the clipboard is filled too. It is
-  pushed with `rules.json` (no `rules.json`, nothing is sent); without the file
-  the stored page is left alone, an empty file clears it, and `card pull`
-  writes it when the card has one. A card with opening choices or an opening
+  pushed with `rules.json` (no `rules.json`, nothing is sent). An empty file
+  clears the stored page. Removing the file clears it too when this folder
+  pushed or pulled that page; in a folder that never had one, the stored page
+  is left alone. `card pull` writes it when the card has one. A page larger
+  than 512 KiB is sent on its own after the display rules and read back
+  separately by `card pull`; if the provider can no longer supply it, pull
+  keeps the local `opening.html` and says so. A card with opening choices or an opening
   page may leave `welcome.md` empty: the player speaks first. `card import`
   writes it from an AI Fengyue card's detailed introduction or a RiliAI card's
   `introPage`. The page has its own size limit, separate from `card.css`'s:

@@ -84,3 +84,28 @@ func TestOpeningPageCheckWithoutLoadableFolder(t *testing.T) {
 		t.Fatalf("no opening page finding: %v", r.Findings)
 	}
 }
+
+// When the contract raises the limit (the provider stores large pages as objects), card check
+// follows it: a page over the old limit passes, one byte over the new limit does not.
+func TestOpeningPageCheckFollowsTheContractLimit(t *testing.T) {
+	old := contract.Provider.OpeningPageMaxBytes
+	contract.Provider.OpeningPageMaxBytes = 2 << 20
+	t.Cleanup(func() { contract.Provider.OpeningPageMaxBytes = old })
+	for _, tc := range []struct {
+		n     int
+		valid bool
+	}{{old + 1, true}, {2 << 20, true}, {2<<20 + 1, false}} {
+		dir := write(t, t.TempDir(), map[string]string{"card.json": `{"formatVersion":1,"name":"Synthetic","language":"en"}`, "rules.json": `{"rules":[]}`, "opening.html": strings.Repeat("x", tc.n)})
+		r, err := Card(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hit := false
+		for _, x := range r.Findings {
+			hit = hit || (x.Where == card.OpeningFile && x.Level == "error")
+		}
+		if hit == tc.valid {
+			t.Errorf("n=%d valid=%v findings=%v", tc.n, tc.valid, r.Findings)
+		}
+	}
+}

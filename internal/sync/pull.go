@@ -105,6 +105,16 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	} else if ra.Status != "none" || len(ra.Rules) > 0 || ra.CardCSS != nil || ra.CardCSSDialect != nil {
 		asset = &ra
 	}
+	keepOpening := false
+	if asset != nil && strings.TrimSpace(ra.OpeningPage) == "" && ra.OpeningPageBytes > 0 {
+		page, warning := readOpeningPage(ctx, c, ra)
+		if warning != "" {
+			res.Warnings = append(res.Warnings, warning)
+			keepOpening = true
+		} else {
+			ra.OpeningPage = page
+		}
+	}
 
 	f := card.FromRemote(dir, d, bookID, bookName, entries, asset)
 	if f.Lorebook != nil {
@@ -118,6 +128,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		f.State.LorebookName = bookName
 	}
 	f.State.API = c.API
+	f.State.OpeningPageSent = f.OpeningPage != nil || keepOpening
 	stale, err := stalePullOpenings(f)
 	if err != nil {
 		return nil, err
@@ -235,7 +246,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	}
 	if f.OpeningPage != nil {
 		res.Files = append(res.Files, card.OpeningFile)
-	} else {
+	} else if assetRead && !keepOpening {
 		stale = append(stale, card.OpeningFile)
 	}
 	for _, o := range f.Alternates {

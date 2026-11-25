@@ -287,6 +287,69 @@ func (c *Client) UploadFile(ctx context.Context, path string, fields map[string]
 	return c.send(req, out)
 }
 
+// OpenPutRaw sends body as the whole request (not JSON) to an Open API path, with an exact
+// Content-Length; the JSON response is decoded into out.
+func (c *Client) OpenPutRaw(ctx context.Context, path string, q url.Values, contentType string, body io.Reader, size int64, out any) error {
+	target := c.API + "/open/v1" + path
+	if len(q) > 0 {
+		target += "?" + q.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, target, io.LimitReader(body, size))
+	if err != nil {
+		return err
+	}
+	req.ContentLength = size
+	if size == 0 {
+		req.Body = http.NoBody
+	}
+	if s, ok := body.(io.Seeker); ok {
+		start, err := s.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return err
+		}
+		req.GetBody = func() (io.ReadCloser, error) {
+			if _, err := s.Seek(start, io.SeekStart); err != nil {
+				return nil, err
+			}
+			return io.NopCloser(io.LimitReader(body, size)), nil
+		}
+	}
+	req.Header.Set("Content-Type", contentType)
+	if err := c.authorize(ctx, req, authRequired); err != nil {
+		return err
+	}
+	return c.send(req, out)
+}
+
+// OpenStream GETs ref and returns the body unread. A ref starting with "/" is a path on the API
+// origin and is sent signed in; an absolute URL on the API origin is too; any other URL is not.
+func (c *Client) OpenStream(ctx context.Context, ref string) (io.ReadCloser, error) {
+	target, auth := ref, authNone
+	if strings.HasPrefix(ref, "/") {
+		target, auth = c.API+ref, authRequired
+	} else if strings.HasPrefix(ref, c.API+"/") {
+		auth = authRequired
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.authorize(ctx, req, auth); err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", c.UserAgent)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 300 {
+		defer resp.Body.Close()
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		return nil, parseError(req, resp.StatusCode, raw)
+	}
+	return resp.Body, nil
+}
+
 // quoteEscaper escapes a multipart header parameter the way
 // mime/multipart.CreateFormFile does.
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")

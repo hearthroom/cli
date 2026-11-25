@@ -23,6 +23,11 @@ const trialBodyMax = 48 << 20
 // AuthorAssetOpeningPageMax); TestProviderPreflightContract compares the two.
 var openingPageMax = check.ContractFacts().Provider.OpeningPageMaxBytes
 
+// openingPageInlineMax is the largest opening page the provider returns and accepts inline in the
+// author asset JSON (provider AuthorAssetOpeningPageInlineMax). A larger page is stored as an
+// object: push sends it with the raw page upload and pull reads it from its link.
+const openingPageInlineMax = 512 << 10
+
 var fieldLimits = map[string][2]int{
 	"roleDesc": {500, 2500}, "roleDetailDesc": {10000, 50000},
 	"roleWelcome": {8000, 10000}, "customInstructions": {2000, 4000},
@@ -242,6 +247,9 @@ func preflightPrepared(p card.Payload, owned bool, entryMax, trialMax int, evict
 		}
 		for _, s := range card.Sections {
 			if sec := p.Section(s); sec != nil {
+				if s == card.SectionAuthorAsset {
+					sec, _ = splitLargePage(sec)
+				}
 				body[s] = sec
 			}
 		}

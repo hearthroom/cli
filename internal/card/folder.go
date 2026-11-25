@@ -260,12 +260,15 @@ type State struct {
 	LocalHashes         map[string]string       `json:"localHashes,omitempty"`
 	Assets              map[string]Asset        `json:"assets,omitempty"` // by relative path
 	AuthorAssetVersion  int64                   `json:"authorAssetVersion,omitempty"`
-	LorebookID          string                  `json:"lorebookId,omitempty"`
-	LorebookName        string                  `json:"lorebookName,omitempty"`
-	LorebookVersion     int32                   `json:"lorebookVersion,omitempty"`
-	LorebookEntryIDs    []string                `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
-	ConversationID      string                  `json:"conversationId,omitempty"`
-	AssetFolder         string                  `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
+	// OpeningPageSent: the card holds the opening page this folder last pushed or pulled. Removing
+	// opening.html then removes the stored page (openingPageClear) instead of leaving it alone.
+	OpeningPageSent  bool     `json:"openingPageSent,omitempty"`
+	LorebookID       string   `json:"lorebookId,omitempty"`
+	LorebookName     string   `json:"lorebookName,omitempty"`
+	LorebookVersion  int32    `json:"lorebookVersion,omitempty"`
+	LorebookEntryIDs []string `json:"lorebookEntryIds,omitempty"` // entries the CLI created or pulled; only these may be deleted remotely
+	ConversationID   string   `json:"conversationId,omitempty"`
+	AssetFolder      string   `json:"assetFolder,omitempty"` // media-library folder the assets were last uploaded into
 	// Submission is a review submission that has not been confirmed yet. Its
 	// operation id is sent again on retry, so a lost reply cannot submit twice.
 	Submission          *Submission          `json:"submission,omitempty"`

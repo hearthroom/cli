@@ -395,18 +395,23 @@ type RemoteEntry struct {
 
 // RemoteAsset is GET /open/v1/role/author-asset.
 type RemoteAsset struct {
-	Rules          []DisplayRule   `json:"rules"`
-	MountTrigger   string          `json:"mountTrigger"`
-	MountLayer     string          `json:"mountLayer"`
-	PageMode       string          `json:"pageMode"`
-	CardFormat     string          `json:"cardFormat"`
-	SharedState    json.RawMessage `json:"sharedState"`
-	OpeningPage    string          `json:"openingPage"`
-	OpeningMode    string          `json:"openingMode"`
-	CardCSS        *string         `json:"cardCss"`
-	CardCSSDialect *string         `json:"cardCssDialect"`
-	Status         string          `json:"status"`
-	Version        int64           `json:"version"`
+	Rules        []DisplayRule   `json:"rules"`
+	MountTrigger string          `json:"mountTrigger"`
+	MountLayer   string          `json:"mountLayer"`
+	PageMode     string          `json:"pageMode"`
+	CardFormat   string          `json:"cardFormat"`
+	SharedState  json.RawMessage `json:"sharedState"`
+	OpeningPage  string          `json:"openingPage"`
+	// A page above 512 KiB is not inlined: OpeningPage is "", OpeningPageBytes its size and
+	// OpeningPageURL where to read it (a path on the API origin). Older providers send neither.
+	OpeningPageBytes   int64   `json:"openingPageBytes"`
+	OpeningPageURL     string  `json:"openingPageUrl"`
+	OpeningPageExpired bool    `json:"openingPageExpired"`
+	OpeningMode        string  `json:"openingMode"`
+	CardCSS            *string `json:"cardCss"`
+	CardCSSDialect     *string `json:"cardCssDialect"`
+	Status             string  `json:"status"`
+	Version            int64   `json:"version"`
 }
 
 // FromRemote builds a folder from provider responses. lorebook may be nil.

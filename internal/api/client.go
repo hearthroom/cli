@@ -318,7 +318,17 @@ func (c *Client) OpenPutRaw(ctx context.Context, path string, q url.Values, cont
 	if err := c.authorize(ctx, req, authRequired); err != nil {
 		return err
 	}
-	return c.send(req, out)
+	return c.withoutTimeout().send(req, out)
+}
+
+// withoutTimeout is the client for bodies up to the opening page limit (100 MiB): the whole-request
+// timeout would cut a slow link mid-transfer, so only the context bounds the request.
+func (c *Client) withoutTimeout() *Client {
+	clone := *c
+	hc := *c.HTTP
+	hc.Timeout = 0
+	clone.HTTP = &hc
+	return &clone
 }
 
 // OpenStream GETs ref and returns the body unread. A ref starting with "/" is a path on the API
@@ -338,7 +348,7 @@ func (c *Client) OpenStream(ctx context.Context, ref string) (io.ReadCloser, err
 		return nil, err
 	}
 	req.Header.Set("User-Agent", c.UserAgent)
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.withoutTimeout().HTTP.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -200,11 +200,12 @@ checks the values before a push.
   filled), and text the page copies to the clipboard is filled too. It is
   pushed with `rules.json` (no `rules.json`, nothing is sent). An empty file
   clears the stored page. Removing the file clears it too when this folder
-  pushed or pulled that page; in a folder that never had one, the stored page
-  is left alone. `card pull` writes it when the card has one. A page larger
-  than 512 KiB is sent on its own after the display rules and read back
-  separately by `card pull`; if the provider can no longer supply it, pull
-  keeps the local `opening.html` and says so. A card with opening choices or an opening
+  pushed or pulled that page (on a provider that supports clearing; an older
+  one leaves the page); in a folder that never had one, the stored page is
+  left alone. `card pull` writes it when the card has one. When the size limit
+  allows pages above 512 KiB, such a page is sent on its own after the display
+  rules and read back separately by `card pull`; if the provider can no longer
+  supply it, pull keeps the local `opening.html` and says so. A card with opening choices or an opening
   page may leave `welcome.md` empty: the player speaks first. `card import`
   writes it from an AI Fengyue card's detailed introduction or a RiliAI card's
   `introPage`. The page has its own size limit, separate from `card.css`'s:

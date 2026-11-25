@@ -320,8 +320,10 @@ func openingPageRejected(err error) error {
 	}
 	max, _ := detail["max"].(float64)
 	actual, _ := detail["actual"].(float64)
-	if max <= 0 {
-		max = float64(openingPageMax)
+	// Only a size refusal gets the size explanation; others (such as an encoding refusal of the raw
+	// upload) keep the provider's own message.
+	if max <= 0 || actual <= max {
+		return err
 	}
 	return fmt.Errorf("%w\n%s", err, card.OpeningPageTooLarge(int(actual), int(max)))
 }

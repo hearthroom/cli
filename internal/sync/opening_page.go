@@ -38,6 +38,8 @@ func wireAuthorAsset(f *card.Folder, aa map[string]any) (map[string]any, *string
 	body, large := splitLargePage(aa)
 	if page, ok := aa["openingPage"].(string); ok {
 		if strings.TrimSpace(page) == "" {
+			// The provider refuses the flag beside a non-empty page, so whitespace goes as "".
+			body["openingPage"] = ""
 			body["openingPageClear"] = true
 		}
 	} else if f.State.OpeningPageSent {

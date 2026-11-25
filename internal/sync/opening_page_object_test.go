@@ -461,3 +461,63 @@ func TestOpeningPagePreflightFollowsTheContractLimit(t *testing.T) {
 		}
 	}
 }
+
+// A pull that could not read the page into an empty folder leaves nothing to remove, so the next
+// push must not clear the card's page.
+func TestUnreadPageIsNotClearedByTheNextPush(t *testing.T) {
+	withOpeningPageMax(t, 4<<20)
+	srv, _ := pullServer(t, largeAsset(600000), func(w http.ResponseWriter) {
+		w.WriteHeader(503)
+		w.Write([]byte(`{"error":"temporarily_unavailable"}`))
+	})
+	defer srv.Close()
+	dir := t.TempDir()
+	res, err := Pull(context.Background(), pushClient(srv), "r1", dir, PullOptions{})
+	if err != nil || len(res.Warnings) == 0 {
+		t.Fatalf("pull = %+v, %v", res, err)
+	}
+	f, _ := card.Load(dir)
+	if f.State.OpeningPageSent || f.OpeningPage != nil {
+		t.Fatalf("sent=%v page=%v", f.State.OpeningPageSent, f.OpeningPage != nil)
+	}
+	body, _ := wireAuthorAsset(f, map[string]any{"rules": []any{}})
+	if body["openingPageClear"] == true {
+		t.Fatal("a push after the failed read would clear the card's page")
+	}
+}
+
+// A card whose only author content is a large page is still pulled.
+func TestPullPageOnlyAuthorAsset(t *testing.T) {
+	withOpeningPageMax(t, 4<<20)
+	page := strings.Repeat("p", openingPageInlineMax+3)
+	asset := largeAsset(len(page))
+	asset["rules"] = []any{}
+	srv, _ := pullServer(t, asset, func(w http.ResponseWriter) { io.WriteString(w, page) })
+	defer srv.Close()
+	dir := t.TempDir()
+	if _, err := Pull(context.Background(), pushClient(srv), "r1", dir, PullOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(filepath.Join(dir, card.OpeningFile))
+	if strings.TrimSpace(string(got)) != page {
+		t.Fatalf("opening.html = %d bytes", len(got))
+	}
+}
+
+// Refusals that are not about size keep the provider's message.
+func TestOpeningPageEncodingRejectionNotASizeMessage(t *testing.T) {
+	raw := &api.Error{Status: 400, Code: "validate_reject", Detail: map[string]any{"reason": "openingPage", "index": -1.0, "name": "encoding", "max": 0.0, "actual": 0.0}}
+	if err := openingPageRejected(raw); err != error(raw) {
+		t.Fatalf("encoding refusal rewritten: %v", err)
+	}
+}
+
+// A file holding only whitespace clears the page with "" beside the flag; the provider refuses
+// the flag next to a non-empty page.
+func TestWhitespaceOpeningPageClearsWithEmptyString(t *testing.T) {
+	f, _ := card.Init(t.TempDir(), "Blank", "en")
+	body, large := wireAuthorAsset(f, map[string]any{"openingPage": "\n  \n"})
+	if large != nil || body["openingPage"] != "" || body["openingPageClear"] != true {
+		t.Fatalf("body = %v", body)
+	}
+}

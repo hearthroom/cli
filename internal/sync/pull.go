@@ -102,7 +102,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 			assetRead = false
 			res.Warnings = append(res.Warnings, "display rules could not be read: "+err.Error())
 		}
-	} else if ra.Status != "none" || len(ra.Rules) > 0 || ra.CardCSS != nil || ra.CardCSSDialect != nil {
+	} else if ra.Status != "none" || len(ra.Rules) > 0 || ra.CardCSS != nil || ra.CardCSSDialect != nil || ra.OpeningPageBytes > 0 {
 		asset = &ra
 	}
 	keepOpening := false
@@ -128,7 +128,13 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		f.State.LorebookName = bookName
 	}
 	f.State.API = c.API
-	f.State.OpeningPageSent = f.OpeningPage != nil || keepOpening
+	// A kept local copy stands for the card's page only when there is one: otherwise removing a
+	// file that never existed would clear the page on the next push.
+	f.State.OpeningPageSent = f.OpeningPage != nil
+	if keepOpening {
+		_, err := os.Stat(filepath.Join(dir, card.OpeningFile))
+		f.State.OpeningPageSent = err == nil
+	}
 	stale, err := stalePullOpenings(f)
 	if err != nil {
 		return nil, err

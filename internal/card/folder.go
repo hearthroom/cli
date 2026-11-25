@@ -189,12 +189,24 @@ type Opening struct {
 }
 
 // OpeningPageTooLarge explains an opening page over the provider's limit. actual is the size
-// push sends: UTF-8 bytes after assets/… references are rewritten to their URLs.
+// push sends: UTF-8 bytes after assets/… references are rewritten to their URLs. max comes from
+// the contract (or the provider's response), never a literal here: the limit is expected to change.
 func OpeningPageTooLarge(actual, max int) string {
-	return fmt.Sprintf("%s is %d bytes after URL rewriting; the opening page limit is %d bytes (%d KB, separate from the %s limit), %d over. "+
+	return fmt.Sprintf("%s is %d bytes after URL rewriting; the opening page limit is %d bytes (%s, separate from the %s limit), %d over. "+
 		"Keep only the layout in %s: upload images and scripts with `hearthroom media upload`, or put them under assets/ (push uploads them and rewrites the references), "+
 		"and reference them by URL instead of embedding them as data: URLs or inline <script> code.",
-		OpeningFile, actual, max, max>>10, CardCSSFile, actual-max, OpeningFile)
+		OpeningFile, actual, max, HumanBytes(max), CardCSSFile, actual-max, OpeningFile)
+}
+
+// HumanBytes writes a byte limit the way the docs do: "512 KB", "100 MB", else "N bytes".
+func HumanBytes(n int) string {
+	switch {
+	case n >= 1<<20 && n%(1<<20) == 0:
+		return fmt.Sprintf("%d MB", n>>20)
+	case n >= 1<<10 && n%(1<<10) == 0:
+		return fmt.Sprintf("%d KB", n>>10)
+	}
+	return fmt.Sprintf("%d bytes", n)
 }
 
 // HasOpeningPageForPush follows Build's author-asset inclusion rule.

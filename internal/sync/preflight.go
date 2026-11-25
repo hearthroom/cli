@@ -107,7 +107,10 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 		if css, ok := p.AuthorAsset["cardCss"].(string); ok && checkSizes && len(css) > ruleReplaceMax {
 			add("card.css is %d bytes after URL rewriting; the limit is %d bytes. Reduce the CSS before pushing.", len(css), ruleReplaceMax)
 		}
-		if page, ok := p.AuthorAsset["openingPage"].(string); ok && checkSizes && len(page) > openingPageMax {
+		// A page without assets/ references is sent as written, so its size is exact even in the
+		// first pass, before card images or media are uploaded.
+		exactPage := checkSizes || (f.OpeningPage != nil && len(card.ScanAssetRefs(*f.OpeningPage)) == 0)
+		if page, ok := p.AuthorAsset["openingPage"].(string); ok && exactPage && len(page) > openingPageMax {
 			add("%s", card.OpeningPageTooLarge(len(page), openingPageMax))
 		}
 		total := 0

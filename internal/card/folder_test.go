@@ -394,3 +394,11 @@ func TestSharedStateRoundTripsThroughRulesFile(t *testing.T) {
 		t.Fatalf("an empty declaration should not be written into rules.json: %+v", empty.Rules)
 	}
 }
+
+func TestHumanBytes(t *testing.T) {
+	for n, want := range map[int]string{512 << 10: "512 KB", 100 << 20: "100 MB", 1000: "1000 bytes", 1536 << 10: "1536 KB"} {
+		if got := HumanBytes(n); got != want {
+			t.Errorf("HumanBytes(%d) = %q, want %q", n, got, want)
+		}
+	}
+}

@@ -2,7 +2,7 @@
 
 ## 0.13.4 (unreleased)
 
-- `card check` and `card push` stop on an `opening.html` over 524288 UTF-8 bytes (512 KB) after `assets/…` references are rewritten, before anything is sent. The message gives the size, the limit (separate from `card.css`'s) and the fix: upload images and scripts with `hearthroom media upload` or put them under `assets/`, and reference them by URL. When the provider itself refuses the opening page, push shows the same explanation after its response, and `--json` keeps the provider's code and detail.
+- `card check` and `card push` stop on an `opening.html` over the platform's opening page limit (currently 512 KB, in UTF-8 bytes) after `assets/…` references are rewritten; push stops before writing card content (and, for a page without `assets/` references, before any upload). The message gives the size, the limit (separate from `card.css`'s) and the fix: upload images and scripts with `hearthroom media upload` or put them under `assets/`, and reference them by URL. When the provider itself refuses the opening page, push shows the same explanation after its response, and `--json` keeps the provider's code and detail.
 
 ## 0.13.3 (unreleased)
 

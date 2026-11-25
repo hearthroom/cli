@@ -1,6 +1,7 @@
 package check
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,25 +10,27 @@ import (
 	"github.com/hearthroom/cli/internal/card"
 )
 
+// The limit is read from the embedded contract; a missing or renamed key would silently disable the check.
 func TestContractOpeningPageLimit(t *testing.T) {
-	if got := ContractFacts().Provider.OpeningPageMaxBytes; got != 524288 {
-		t.Fatalf("openingPageMaxBytes = %d, want 524288", got)
+	if got := ContractFacts().Provider.OpeningPageMaxBytes; got <= 0 {
+		t.Fatalf("openingPageMaxBytes = %d; the embedded contract must state the opening page limit", got)
 	}
 }
 
 // The check measures what push sends: opening.html after the stored asset URLs replace assets/… paths.
 func TestOpeningPageCheckBounds(t *testing.T) {
 	const assetURL = "https://cdn.example/library/long-folder/background.png"
+	max := ContractFacts().Provider.OpeningPageMaxBytes
 	for _, tc := range []struct {
 		name  string
 		page  string
 		valid bool
 	}{
-		{"at limit", strings.Repeat("x", 524288), true},
-		{"one byte over", strings.Repeat("x", 524289), false},
-		{"multibyte over", strings.Repeat("界", 174763), false},
-		{"over after rewrite", strings.Repeat("x", 524260) + `<img src="assets/bg.png">`, false},
-		{"at limit after rewrite", strings.Repeat("x", 524288-len(`<img src="`+assetURL+`">`)) + `<img src="assets/bg.png">`, true},
+		{"at limit", strings.Repeat("x", max), true},
+		{"one byte over", strings.Repeat("x", max+1), false},
+		{"multibyte over", strings.Repeat("界", max/3+1), false},
+		{"over after rewrite", strings.Repeat("x", max-len(`<img src="assets/bg.png">`)) + `<img src="assets/bg.png">`, false},
+		{"at limit after rewrite", strings.Repeat("x", max-len(`<img src="`+assetURL+`">`)) + `<img src="assets/bg.png">`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f, err := card.Init(t.TempDir(), "Synthetic", "en")
@@ -53,7 +56,7 @@ func TestOpeningPageCheckBounds(t *testing.T) {
 				t.Fatalf("valid=%v findings=%v", tc.valid, r.Findings)
 			}
 			if hit != nil {
-				for _, want := range []string{"524288", "512 KB", "card.css", "hearthroom media upload", "assets/"} {
+				for _, want := range []string{fmt.Sprint(max), card.HumanBytes(max), "card.css", "hearthroom media upload", "assets/"} {
 					if !strings.Contains(hit.Msg, want) {
 						t.Errorf("message lacks %q: %s", want, hit.Msg)
 					}
@@ -65,7 +68,7 @@ func TestOpeningPageCheckBounds(t *testing.T) {
 
 // A folder that does not load still has its opening page measured as written.
 func TestOpeningPageCheckWithoutLoadableFolder(t *testing.T) {
-	dir := write(t, t.TempDir(), map[string]string{"card.json": `{"formatVersion":1,"name":"Synthetic","language":"en"}`, "rules.json": `{not json`, "opening.html": strings.Repeat("x", 524289)})
+	dir := write(t, t.TempDir(), map[string]string{"card.json": `{"formatVersion":1,"name":"Synthetic","language":"en"}`, "rules.json": `{not json`, "opening.html": strings.Repeat("x", ContractFacts().Provider.OpeningPageMaxBytes+1)})
 	if _, err := os.Stat(filepath.Join(dir, "opening.html")); err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +78,7 @@ func TestOpeningPageCheckWithoutLoadableFolder(t *testing.T) {
 	}
 	found := false
 	for _, x := range r.Findings {
-		found = found || (x.Where == card.OpeningFile && strings.Contains(x.Msg, "524289"))
+		found = found || (x.Where == card.OpeningFile && strings.Contains(x.Msg, fmt.Sprint(ContractFacts().Provider.OpeningPageMaxBytes+1)))
 	}
 	if !found {
 		t.Fatalf("no opening page finding: %v", r.Findings)

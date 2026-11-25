@@ -203,14 +203,15 @@ checks the values before a push.
   writes it when the card has one. A card with opening choices or an opening
   page may leave `welcome.md` empty: the player speaks first. `card import`
   writes it from an AI Fengyue card's detailed introduction or a RiliAI card's
-  `introPage`. The page is limited to 524288 UTF-8 bytes (512 KB) after
-  `assets/…` references are rewritten to their URLs; this limit is separate
-  from `card.css`'s. Images embedded as `data:` URLs and long inline scripts
+  `introPage`. The page has its own size limit, separate from `card.css`'s:
+  the limit stated by the platform contract (`openingPageMaxBytes`, currently
+  512 KB), counted in UTF-8 bytes after `assets/…` references are rewritten
+  to their URLs. Images embedded as `data:` URLs and long inline scripts
   are what usually push a page over it: upload them with
   `hearthroom media upload`, or put them under `assets/` (push uploads them
   and rewrites the references), and reference them by URL so `opening.html`
-  keeps only the layout. `card check` and `card push` report the size before
-  anything is sent.
+  keeps only the layout. `card check` reports the size, and `card push` stops
+  before writing card content.
 - A file whose only content is an HTML comment (`<!-- … -->`) counts as empty.
 - Text is trimmed. Line endings are normalised to `\n`.
 - Any `assets/…` reference inside these files, Lorebook entries or rule
@@ -488,8 +489,8 @@ display rules.
 
 The file is optional: absence preserves the stored CSS, and an existing empty
 file clears it. Its limit is 524288 UTF-8 bytes (512 KB) after relative asset
-URLs are rewritten, counted separately from the opening page (`opening.html`,
-also 512 KB). `assets/...` URLs use the same upload and rewrite path as rules.
+URLs are rewritten, counted separately from the opening page's own limit
+(`opening.html`). `assets/...` URLs use the same upload and rewrite path as rules.
 `card import` writes AI Fengyue's built-in CSS and RiliAI's `injectStyles` here.
 Reimport an older Fengyue card to use the latest Fengyue compatibility.
 
@@ -723,7 +724,7 @@ the last push, so only changed sections are sent.
 content or changing local state. It reports each display rule's replacement
 size after URL rewriting in UTF-8 bytes, its limit and the bytes remaining.
 JSON includes `push.rules[]` and `push.rulesTotal`. `card.css` and
-`opening.html` are each checked against their own 524288-byte limit after URL
+`opening.html` are each checked against their own limit after URL
 rewriting; `card check` measures `opening.html` with the URLs already recorded
 in `.hearthroom/state.json`, and push measures it again with the final URLs.
 

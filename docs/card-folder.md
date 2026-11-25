@@ -444,6 +444,7 @@ the most recently bound book for a missing named source.
 | `input` | A bounded object JSON Schema; default maximum 16 KiB, configurable up to 64 KiB |
 | `contextBudget` | Input/output context budget in tokens; default 64000 |
 | `maxOutputTokens` | Output allowance; default 2048, within the context budget |
+| `thinking` | `default` (omitted) keeps the model's own setting; `off` runs without thinking on models that can turn it off, and models that decide for themselves keep theirs |
 | `maxChargePerCall` | Optional admission-estimate ceiling in credits; not a guarantee of the final usage charge |
 
 A configuration can declare up to 32 contexts and bind up to 64 named Lorebooks.

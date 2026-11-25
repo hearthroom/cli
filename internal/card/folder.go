@@ -188,6 +188,15 @@ type Opening struct {
 	Text string
 }
 
+// OpeningPageTooLarge explains an opening page over the provider's limit. actual is the size
+// push sends: UTF-8 bytes after assets/… references are rewritten to their URLs.
+func OpeningPageTooLarge(actual, max int) string {
+	return fmt.Sprintf("%s is %d bytes after URL rewriting; the opening page limit is %d bytes (%d KB, separate from the %s limit), %d over. "+
+		"Keep only the layout in %s: upload images and scripts with `hearthroom media upload`, or put them under assets/ (push uploads them and rewrites the references), "+
+		"and reference them by URL instead of embedding them as data: URLs or inline <script> code.",
+		OpeningFile, actual, max, max>>10, CardCSSFile, actual-max, OpeningFile)
+}
+
 // HasOpeningPageForPush follows Build's author-asset inclusion rule.
 func (f *Folder) HasOpeningPageForPush() bool {
 	return f.OpeningPage != nil && strings.TrimSpace(*f.OpeningPage) != "" && (f.Rules != nil || f.CardCSS != nil)

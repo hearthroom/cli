@@ -2,12 +2,15 @@ package sync
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/hearthroom/cli/internal/api"
 	"github.com/hearthroom/cli/internal/card"
+	"github.com/hearthroom/cli/internal/check"
 )
 
 // These v1 limits match provider role/author_asset.go and role/limits.go.
@@ -15,6 +18,10 @@ import (
 const ruleReplaceMax = 512 << 10
 const rulesTotalMax = 32 << 20
 const trialBodyMax = 48 << 20
+
+// openingPageMax is read from the embedded sandbox contract (provider author_asset.go
+// AuthorAssetOpeningPageMax); TestProviderPreflightContract compares the two.
+var openingPageMax = check.ContractFacts().Provider.OpeningPageMaxBytes
 
 var fieldLimits = map[string][2]int{
 	"roleDesc": {500, 2500}, "roleDetailDesc": {10000, 50000},
@@ -99,6 +106,9 @@ func preflight(f *card.Folder, p card.Payload, language string, checkSizes bool)
 		allowed("cardCssDialect", "", "mmd", "tavern", "fengyue", "fengyue-v2", "rili")
 		if css, ok := p.AuthorAsset["cardCss"].(string); ok && checkSizes && len(css) > ruleReplaceMax {
 			add("card.css is %d bytes after URL rewriting; the limit is %d bytes. Reduce the CSS before pushing.", len(css), ruleReplaceMax)
+		}
+		if page, ok := p.AuthorAsset["openingPage"].(string); ok && checkSizes && len(page) > openingPageMax {
+			add("%s", card.OpeningPageTooLarge(len(page), openingPageMax))
 		}
 		total := 0
 		rules, _ := p.AuthorAsset["rules"].([]map[string]any)
@@ -283,4 +293,24 @@ func ruleTotal(p card.Payload) *RuleTotalSize {
 		}
 	}
 	return &RuleTotalSize{Bytes: total, LimitBytes: rulesTotalMax, RemainingBytes: rulesTotalMax - total}
+}
+
+// openingPageRejected explains a provider rejection of opening.html: 400 validate_reject on an
+// owned card, 413 trial_payload_too_large on a trial card, both with detail.reason "openingPage".
+// The provider error stays wrapped, so --json keeps its code and detail.
+func openingPageRejected(err error) error {
+	var ae *api.Error
+	if !errors.As(err, &ae) {
+		return err
+	}
+	detail, _ := ae.Detail.(map[string]any)
+	if reason, _ := detail["reason"].(string); reason != "openingPage" {
+		return err
+	}
+	max, _ := detail["max"].(float64)
+	actual, _ := detail["actual"].(float64)
+	if max <= 0 {
+		max = float64(openingPageMax)
+	}
+	return fmt.Errorf("%w\n%s", err, card.OpeningPageTooLarge(int(actual), int(max)))
 }

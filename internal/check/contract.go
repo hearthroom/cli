@@ -43,6 +43,8 @@ type Contract struct {
 		MountLayer      []string `json:"mountLayer"`
 		PageMode        []string `json:"pageMode"`
 		CardFormat      []string `json:"cardFormat"`
+		// OpeningPageMaxBytes bounds opening.html as sent (after asset URLs are rewritten).
+		OpeningPageMaxBytes int `json:"openingPageMaxBytes"`
 	} `json:"provider"`
 }
 

@@ -494,7 +494,7 @@ func pushTrial(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		if api.IsStatus(err, 409) {
 			return nil, fmt.Errorf("%w\nAll trial slots are in use; pass --evict to free the least recently used one", err)
 		}
-		return nil, stateRejected(err, true)
+		return nil, openingPageRejected(stateRejected(err, true))
 	}
 	f.State.Target = "trial"
 	f.State.RoleID = tr.RoleID
@@ -688,7 +688,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 				}
 			}
 			if err != nil {
-				return nil, fmt.Errorf("Display rules were not confirmed as saved. This push stopped before writing configuration text, openings, or Lorebook entries. Check the saved rules before pushing again: %w", err)
+				return nil, fmt.Errorf("Display rules were not confirmed as saved. This push stopped before writing configuration text, openings, or Lorebook entries. Check the saved rules before pushing again: %w", openingPageRejected(err))
 			}
 			if out.Version != 0 {
 				f.State.AuthorAssetVersion = out.Version
@@ -926,14 +926,7 @@ func switchableScript(f *card.Folder) (string, bool) {
 // Comparing local sections against the last push must build with this, not
 // the file URLs alone.
 func StoredURLs(f *card.Folder) map[string]string {
-	urls := map[string]string{}
-	for p, a := range f.State.Assets {
-		if a.URL != "" {
-			urls[p] = a.URL
-		}
-	}
-	media.AddDirURLs(f, urls)
-	return urls
+	return media.StoredURLs(f)
 }
 
 // OwnedDigest is the stored hash a section is compared with. For an owned

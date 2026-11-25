@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.4 (unreleased)
+
+- `card check` and `card push` stop on an `opening.html` over 524288 UTF-8 bytes (512 KB) after `assets/…` references are rewritten, before anything is sent. The message gives the size, the limit (separate from `card.css`'s) and the fix: upload images and scripts with `hearthroom media upload` or put them under `assets/`, and reference them by URL. When the provider itself refuses the opening page, push shows the same explanation after its response, and `--json` keeps the provider's code and detail.
+
 ## 0.13.3 (unreleased)
 
 - `review originality`, `review author`, `review author-cards`, `review card` and `review author-note` give the card-review key the evidence a human reviewer sees: overlap with other authors' cards with the matching passages, the author's history and pace, the author's other cards with how much of this setting each shares, a card's live version, and a private note per author (`--set` or `--file`, plain text). Every review command except `report` uses `HEARTHROOM_REVIEW_KEY`.

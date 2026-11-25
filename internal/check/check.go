@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hearthroom/cli/internal/card"
+	"github.com/hearthroom/cli/internal/media"
 	"github.com/hearthroom/cli/internal/tagcatalog"
 )
 
@@ -192,6 +193,7 @@ func Card(dir string) (*Result, error) {
 	if css := read(card.CardCSSFile); len(css) > contract.Provider.ReplaceMaxBytes {
 		r.errorf(card.CardCSSFile, "CSS is %d bytes, over %d (UTF-8 bytes)", len(css), contract.Provider.ReplaceMaxBytes)
 	}
+	checkOpeningPage(dir, read, r)
 	scanHTML(playerText, card.WelcomeFile, r, false)
 	checkRating(read(card.RatingFile), r)
 	res.Findings = r.findings
@@ -542,5 +544,21 @@ func checkVariables(dir string, r *report) {
 	}
 	if v != nil && v.Empty {
 		r.infof(card.VariablesFile, "the file is empty: pushing removes the card's variables")
+	}
+}
+
+// checkOpeningPage measures opening.html as push sends it: assets/… references rewritten with
+// the URLs already recorded in the folder's state. Assets not uploaded yet keep their short
+// relative path here, so push measures again with the final URLs before writing anything.
+func checkOpeningPage(dir string, read func(string) string, r *report) {
+	page := read(card.OpeningFile)
+	if f, err := card.Load(dir); err == nil {
+		if f.OpeningPage == nil {
+			return
+		}
+		page = card.Rewrite(*f.OpeningPage, media.StoredURLs(f))
+	}
+	if max := contract.Provider.OpeningPageMaxBytes; len(page) > max {
+		r.errorf(card.OpeningFile, "%s", card.OpeningPageTooLarge(len(page), max))
 	}
 }

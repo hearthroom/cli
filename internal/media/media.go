@@ -332,6 +332,19 @@ func escapePath(p string) string {
 // already in urls: a directory is served at the URL its files share. Push and
 // the commands that compare against the last push both need it, or a card that
 // builds paths at runtime looks changed after every push.
+// StoredURLs maps each asset already uploaded (per the folder's state) to its URL, plus
+// directory URLs: what push rewrites assets/… references with before anything is uploaded.
+func StoredURLs(f *card.Folder) map[string]string {
+	urls := map[string]string{}
+	for p, a := range f.State.Assets {
+		if a.URL != "" {
+			urls[p] = a.URL
+		}
+	}
+	AddDirURLs(f, urls)
+	return urls
+}
+
 func AddDirURLs(f *card.Folder, urls map[string]string) {
 	for _, dir := range f.AssetDirs() {
 		for rel, u := range urls {

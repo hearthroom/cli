@@ -321,7 +321,7 @@ func (c *Client) OpenPutRaw(ctx context.Context, path string, q url.Values, cont
 	return c.withoutTimeout().send(req, out)
 }
 
-// withoutTimeout is the client for bodies up to the opening page limit (100 MiB): the whole-request
+// withoutTimeout is the client for bodies up to the opening page limit (100 MB): the whole-request
 // timeout would cut a slow link mid-transfer, so only the context bounds the request.
 func (c *Client) withoutTimeout() *Client {
 	clone := *c

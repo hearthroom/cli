@@ -198,11 +198,12 @@ func OpeningPageTooLarge(actual, max int) string {
 		OpeningFile, actual, max, HumanBytes(max), CardCSSFile, actual-max, OpeningFile)
 }
 
-// HumanBytes writes a byte limit the way the docs do: "512 KB", "100 MB", else "N bytes".
+// HumanBytes writes a byte limit the way the platform states it: 524288 is "512 KB",
+// 100000000 is "100 MB" (decimal), anything else "N bytes".
 func HumanBytes(n int) string {
 	switch {
-	case n >= 1<<20 && n%(1<<20) == 0:
-		return fmt.Sprintf("%d MB", n>>20)
+	case n >= 1000000 && n%1000000 == 0:
+		return fmt.Sprintf("%d MB", n/1000000)
 	case n >= 1<<10 && n%(1<<10) == 0:
 		return fmt.Sprintf("%d KB", n>>10)
 	}

@@ -16,7 +16,7 @@ import (
 	"github.com/hearthroom/cli/internal/card"
 )
 
-// withOpeningPageMax stands in for the contract value the provider will publish (100 MiB) without
+// withOpeningPageMax stands in for the contract value the provider will publish (100 MB) without
 // building pages that large: anything above the inline size behaves the same.
 func withOpeningPageMax(t *testing.T, n int) {
 	t.Helper()
@@ -138,7 +138,7 @@ func pageFolder(t *testing.T, page string) *card.Folder {
 // Above the inline size the page goes through the raw upload, after the author asset and with
 // the version that save returned, so one push never conflicts with itself.
 func TestOwnedLargeOpeningPageUsesRawUpload(t *testing.T) {
-	withOpeningPageMax(t, 104857600) // the value the contract will publish
+	withOpeningPageMax(t, 100000000) // the value the contract will publish
 	s := &assetServer{}
 	srv := httptest.NewServer(s.handler(t))
 	defer srv.Close()

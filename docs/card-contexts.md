@@ -61,7 +61,7 @@ What the player's own settings add to `main` (response preferences, standing ins
 
 By default a context also gets the player's persona. Set `"playerPersona": "omit"` in its declaration to leave the persona out and keep only the player's name; the platform's safety text stays either way. `include` or omitting the field keeps the default.
 
-A context that only needs a quick, structured answer can set `"thinking": "off"`. On a model whose thinking can be turned off, the call runs without it, which is faster and leaves the whole `maxOutputTokens` for the reply. A model that decides on its own whether to think keeps doing so, and the platform adds room for that thinking on top of `maxOutputTokens`. `default` or omitting the field keeps the model's own setting.
+A context that only needs a quick, structured answer can set `"thinking": "off"`. On a model whose thinking can be turned off, the call runs without it, which is faster and leaves the whole `maxOutputTokens` for the reply. A model that decides on its own whether to think keeps doing so, and the platform adds room for that thinking on top of `maxOutputTokens`. A context with tools turns thinking off only on models where forced tool calls were measured with thinking off; elsewhere it keeps the default. `default` or omitting the field keeps the model's own setting.
 
 A context's `input.schema` uses the same JSON Schema subset as card tools, with cost caps that preflight enforces: at most 1,024 regular-expression instructions in total, 32 non-string `enum`/`const` values, 1,024 string `enum` values, and schema nodes plus `required` keys within min(256, 768 ÷ `maxBytes` in KiB), which is 48 at 16 KiB and 12 at 64 KiB. Numbers in tool arguments and schemas are at most 64 characters, with exponents in float64 range.
 
@@ -73,7 +73,7 @@ A context's `input.schema` uses the same JSON Schema subset as card tools, with 
 
 A context may list only the card tools declared by the same source: the card's own, or a DLC's own tools. See [Card tools](card-tools.md) for declarations and schemas. Before choosing a tool, read `sdk.model.get().capabilities`; `tools` and `forcedTools` are `supported`, `unsupported` or `unknown`. Select a tool only when both are `supported`; otherwise run ordinary text. `unknown` means the platform has no measurement for the selected line and thinking setting. Treat it like `unsupported`: offer ordinary text, which still bills at the normal rate. The server never swaps model or supplier on its own.
 
-A declaration's `model.family` restricts the context to one public model family. Without it the player's current model is used. A card can let the player pick with `sdk.context.models(id)` and `sdk.context.setModel(id, modelId)`; each model is `{id, name, series?, vendor?}`, where `name` is the player's picker name in the player's language and `vendor` is the company that makes the model; a model that cannot do the context's tool is `MODEL_UNSUPPORTED`.
+A declaration's `model.family` restricts the context to one public model family. Without it the player's current model is used. A card can let the player pick with `sdk.context.models(id)` and `sdk.context.setModel(id, modelId)`; each model is `{id, name, lane?, family?, series?, vendor?}`: `name` and `lane` are the model and line label the player's picker shows, in the player's language; `family` is the value `model.family` takes; `series` is the picker group; `vendor` is the company that makes the model; a model that cannot do the context's tool is `MODEL_UNSUPPORTED`.
 
 ## Cost, quotes and batches
 

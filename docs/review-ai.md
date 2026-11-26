@@ -61,7 +61,7 @@ summary (or `null`), the card, its stats, and the codes the server accepts:
   "author": { "tier": "…", "batchSuspected": false },   // null once the card is decided
   "card": { },
   "stats": { },
-  "allowed": { "verdicts": [], "reasons": [], "flags": [], "handoffCauses": [] }
+  "allowed": { "verdicts": [], "reasons": [], "flags": [], "handoffCauses": [], "handoffReasons": [] }
 }
 ```
 
@@ -112,7 +112,11 @@ text is not kept (rejected versions are dropped).
 }
 ```
 
-`handoffCause` and the usage fields are optional. The response is
+`handoffCause` defaults to `unsure` for `handoff`. For `unsure`, use exactly one
+code from `allowed.handoffReasons` in `reasons` (or one `--reason`). The site
+shows a standard note for that code. Use the separate `handoffCause` values
+for technical failures, such as `timeout` or `refusal`. The usage fields are
+optional. The response is
 `{ "id", "verdict", "phase", "criteriaVersion" }`. Sending again for the same
 submission and criteria version replaces your earlier suggestion.
 

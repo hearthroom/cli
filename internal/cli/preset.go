@@ -29,6 +29,7 @@ var presetIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-f
 
 type presetAsset struct {
 	ID                string   `json:"id"`
+	HeadRevisionID    string   `json:"headRevisionId,omitempty"`
 	Title             string   `json:"title"`
 	Version           int64    `json:"version"`
 	SourceKind        string   `json:"sourceKind"`
@@ -207,18 +208,10 @@ func (a *App) presetExport(ctx context.Context, id, format string) (json.RawMess
 			return nil, 0, reportPresetError(err)
 		}
 	} else {
-		var result struct {
-			Revision struct {
-				Document json.RawMessage `json:"document"`
-				Version  int64           `json:"version"`
-			} `json:"revision"`
-		}
-		if err := a.Client().OpenGet(ctx, path+"/content", nil, &result); err != nil {
-			return nil, 0, reportPresetError(err)
-		}
-		raw, version = result.Revision.Document, result.Revision.Version
-		if version < 1 {
-			return nil, 0, errors.New("the provider did not return the exported preset's version")
+		var err error
+		raw, version, err = a.presetEditSnapshot(ctx, path)
+		if err != nil {
+			return nil, 0, err
 		}
 	}
 	var document map[string]json.RawMessage
@@ -226,6 +219,34 @@ func (a *App) presetExport(ctx context.Context, id, format string) (json.RawMess
 		return nil, 0, errors.New("the provider did not return a preset JSON object")
 	}
 	return raw, version, nil
+}
+
+func (a *App) presetEditSnapshot(ctx context.Context, path string) (json.RawMessage, int64, error) {
+	// Publishing can advance the asset's edit version without changing its
+	// content row. Match the asset's current head to the content read so a
+	// concurrent save cannot pair old bytes with a newer edit version.
+	for range 3 {
+		var asset presetAsset
+		if err := a.Client().OpenGet(ctx, path, nil, &asset); err != nil {
+			return nil, 0, reportPresetError(err)
+		}
+		var result struct {
+			Revision struct {
+				ID       string          `json:"revisionId"`
+				Document json.RawMessage `json:"document"`
+			} `json:"revision"`
+		}
+		if err := a.Client().OpenGet(ctx, path+"/content", nil, &result); err != nil {
+			return nil, 0, reportPresetError(err)
+		}
+		if asset.Version < 1 || !presetIDPattern.MatchString(asset.HeadRevisionID) || !presetIDPattern.MatchString(result.Revision.ID) {
+			return nil, 0, errors.New("the provider did not return a complete preset version")
+		}
+		if asset.HeadRevisionID == result.Revision.ID {
+			return result.Revision.Document, asset.Version, nil
+		}
+	}
+	return nil, 0, output.Exitf(2, "the preset changed during export. Run `hearthroom preset pull` again")
 }
 
 // Publish a fully written private file at a new path without replacing an

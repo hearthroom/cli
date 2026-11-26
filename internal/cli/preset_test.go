@@ -101,14 +101,19 @@ func TestPresetWorkflowUsesOwnerRoutes(t *testing.T) {
 				io.WriteString(w, `{"items":[{"id":"`+previewFixtureID+`","title":"Further","version":2}],"quota":{"used":2,"limit":50}}`)
 			}
 		case "GET /presets/" + presetFixtureID:
-			io.WriteString(w, `{"title":"Original title","version":1,"recommendedModels":["series:Fixture"],"purpose":"general"}`)
+			if calls["GET "+path] == 1 {
+				// A save changed the content after the first metadata read.
+				io.WriteString(w, `{"title":"Original title","headRevisionId":"`+presetFixtureID+`","version":2}`)
+				return
+			}
+			io.WriteString(w, `{"title":"Original title","headRevisionId":"`+previewFixtureID+`","version":3,"recommendedModels":["series:Fixture"],"purpose":"general"}`)
 		case "GET /presets/" + presetFixtureID + "/export":
 			io.WriteString(w, presetSample)
 		case "GET /presets/" + presetFixtureID + "/content":
-			io.WriteString(w, `{"revision":{"version":1,"document":`+presetNativeSample+`}}`)
+			io.WriteString(w, `{"revision":{"revisionId":"`+previewFixtureID+`","version":1,"document":`+presetNativeSample+`}}`)
 		case "POST /presets/" + presetFixtureID + "/revisions":
 			_ = json.NewDecoder(r.Body).Decode(&payload)
-			if string(payload["title"]) != `"Original title"` || string(payload["recommendedModels"]) != `["series:Fixture"]` || string(payload["expectedVersion"]) != "1" {
+			if string(payload["title"]) != `"Original title"` || string(payload["recommendedModels"]) != `["series:Fixture"]` || string(payload["expectedVersion"]) != "3" {
 				t.Error("revise lost metadata or expected version")
 			}
 			w.WriteHeader(409)
@@ -138,8 +143,8 @@ func TestPresetWorkflowUsesOwnerRoutes(t *testing.T) {
 		expected := presetSample
 		if format == "hearthroom" {
 			expected = presetNativeSample
-			if !strings.Contains(stdout, `"version": 1`) {
-				t.Fatalf("edit export did not identify its version: %s", stdout)
+			if !strings.Contains(stdout, `"version": 3`) {
+				t.Fatalf("edit export did not identify the asset version after publication: %s", stdout)
 			}
 		}
 		if raw, err := os.ReadFile(path); err != nil || string(raw) != expected {
@@ -149,7 +154,7 @@ func TestPresetWorkflowUsesOwnerRoutes(t *testing.T) {
 			t.Fatal("pull overwrote existing export")
 		}
 	}
-	_, err := run("push", filepath.Join(out, "hearthroom.json"), "--id", presetFixtureID, "--expected-version", "1")
+	_, err := run("push", filepath.Join(out, "hearthroom.json"), "--id", presetFixtureID, "--expected-version", "3")
 	if err == nil || !strings.Contains(err.Error(), "preset_conflict") {
 		t.Fatalf("expected conflict, got %v", err)
 	}
@@ -157,6 +162,9 @@ func TestPresetWorkflowUsesOwnerRoutes(t *testing.T) {
 	defer mu.Unlock()
 	if calls["POST /presets/"+presetFixtureID+"/revisions"] != 1 || calls["GET /presets"] != 2 {
 		t.Fatalf("unexpected retries or pagination: %v", calls)
+	}
+	if calls["GET /presets/"+presetFixtureID+"/content"] != 2 {
+		t.Fatal("editing export did not retry after the head changed")
 	}
 }
 

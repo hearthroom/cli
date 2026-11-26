@@ -34,8 +34,8 @@ hearthroom preset push edit.json --id "$PRESET_ID" --expected-version "$EXPORTED
 ```
 
 The default export is the same SillyTavern JSON the website downloads.
-`--format hearthroom` keeps the saved selection and reports the version from
-the same read. Use that version as `EXPORTED_VERSION` after editing the file.
+`--format hearthroom` keeps the saved selection and reports the edit version
+that matches the exported content. Use that version as `EXPORTED_VERSION` after editing the file.
 A conflict means the preset changed since your export. Pull to a new file and
 reconcile the edits before saving again. Both formats create a new output file
 with private permissions.

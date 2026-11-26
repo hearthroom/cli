@@ -111,7 +111,8 @@ so its identity, revision and validation results remain visible.
 
 ## Author DLC Lorebook packages
 
-Use `workshop get --json` to edit your own author DLC. Each `lorePacks` item has
+Use `workshop get --json` to edit your own author DLC. Each DLC accepts up to
+10,000 packages. Each `lorePacks` item has
 a stable UUID `id`, a unique `name` (up to 12 characters), an optional
 `description` (up to 24), and a `defaultEnabled` boolean. Players can see package
 names and descriptions. Set an entry's `packId` to put it in a package. An entry

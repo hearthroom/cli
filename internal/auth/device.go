@@ -50,11 +50,11 @@ var (
 // requestDeviceCode asks the provider for a one-time code (RFC 8628 §3.1).
 // A provider without the endpoint, or one that does not allow this client to
 // use it, yields a noDeviceError.
-func requestDeviceCode(ctx context.Context, c *api.Client, d Discovery, clientID string) (DeviceCode, error) {
+func requestDeviceCode(ctx context.Context, c *api.Client, d Discovery, clientID, scope string) (DeviceCode, error) {
 	if d.DeviceAuthorizationEndpoint == "" {
 		return DeviceCode{}, noDeviceError{"this provider does not offer it"}
 	}
-	form := url.Values{"client_id": {clientID}, "scope": {Scopes}, "resource": {Resource(c.API)}}
+	form := url.Values{"client_id": {clientID}, "scope": {scope}, "resource": {Resource(c.API)}}
 	var dc DeviceCode
 	if err := c.Form(ctx, pathOf(d.DeviceAuthorizationEndpoint), form, &dc); err != nil {
 		var e *api.Error
@@ -102,6 +102,9 @@ func loginDevice(ctx context.Context, c *api.Client, store *config.Store, d Disc
 	cred, err := pollDevice(ctx, c, opts, pathOf(d.TokenEndpoint), clientID, dc.DeviceCode,
 		seconds(dc.Interval), now.Add(seconds(dc.ExpiresIn)), now.Add(opts.Timeout), true)
 	if err != nil {
+		return config.Credential{}, err
+	}
+	if err := validatePresetGrant(cred, opts.Presets); err != nil {
 		return config.Credential{}, err
 	}
 	cred.ClientID = clientID
@@ -162,6 +165,10 @@ func pollDevice(ctx context.Context, c *api.Client, opts LoginOptions, tokenPath
 // falls back to the loopback flow, which cannot outlive the process.
 func StartPendingLogin(ctx context.Context, c *api.Client, store *config.Store, cfg *config.Config, opts LoginOptions) (DeviceCode, error) {
 	opts = opts.withDefaults()
+	scope, err := requestedLoginScope(c.API, opts.Presets)
+	if err != nil {
+		return DeviceCode{}, err
+	}
 	d, err := Discover(ctx, c)
 	if err != nil {
 		return DeviceCode{}, err
@@ -170,7 +177,7 @@ func StartPendingLogin(ctx context.Context, c *api.Client, store *config.Store, 
 	if err != nil {
 		return DeviceCode{}, err
 	}
-	dc, err := requestDeviceCode(ctx, c, d, reg.ClientID)
+	dc, err := requestDeviceCode(ctx, c, d, reg.ClientID, scope)
 	var unavailable noDeviceError
 	if errors.As(err, &unavailable) {
 		return DeviceCode{}, fmt.Errorf("--no-wait needs sign-in with a code, which is not available here (%s). Run `hearthroom auth login` on a machine with a browser, or set %s.", unavailable.why, EnvToken)
@@ -181,7 +188,7 @@ func StartPendingLogin(ctx context.Context, c *api.Client, store *config.Store, 
 	p := config.PendingLogin{
 		API: c.API, ClientID: reg.ClientID, DeviceCode: dc.DeviceCode,
 		UserCode: dc.UserCode, VerificationURI: dc.VerificationURI,
-		Interval: dc.Interval, ExpiresAt: opts.Now().Add(seconds(dc.ExpiresIn)),
+		Interval: dc.Interval, ExpiresAt: opts.Now().Add(seconds(dc.ExpiresIn)), Presets: opts.Presets,
 	}
 	if err := store.SavePendingLogin(p); err != nil {
 		return DeviceCode{}, err
@@ -233,6 +240,9 @@ func ResumeLogin(ctx context.Context, c *api.Client, store *config.Store, opts L
 		return config.Credential{}, forgetPending(store, fmt.Errorf("%w; run `hearthroom auth login --no-wait` again", err))
 	default:
 		return config.Credential{}, err
+	}
+	if err := validatePresetGrant(cred, p.Presets); err != nil {
+		return config.Credential{}, forgetPending(store, err)
 	}
 	cred.ClientID = p.ClientID
 	if err := saveCredential(store, c.API, cred); err != nil {

@@ -31,6 +31,7 @@ type deviceProvider struct {
 	retryAfter    int
 	expiresIn     int
 	pollScript    []string
+	grantedScope  string
 	deviceCalls   atomic.Int32
 	authorizeHits atomic.Int32
 
@@ -107,14 +108,88 @@ func newDeviceProvider(t *testing.T, offerDevice bool, script ...string) *device
 				return
 			}
 		}
+		scope := dp.grantedScope
+		if scope == "" {
+			scope = Scopes
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"access_token": "at_" + grant, "refresh_token": "rt_" + grant, "expires_in": 3600,
-			"scope": Scopes, "resource": "http://" + r.Host + "/open/v1", "token_type": "Bearer",
+			"scope": scope, "resource": "http://" + r.Host + "/open/v1", "token_type": "Bearer",
 		})
 	})
 	dp.srv = httptest.NewServer(mux)
 	t.Cleanup(dp.srv.Close)
 	return dp
+}
+
+func TestPresetLoginScopes(t *testing.T) {
+	const expanded = Scopes + " preset.read preset.write"
+	for _, mode := range []string{"device", "loopback", "resume", "dynamic", "missing scope"} {
+		t.Run(mode, func(t *testing.T) {
+			dp := newDeviceProvider(t, mode != "loopback")
+			if mode != "missing scope" {
+				dp.grantedScope = expanded
+			}
+			client, store, cfg := deviceSetup(t, dp)
+			if mode != "dynamic" {
+				KnownClients[client.API] = "hh_client_fixed_fixture"
+				t.Cleanup(func() { delete(KnownClients, client.API) })
+			}
+			clock := newFakeClock()
+			opts := LoginOptions{Presets: true, NoBrowser: true, Now: clock.Now, Sleep: clock.Sleep}
+			var authorized url.Values
+			if mode == "loopback" {
+				restore := useEphemeralLoopbackPort(t)
+				defer restore()
+				opts.NoBrowser = false
+				opts.OpenBrowser = func(target string) error {
+					u, err := url.Parse(target)
+					if err != nil {
+						return err
+					}
+					authorized = u.Query()
+					res, err := http.Get(target)
+					if err == nil {
+						res.Body.Close()
+					}
+					return err
+				}
+			}
+			ctx := context.Background()
+			var cred config.Credential
+			var err error
+			if mode == "resume" {
+				if _, err := StartPendingLogin(ctx, client, store, cfg, opts); err != nil {
+					t.Fatal(err)
+				}
+				opts.Presets = false
+				cred, err = ResumeLogin(ctx, client, store, opts)
+			} else {
+				cred, err = Login(ctx, client, store, cfg, opts)
+			}
+			if mode == "dynamic" || mode == "missing scope" {
+				if err == nil {
+					t.Fatal("preset login succeeded without the fixed client and a complete scope grant")
+				}
+				creds, err := store.LoadCredentials()
+				if err != nil || creds[client.API].AccessToken != "" {
+					t.Fatal("ineligible preset credentials were stored")
+				}
+				return
+			}
+			if err != nil || cred.Scope != expanded {
+				t.Fatalf("scope %q, error %v", cred.Scope, err)
+			}
+			if mode != "loopback" {
+				dp.mu.Lock()
+				authorized = dp.deviceForm
+				dp.mu.Unlock()
+			}
+			if authorized.Get("scope") != expanded || authorized.Get("client_id") != "hh_client_fixed_fixture" {
+				t.Fatalf("unexpected authorization request %v", authorized)
+			}
+		})
+	}
 }
 
 func (dp *deviceProvider) pollCount() int {

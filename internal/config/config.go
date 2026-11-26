@@ -69,6 +69,7 @@ type PendingLogin struct {
 	VerificationURI string    `json:"verification_uri,omitempty"`
 	Interval        int64     `json:"interval"` // seconds between polls
 	ExpiresAt       time.Time `json:"expires_at"`
+	Presets         bool      `json:"presets,omitempty"`
 }
 
 // Store reads and writes the files in one directory.

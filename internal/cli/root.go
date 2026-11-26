@@ -164,7 +164,8 @@ func (a *App) init(cmd *cobra.Command) error {
 	if !strings.HasPrefix(a.API, "http://") && !strings.HasPrefix(a.API, "https://") {
 		return fmt.Errorf("--api must be an http(s) URL, got %q", a.API)
 	}
-	if cmd.Name() != "upgrade" && cmd.Name() != "version" {
+	presetCheck := cmd.Name() == "check" && cmd.Parent() != nil && cmd.Parent().Name() == "preset"
+	if cmd.Name() != "upgrade" && cmd.Name() != "version" && !presetCheck {
 		a.startUpdateCheck(cmd.Context())
 	}
 	return nil

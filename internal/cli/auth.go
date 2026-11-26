@@ -20,7 +20,7 @@ func (a *App) authCommand() *cobra.Command {
 		Use:   "auth",
 		Short: "Sign in to the connected card provider",
 	}
-	var noBrowser, noWait, resume bool
+	var noBrowser, noWait, resume, presets bool
 	var timeout time.Duration
 	login := &cobra.Command{
 		Use:   "login",
@@ -39,6 +39,8 @@ Agents that only see a command's output after it exits can split the wait:
 --no-wait prints the code and address (one JSON object with --json) and exits;
 after the person has approved, --resume finishes the sign-in.
 
+Use --presets to grant the CLI access to read and save your prompt presets.
+
 Tokens are stored under the config directory with owner-only permissions and
 refreshed automatically. For scripts and CI, set HEARTHROOM_TOKEN instead of
 signing in.`,
@@ -48,6 +50,7 @@ signing in.`,
 				NoBrowser:   noBrowser,
 				Status:      a.Out.Note,
 				Timeout:     timeout,
+				Presets:     presets,
 			}
 			if noWait {
 				dc, err := auth.StartPendingLogin(cmd.Context(), a.Client(), a.Store, &a.Cfg, opts)
@@ -82,7 +85,9 @@ signing in.`,
 	login.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "how long to wait for the sign-in to be approved")
 	login.Flags().BoolVar(&noWait, "no-wait", false, "print the code and address, then exit; finish later with --resume")
 	login.Flags().BoolVar(&resume, "resume", false, "finish the sign-in started with --no-wait")
+	login.Flags().BoolVar(&presets, "presets", false, "request access to read and save your prompt presets")
 	login.MarkFlagsMutuallyExclusive("no-wait", "resume")
+	login.MarkFlagsMutuallyExclusive("presets", "resume")
 
 	logout := &cobra.Command{
 		Use:   "logout",

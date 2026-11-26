@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,8 @@ import (
 // nickname); media.generate lets `media generate` spend purchased credits on
 // images; referral and model.invoke are deliberately excluded.
 const Scopes = "profile.read email.read role.read role.write chat.play media.generate"
+
+const presetScopes = "preset.read preset.write"
 
 // LoopbackPorts are the fixed redirect ports registered with the provider.
 // The provider matches loopback redirect URIs exactly, port included, so the
@@ -183,6 +186,8 @@ type LoginOptions struct {
 	Listen func(port int) (net.Listener, error)
 	// LoopbackOnly skips sign-in with a code even when the provider offers it.
 	LoopbackOnly bool
+	// Presets requests consent for managing the account's owned presets.
+	Presets bool
 	// Now and Sleep drive the device-flow poll loop; tests replace them.
 	Now   func() time.Time
 	Sleep func(ctx context.Context, d time.Duration) error
@@ -214,6 +219,10 @@ func (o LoginOptions) withDefaults() LoginOptions {
 // authorization-code flow with a loopback redirect otherwise.
 func Login(ctx context.Context, c *api.Client, store *config.Store, cfg *config.Config, opts LoginOptions) (config.Credential, error) {
 	opts = opts.withDefaults()
+	scope, err := requestedLoginScope(c.API, opts.Presets)
+	if err != nil {
+		return config.Credential{}, err
+	}
 	d, err := Discover(ctx, c)
 	if err != nil {
 		return config.Credential{}, err
@@ -223,7 +232,7 @@ func Login(ctx context.Context, c *api.Client, store *config.Store, cfg *config.
 		return config.Credential{}, err
 	}
 	if !opts.LoopbackOnly {
-		dc, err := requestDeviceCode(ctx, c, d, reg.ClientID)
+		dc, err := requestDeviceCode(ctx, c, d, reg.ClientID, scope)
 		var unavailable noDeviceError
 		switch {
 		case err == nil:
@@ -233,7 +242,31 @@ func Login(ctx context.Context, c *api.Client, store *config.Store, cfg *config.
 		}
 		opts.Status("Sign-in with a code is not available (%s); signing in through a browser on this machine instead.", unavailable.why)
 	}
+	reg.Scope = scope
 	return loginLoopback(ctx, c, store, d, reg, opts)
+}
+
+func requestedLoginScope(base string, presets bool) (string, error) {
+	if !presets {
+		return Scopes, nil
+	}
+	if KnownClients[base] == "" {
+		return "", errors.New("preset sign-in requires the first-party Hearthroom provider")
+	}
+	return Scopes + " " + presetScopes, nil
+}
+
+func validatePresetGrant(cred config.Credential, presets bool) error {
+	if !presets {
+		return nil
+	}
+	granted := strings.Fields(cred.Scope)
+	for _, scope := range strings.Fields(presetScopes) {
+		if !slices.Contains(granted, scope) {
+			return errors.New("the provider did not grant preset access")
+		}
+	}
+	return nil
 }
 
 // loginLoopback runs the authorization-code flow with PKCE, receiving the
@@ -259,7 +292,7 @@ func loginLoopback(ctx context.Context, c *api.Client, store *config.Store, d Di
 		"response_type":         {"code"},
 		"client_id":             {reg.ClientID},
 		"redirect_uri":          {redirect},
-		"scope":                 {Scopes},
+		"scope":                 {reg.Scope},
 		"resource":              {resource},
 		"code_challenge":        {pk.Challenge},
 		"code_challenge_method": {"S256"},
@@ -309,6 +342,9 @@ func loginLoopback(ctx context.Context, c *api.Client, store *config.Store, d Di
 	}
 	cred, err := exchange(ctx, c, pathOf(d.TokenEndpoint), form)
 	if err != nil {
+		return config.Credential{}, err
+	}
+	if err := validatePresetGrant(cred, opts.Presets); err != nil {
 		return config.Credential{}, err
 	}
 	cred.ClientID = reg.ClientID

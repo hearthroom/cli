@@ -94,7 +94,7 @@ func TestOpeningPageCheckFollowsTheContractLimit(t *testing.T) {
 	for _, tc := range []struct {
 		n     int
 		valid bool
-	}{{old + 1, true}, {2 << 20, true}, {2<<20 + 1, false}} {
+	}{{(512 << 10) + 1, true}, {2 << 20, true}, {2<<20 + 1, false}} {
 		dir := write(t, t.TempDir(), map[string]string{"card.json": `{"formatVersion":1,"name":"Synthetic","language":"en"}`, "rules.json": `{"rules":[]}`, "opening.html": strings.Repeat("x", tc.n)})
 		r, err := Card(dir)
 		if err != nil {

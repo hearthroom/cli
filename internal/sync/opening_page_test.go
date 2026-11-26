@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -57,6 +58,16 @@ func TestOpeningPagePushBoundary(t *testing.T) {
 				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if r.Method != "GET" {
 						writes = append(writes, r.URL.Path)
+					}
+					if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/opening-page") {
+						n, err := io.Copy(io.Discard, r.Body)
+						if err != nil {
+							http.Error(w, err.Error(), http.StatusBadRequest)
+							return
+						}
+						sent = int(n)
+						_, _ = w.Write([]byte(`{"version":1}`))
+						return
 					}
 					if r.Method == http.MethodPut {
 						var in map[string]any

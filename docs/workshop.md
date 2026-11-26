@@ -12,8 +12,9 @@ The Provider derives the extension kind from original ownership:
   Lorebook entries only. They cannot read or replace the original agent
   configuration's private instructions, rules or Lorebook.
 
-An extension can have at most **1,500 always-included characters**. Triggered
-entries use the same recall pool as other Lorebook entries and add content;
+Each author DLC can have up to **5,000 always-included characters**. Each player
+extension can have up to **1,500**, including private and universal extensions.
+Both limits count Unicode code points in enabled entries. Triggered entries use the same recall pool as other Lorebook entries and add content;
 they do not replace original entries. The original author's opt-in is closed
 by default. Original authors can publish or unpublish their own DLC directly.
 Player drafts are private until the player grants the original author permission

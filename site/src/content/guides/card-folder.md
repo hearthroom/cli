@@ -209,8 +209,8 @@ checks the values before a push.
   page may leave `welcome.md` empty: the player speaks first. `card import`
   writes it from an AI Fengyue card's detailed introduction or a RiliAI card's
   `introPage`. The page has its own size limit, separate from `card.css`'s:
-  the limit stated by the platform contract (`openingPageMaxBytes`, currently
-  512 KB), counted in UTF-8 bytes after `assets/…` references are rewritten
+  the limit stated by the platform contract (`openingPageMaxBytes`, 100 MB
+  or 100,000,000 bytes), counted in UTF-8 bytes after `assets/…` references are rewritten
   to their URLs. Images embedded as `data:` URLs and long inline scripts
   are what usually push a page over it: upload them with
   `hearthroom media upload`, or put them under `assets/` (push uploads them

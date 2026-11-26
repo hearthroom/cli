@@ -130,6 +130,39 @@ func TestWorkshopRejectsUnsafeInputAndMissingCASBeforeRequests(t *testing.T) {
 	}
 }
 
+func TestWorkshopOpeningPageLimit(t *testing.T) {
+	cfg := authTestEnv(t)
+	t.Setenv(auth.EnvToken, "tok")
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_, _ = w.Write([]byte(`{"revision":4}`))
+	}))
+	defer srv.Close()
+	const limit = 512 * 1024
+	for _, extra := range []string{"xx", "xxx"} {
+		page := strings.Repeat("界", limit/3) + extra
+		data, err := json.Marshal(map[string]any{"opening": map[string]string{"openingPage": page}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		file := filepath.Join(t.TempDir(), "draft.json")
+		if err := os.WriteFile(file, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = runCLI(t, "workshop", "update", "mine", "--file", file, "--expected-revision", "3", "--operation-id", "save", "--api", srv.URL, "--config-dir", cfg)
+		if len(page) == limit && err != nil {
+			t.Fatalf("exact limit: %v", err)
+		}
+		if len(page) > limit && (err == nil || !strings.Contains(err.Error(), "524288")) {
+			t.Fatalf("over limit: %v", err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("save requests = %d, want 1", calls)
+	}
+}
+
 func TestWorkshopPolicyAndServerDenial(t *testing.T) {
 	cfg := authTestEnv(t)
 	t.Setenv(auth.EnvToken, "tok")

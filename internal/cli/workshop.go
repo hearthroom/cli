@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hearthroom/cli/internal/check"
 	"github.com/hearthroom/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -147,6 +148,17 @@ func workshopSaveBody(data []byte, workshopID string, revision int64, operationI
 			return nil, output.Exitf(2, "unsupported Workshop draft field %q; use extension content fields only", key)
 		}
 		delete(body, key)
+	}
+	if raw, ok := body["opening"]; ok {
+		var opening struct {
+			Page string `json:"openingPage"`
+		}
+		if err := json.Unmarshal(raw, &opening); err != nil {
+			return nil, output.Exitf(2, "Workshop opening must be an object with an HTML string in openingPage")
+		}
+		if max := check.ContractFacts().Provider.WorkshopOpeningPageMaxBytes; len(opening.Page) > max {
+			return nil, output.Exitf(2, "Workshop openingPage is %d UTF-8 bytes and the limit is %d bytes", len(opening.Page), max)
+		}
 	}
 	for key, value := range map[string]any{"workshopId": workshopID, "expectedRevision": revision, "idempotencyKey": operationID} {
 		raw, _ := json.Marshal(value)

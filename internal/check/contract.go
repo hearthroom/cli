@@ -44,7 +44,8 @@ type Contract struct {
 		PageMode        []string `json:"pageMode"`
 		CardFormat      []string `json:"cardFormat"`
 		// OpeningPageMaxBytes bounds opening.html as sent (after asset URLs are rewritten).
-		OpeningPageMaxBytes int `json:"openingPageMaxBytes"`
+		OpeningPageMaxBytes         int `json:"openingPageMaxBytes"`
+		WorkshopOpeningPageMaxBytes int `json:"workshopOpeningPageMaxBytes"`
 	} `json:"provider"`
 }
 

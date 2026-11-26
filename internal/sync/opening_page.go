@@ -41,6 +41,7 @@ func wireAuthorAsset(f *card.Folder, aa map[string]any) (map[string]any, *string
 			// The provider refuses the flag beside a non-empty page, so whitespace goes as "".
 			body["openingPage"] = ""
 			body["openingPageClear"] = true
+			return body, nil
 		}
 	} else if f.State.OpeningPageSent {
 		body["openingPageClear"] = true

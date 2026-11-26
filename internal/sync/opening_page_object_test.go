@@ -516,8 +516,10 @@ func TestOpeningPageEncodingRejectionNotASizeMessage(t *testing.T) {
 // the flag next to a non-empty page.
 func TestWhitespaceOpeningPageClearsWithEmptyString(t *testing.T) {
 	f, _ := card.Init(t.TempDir(), "Blank", "en")
-	body, large := wireAuthorAsset(f, map[string]any{"openingPage": "\n  \n"})
-	if large != nil || body["openingPage"] != "" || body["openingPageClear"] != true {
-		t.Fatalf("body = %v", body)
+	for _, page := range []string{"\n  \n", strings.Repeat(" ", openingPageInlineMax+1)} {
+		body, large := wireAuthorAsset(f, map[string]any{"openingPage": page})
+		if large != nil || body["openingPage"] != "" || body["openingPageClear"] != true {
+			t.Fatalf("whitespace page of %d bytes: sends raw page = %t, body = %v", len(page), large != nil, body)
+		}
 	}
 }

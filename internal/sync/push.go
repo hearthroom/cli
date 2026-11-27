@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/hearthroom/cli/internal/api"
@@ -600,6 +601,8 @@ type roleOutput struct {
 	RoleID     string `json:"roleId"`
 }
 
+const coverFlagHashKey = "coverSensitive"
+
 func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payload, digests map[string]string, opts PushOptions, res *PushResult, remote card.RemoteDetail) (result *PushResult, pushErr error) {
 	rulesSaved := false
 	defer func() {
@@ -612,9 +615,15 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 	if opts.To != "" {
 		roleID = opts.To
 	}
+	newTarget := roleID != f.State.RoleID || f.State.Target != "owned" || (opts.Create && !f.State.OwnedPushPending)
+	coverFlag := ""
+	if f.Manifest.CoverSensitive != nil {
+		coverFlag = strconv.FormatBool(*f.Manifest.CoverSensitive)
+	}
+	coverChanged := coverFlag != "" && (newTarget || opts.Force || f.State.LocalHashes[coverFlagHashKey] != coverFlag)
 	if opts.DryRun {
-		if f.Manifest.CoverSensitive != nil {
-			res.Changed = append(res.Changed, "coverSensitive")
+		if coverChanged {
+			res.Changed = append(res.Changed, coverFlagHashKey)
 		}
 		for _, s := range card.Sections {
 			if p.Section(s) != nil {
@@ -625,7 +634,6 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 			res.Changed = append(res.Changed, card.SectionState)
 		}
 		res.RoleID = roleID
-		newTarget := roleID != f.State.RoleID || f.State.Target != "owned" || (opts.Create && !f.State.OwnedPushPending)
 		if p.Worldbook != nil && (newTarget || opts.Force || f.State.LocalHashes[card.SectionWorldbook] != digests[card.SectionWorldbook]) {
 			var err error
 			res.PruneEntries, err = previewLorebook(ctx, c, f, roleID, p.Worldbook, opts)
@@ -886,7 +894,7 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		f.State.CardImageProvision = nil
 		res.RoleVisibility = "unlisted"
 	}
-	if f.Manifest.CoverSensitive != nil {
+	if coverChanged {
 		var saved struct {
 			Author *bool `json:"coverAuthorSensitive"`
 		}
@@ -897,7 +905,8 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		if saved.Author == nil || *saved.Author != *f.Manifest.CoverSensitive {
 			return nil, errors.New("the site did not confirm the sensitive cover setting")
 		}
-		res.Changed = append(res.Changed, "coverSensitive")
+		f.State.LocalHashes[coverFlagHashKey] = coverFlag
+		res.Changed = append(res.Changed, coverFlagHashKey)
 	}
 	f.State.OwnedPushPending = false
 	f.State.IgnoreLocalLorebook = false

@@ -127,6 +127,12 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 
 	f := card.FromRemote(dir, d, bookID, bookName, entries, asset)
 	f.Manifest.CoverSensitive = cover.Author
+	if cover.Author != nil {
+		if f.State.LocalHashes == nil {
+			f.State.LocalHashes = map[string]string{}
+		}
+		f.State.LocalHashes[coverFlagHashKey] = strconv.FormatBool(*cover.Author)
+	}
 	if f.Lorebook != nil {
 		if bookDetail.Description != "" {
 			f.Lorebook.Description = bookDetail.Description
@@ -177,8 +183,14 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	// the library folder its images are served from.
 	if old, err := card.Load(dir); err == nil {
 		f.Manifest.Media.Folder = old.Manifest.Media.Folder
-		if f.Manifest.CoverSensitive == nil {
+		if cover.Author == nil && old.State.RoleID == d.RoleID && (old.State.API == "" || old.State.API == c.API) {
 			f.Manifest.CoverSensitive = old.Manifest.CoverSensitive
+			if baseline := old.State.LocalHashes[coverFlagHashKey]; baseline != "" {
+				if f.State.LocalHashes == nil {
+					f.State.LocalHashes = map[string]string{}
+				}
+				f.State.LocalHashes[coverFlagHashKey] = baseline
+			}
 		}
 		f.State.AssetFolder = old.State.AssetFolder
 	}

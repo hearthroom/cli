@@ -428,3 +428,45 @@ func TestOwnedPushSavesExplicitCoverFlagOnTheSite(t *testing.T) {
 		t.Fatalf("site cover writes = %v", flags)
 	}
 }
+
+func TestUnchangedPulledCoverDoesNotOverwriteLaterWebEdit(t *testing.T) {
+	writes := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/open/v1/role/detail":
+			fmt.Fprint(w, `{"characterRoleId":"owned1","roleName":"Cover","language":"en","roleWelcome":"First"}`)
+		case "/v1/me/cards/owned1/cover":
+			fmt.Fprint(w, `{"coverAuthorSensitive":false}`)
+		case "/v1/me/card-identities":
+			writes++
+			fmt.Fprint(w, `{"coverAuthorSensitive":false}`)
+		default:
+			fmt.Fprint(w, `{}`)
+		}
+	}))
+	defer srv.Close()
+	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+	dir := t.TempDir()
+	if _, err := Pull(context.Background(), c, "owned1", dir, PullOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	f, err := card.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Manifest.CoverSensitive == nil || *f.Manifest.CoverSensitive {
+		t.Fatal("pull did not record an explicit unmarked cover")
+	}
+	if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true}); err != nil {
+		t.Fatal(err)
+	}
+	if writes != 0 {
+		t.Fatalf("unchanged flag was sent and would overwrite a later web change: %d writes", writes)
+	}
+	if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true, Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	if writes != 1 {
+		t.Fatalf("force did not explicitly reapply the flag: %d writes", writes)
+	}
+}

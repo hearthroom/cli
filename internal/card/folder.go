@@ -65,6 +65,7 @@ type Manifest struct {
 	Main               json.RawMessage  `json:"main,omitempty"`
 	ResponseDefaults   ResponseDefaults `json:"responseDefaults,omitempty"`
 	Media              Media            `json:"media"`
+	CoverSensitive     *bool            `json:"coverSensitive,omitempty"`
 	Language           string           `json:"language,omitempty"`
 	Extra              map[string]any   `json:"-"`
 }
@@ -586,7 +587,7 @@ func (m Manifest) MarshalJSON() ([]byte, error) {
 		obj[k] = b
 	}
 	order := []string{"formatVersion", "name", "summary", "tags", "type", "sex", "playerName", "nickname", "language",
-		"outputContract", "customInstructions", "talkExample", "prologue", "tools", "cardMeta", "responseDefaults", "main", "contexts", "lorebooks", "media"}
+		"outputContract", "customInstructions", "talkExample", "prologue", "tools", "cardMeta", "responseDefaults", "main", "contexts", "lorebooks", "media", "coverSensitive"}
 	seen := map[string]bool{}
 	var b strings.Builder
 	b.WriteString("{\n")

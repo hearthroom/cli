@@ -230,7 +230,7 @@ func TestPullDownloadedCardImagePushKeepsItsScopedURL(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{"characterRoleId": "existing", "roleName": "Scoped pull", "language": "en", "roleAvatar": origin + "/card-media/existing/unique", "roleBackground": origin + "/card-media/existing/unique", "roleWelcome": "Opening"})
 		case "/open/v1/worldbook/bindings":
 			json.NewEncoder(w).Encode(map[string]any{"bindings": []any{}})
-		case "/open/v1/role/author-asset":
+		case "/open/v1/role/author-asset", "/v1/me/cards/existing/cover":
 			http.NotFound(w, r)
 		case "/open/v1/image/list":
 			json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"imageList": []any{}, "libraryPrefix": origin + "/u/owner", "capabilities": map[string]any{"relativePaths": true, "cardImages": true}}})

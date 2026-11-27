@@ -119,6 +119,10 @@ func TestPullReadWarningsDoNotRemoveOptionalFiles(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{"characterRoleId": "new-source", "roleName": "New source", "language": "en", "roleWelcome": "New opening."})
 			return
 		}
+		if r.URL.Path == "/v1/me/cards/new-source/cover" {
+			http.NotFound(w, r)
+			return
+		}
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer srv.Close()

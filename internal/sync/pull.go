@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"mime"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -51,6 +52,14 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 		d.RoleID = roleID
 	}
 	res := &PullResult{RoleID: roleID, Dir: dir}
+	var cover struct {
+		Author *bool `json:"coverAuthorSensitive"`
+	}
+	if c.Site != "" {
+		if err := c.SiteDo(ctx, http.MethodGet, "/me/cards/"+url.PathEscape(roleID)+"/cover", nil, &cover); err != nil && !api.IsStatus(err, 404) && !api.IsStatus(err, 403) {
+			res.Warnings = append(res.Warnings, "The cover setting could not be read: "+err.Error())
+		}
+	}
 
 	var b bindingsOutput
 	bookID, bookName := "", ""
@@ -117,6 +126,7 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	}
 
 	f := card.FromRemote(dir, d, bookID, bookName, entries, asset)
+	f.Manifest.CoverSensitive = cover.Author
 	if f.Lorebook != nil {
 		if bookDetail.Description != "" {
 			f.Lorebook.Description = bookDetail.Description
@@ -167,6 +177,9 @@ func Pull(ctx context.Context, c *api.Client, roleID, dir string, opts PullOptio
 	// the library folder its images are served from.
 	if old, err := card.Load(dir); err == nil {
 		f.Manifest.Media.Folder = old.Manifest.Media.Folder
+		if f.Manifest.CoverSensitive == nil {
+			f.Manifest.CoverSensitive = old.Manifest.CoverSensitive
+		}
 		f.State.AssetFolder = old.State.AssetFolder
 	}
 	if f.State.AssetFolder == "" {

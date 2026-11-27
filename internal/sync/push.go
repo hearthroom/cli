@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -612,6 +613,9 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		roleID = opts.To
 	}
 	if opts.DryRun {
+		if f.Manifest.CoverSensitive != nil {
+			res.Changed = append(res.Changed, "coverSensitive")
+		}
 		for _, s := range card.Sections {
 			if p.Section(s) != nil {
 				res.Changed = append(res.Changed, s)
@@ -881,6 +885,19 @@ func pushOwned(ctx context.Context, c *api.Client, f *card.Folder, p card.Payloa
 		}
 		f.State.CardImageProvision = nil
 		res.RoleVisibility = "unlisted"
+	}
+	if f.Manifest.CoverSensitive != nil {
+		var saved struct {
+			Author *bool `json:"coverAuthorSensitive"`
+		}
+		body := map[string]any{"roleId": roleID, "coverSensitive": *f.Manifest.CoverSensitive}
+		if err := c.SiteDo(ctx, http.MethodPost, "/me/card-identities", body, &saved); err != nil {
+			return nil, fmt.Errorf("save the sensitive cover setting: %w", err)
+		}
+		if saved.Author == nil || *saved.Author != *f.Manifest.CoverSensitive {
+			return nil, errors.New("the site did not confirm the sensitive cover setting")
+		}
+		res.Changed = append(res.Changed, "coverSensitive")
 	}
 	f.State.OwnedPushPending = false
 	f.State.IgnoreLocalLorebook = false

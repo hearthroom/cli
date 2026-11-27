@@ -386,3 +386,45 @@ func TestOwnedCreateDefaultsToUnlistedAndResumePreservesVisibility(t *testing.T)
 		})
 	}
 }
+
+func TestOwnedPushSavesExplicitCoverFlagOnTheSite(t *testing.T) {
+	var flags []bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/me/card-identities" {
+			var body struct {
+				RoleID    string `json:"roleId"`
+				Sensitive *bool  `json:"coverSensitive"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.RoleID != "owned1" || body.Sensitive == nil || r.Header.Get("Authorization") != "Bearer tok" {
+				t.Errorf("unexpected cover update: %+v %v", body, err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			flags = append(flags, *body.Sensitive)
+			fmt.Fprintf(w, `{"coverAuthorSensitive":%t}`, *body.Sensitive)
+			return
+		}
+		w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+	c := api.New(srv.URL, srv.URL, "test", func(context.Context) (string, error) { return "tok", nil })
+	f, err := card.Init(t.TempDir(), "Cover", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.State.Target, f.State.RoleID = "owned", "owned1"
+	for _, data := range []string{`{}`, `{"coverSensitive":true}`, `{"coverSensitive":false}`} {
+		var manifest card.Manifest
+		if err := json.Unmarshal([]byte(data), &manifest); err != nil {
+			t.Fatal(err)
+		}
+		manifest.Name, manifest.Language = "Cover", "en"
+		f.Manifest = manifest
+		if _, err := Push(context.Background(), c, f, PushOptions{SkipMedia: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(flags) != 2 || !flags[0] || flags[1] {
+		t.Fatalf("site cover writes = %v", flags)
+	}
+}

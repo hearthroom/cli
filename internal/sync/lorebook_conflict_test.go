@@ -55,6 +55,8 @@ func (fs *fakeLorebookServer) serve(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(v)
 	}
 	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/v1/me/cards/r1/cover":
+		http.NotFound(w, r)
 	case r.URL.Path == "/open/v1/role/detail":
 		reply(200, map[string]any{
 			"characterRoleId": fs.roleID,

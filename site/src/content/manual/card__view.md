@@ -7,7 +7,8 @@ parent: "card"
 
 # hearthroom card view
 
-Show a community card
+Show a community card and its public card statistics when available.
+JSON output includes the server's qualitySignal without changing its fields.
 
 ## Usage
 

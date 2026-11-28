@@ -23,9 +23,7 @@ func init() {
 type siteCardQualitySignal struct {
 	LengthCharacters *int `json:"lengthCharacters"`
 	DeepPlay         *struct {
-		Reached int `json:"reached"`
-		Players int `json:"players"`
-		Turns   int `json:"turns"`
+		Rate *int `json:"rate"`
 	} `json:"deepPlay"`
 }
 
@@ -33,8 +31,8 @@ func (s *siteCardQualitySignal) display() string {
 	if s == nil {
 		return ""
 	}
-	if p := s.DeepPlay; p != nil {
-		return fmt.Sprintf("%d/%d reached %d turns", p.Reached, p.Players, p.Turns)
+	if p := s.DeepPlay; p != nil && p.Rate != nil {
+		return fmt.Sprintf("%d%% retention rate", *p.Rate)
 	}
 	if s.LengthCharacters == nil {
 		return ""
@@ -80,9 +78,9 @@ func (a *App) searchCommand() *cobra.Command {
 		Short: "Browse or search the community board (no sign-in needed)",
 		Long: `Browse or search the community board (no sign-in needed).
 
-Card statistics show the rounded length of the approved version or the share
-of qualified players who reached the turn threshold. JSON output includes the
-server's qualitySignal when available.`,
+Card statistics show the rounded length of the approved version or its
+retention rate as a whole percentage. JSON output includes the server's
+qualitySignal when available.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{"limit": {strconv.Itoa(limit)}, "offset": {strconv.Itoa(offset)}}

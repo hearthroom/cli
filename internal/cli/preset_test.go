@@ -222,3 +222,32 @@ func TestPresetImportRetriesSameConfirmation(t *testing.T) {
 		t.Fatalf("%d previews, %d confirmations", previews, confirmations)
 	}
 }
+
+func TestPresetCheckPenaltyBounds(t *testing.T) {
+	for _, field := range []string{"frequency_penalty", "presence_penalty"} {
+		for _, tc := range []struct {
+			value string
+			valid bool
+		}{{"-2", true}, {"2", true}, {"0", true}, {"-2.01", false}, {"2.01", false}, {"null", false}, {"true", false}, {`"1"`, false}, {"1e999", false}} {
+			t.Run(field+"/"+tc.value, func(t *testing.T) {
+				source := strings.Replace(presetSample, "{", "{"+`"`+field+`":`+tc.value+",", 1)
+				for _, document := range []string{source, `{"schemaVersion":"hearthroom.st-preset.v1","st":` + source + `,"selection":{"profileId":1}}`, `{"version":1,"type":"full","data":{"prompts":[{"identifier":"main","role":"system","content":"Answer clearly."}],"prompt_order":[{"identifier":"main","enabled":true}],"` + field + `":` + tc.value + `}}`} {
+					path := writePresetFixture(t, document)
+					stdout, _, err := runCLI(t, "preset", "check", path, "--json")
+					if (err == nil) != tc.valid || !json.Valid([]byte(stdout)) || !tc.valid && !strings.Contains(stdout, field) {
+						t.Fatalf("preset check: %s (%v)", stdout, err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestPresetCheckWarnsAboutExcludedInvalidPenalty(t *testing.T) {
+	source := strings.Replace(presetSample, "{", `{"frequency_penalty":3,`, 1)
+	doc := `{"schemaVersion":"hearthroom.st-preset.v1","st":` + source + `,"selection":{"profileId":1,"excludedFields":["frequency_penalty"]}}`
+	stdout, _, err := runCLI(t, "preset", "check", writePresetFixture(t, doc), "--json")
+	if err != nil || !strings.Contains(stdout, "before creating a native preset") {
+		t.Fatalf("expected a native-create correction hint for an ignored import field: %s (%v)", stdout, err)
+	}
+}

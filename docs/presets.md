@@ -5,6 +5,9 @@ and platform slots locally. It accepts SillyTavern JSON, version 1 prompt packs,
 and `hearthroom.st-preset.v1` documents. When a SillyTavern file has several
 prompt order profiles, pass `--profile-id` to choose one. Harbor evaluates full
 compatibility at save time.
+An explicitly configured `frequency_penalty` or `presence_penalty` must be
+a number from -2 to 2. The provider sends it to eligible model routes.
+
 
 ```sh
 hearthroom preset check preset.json --json

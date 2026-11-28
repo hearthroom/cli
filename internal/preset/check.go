@@ -109,6 +109,21 @@ func Check(raw []byte, profile *int64) (Report, error) {
 	if err := checkSuki(root); err != nil {
 		return report, err
 	}
+	for _, field := range []string{"frequency_penalty", "presence_penalty"} {
+		value, exists := root[field]
+		if !exists {
+			continue
+		}
+		number, ok := value.(json.Number)
+		n, err := number.Float64()
+		if !ok || err != nil || n < -2 || n > 2 {
+			if excludedPenalty(selection, field) {
+				report.Warnings = append(report.Warnings, fmt.Sprintf("%s is excluded. Fix its value before creating a native preset.", field))
+				continue
+			}
+			return report, fmt.Errorf("%s must be a number from -2 to 2", field)
+		}
+	}
 	if selection == nil {
 		report.ToolReply, _ = root["suki_tool_reply"].(bool)
 	}
@@ -131,6 +146,16 @@ func Check(raw []byte, profile *int64) (Report, error) {
 	}
 	err = checkSlots(root, orders[id], prompts, excluded, &report)
 	return report, err
+}
+
+func excludedPenalty(selection object, field string) bool {
+	items, _ := selection["excludedFields"].([]any)
+	for _, item := range items {
+		if item == field {
+			return true
+		}
+	}
+	return false
 }
 
 func source(st object) (object, bool, error) {

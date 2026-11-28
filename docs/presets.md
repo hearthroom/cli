@@ -41,9 +41,30 @@ reconcile the edits before saving again. Both formats create a new output file
 with private permissions.
 
 Updating an already shared preset changes the content others can use or see
-according to its current sharing settings. The preset commands manage your
-own files and saves. Use the web editor to manage sharing or apply a preset.
+according to its current sharing settings. Use the web editor to manage sharing.
 
 If the CLI cannot confirm a save, rerun the same command with the operation ID
 it printed. Keep the same account, file and options so Harbor can match the
 original request.
+
+
+## Choose a preset for a card
+
+Use the card's UUID, the same ID accepted by `hearthroom play --role`.
+Find your saved preset ID with `hearthroom preset list`.
+
+```sh
+hearthroom preset bind "$PRESET_ID" --role "$ROLE_ID"
+hearthroom preset status --role "$ROLE_ID" --json
+hearthroom preset unbind --role "$ROLE_ID"
+```
+
+The choice applies to new turns in all your conversations with that card.
+Your bound preset follows its latest saved version. Run `unbind` before
+playing to compare with the platform default. Switching presets does not
+change a turn that has already started.
+
+With `--json`, `source` is `custom`, `platform-default`, or `unavailable`.
+For `custom`, `presetId` and `version` identify the content the card will
+use now. `bindingVersion` tracks changes to the card's selection. If a save
+conflicts or its result is uncertain, run `preset status` before trying again.

@@ -20,7 +20,10 @@ import (
 func init() {
 	extraCommands = append(extraCommands, func(a *App) []*cobra.Command {
 		group := &cobra.Command{Use: "preset", Short: "Check and manage your prompt presets"}
-		group.AddCommand(a.presetCheckCommand(), a.presetPushCommand(), a.presetPullCommand(), a.presetListCommand())
+		group.AddCommand(a.presetCheckCommand(), a.presetPushCommand(), a.presetPullCommand(), a.presetListCommand(),
+			a.presetBindingCommand("bind", "bind <preset-id> --role <role-id>", "Use a saved prompt preset for a card", cobra.ExactArgs(1)),
+			a.presetBindingCommand("unbind", "unbind --role <role-id>", "Use the platform default for a card", cobra.NoArgs),
+			a.presetBindingCommand("status", "status --role <role-id>", "Show the prompt preset a card will use", cobra.NoArgs))
 		return []*cobra.Command{group}
 	})
 }

@@ -73,8 +73,12 @@ func newGenProvider(t *testing.T, create string) *genProvider {
 		case "403":
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte(`{"error":{"type":"permission_error","code":"permission_error","param":null,"message":"This sign-in was not granted media.generate. Sign in again and allow image and video generation."}}`))
-		case "402":
+		case "402", "402-available":
 			w.WriteHeader(http.StatusPaymentRequired)
+			if p.create == "402-available" {
+				_, _ = w.Write([]byte(`{"error":{"code":"insufficient_quota","message":"Insufficient credits","imageCreditsAvailable":12}}`))
+				return
+			}
 			_, _ = w.Write([]byte(`{"error":{"type":"insufficient_quota","code":"insufficient_quota","param":null,"message":"Not enough credits to start this request."}}`))
 		}
 	})
@@ -252,10 +256,18 @@ func TestMediaGenerateMissingScopeSaysLoginAgain(t *testing.T) {
 	}
 }
 
-func TestMediaGenerateInsufficientPurchasedCredits(t *testing.T) {
+func TestMediaGenerateInsufficientCreditsWithoutBalance(t *testing.T) {
 	p := newGenProvider(t, "402")
 	_, _, err := p.run(t, "generate", "--model", "m", "--prompt", "x", "--allow-spend")
-	if err == nil || !strings.Contains(err.Error(), "purchased credits") || !strings.Contains(err.Error(), "gift credits do not count") {
+	if err == nil || !strings.Contains(err.Error(), "Top up") || strings.Contains(err.Error(), "Image generation credits:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestMediaGenerateInsufficientCreditsShowsBalance(t *testing.T) {
+	p := newGenProvider(t, "402-available")
+	_, _, err := p.run(t, "generate", "--model", "m", "--prompt", "x", "--allow-spend")
+	if err == nil || !strings.Contains(err.Error(), "Image generation credits: 12") {
 		t.Fatalf("err = %v", err)
 	}
 }

@@ -8,8 +8,8 @@ parent: "media"
 # hearthroom media generate
 
 Generates images from a prompt (see "media models" for models, prices and
-sizes). It spends purchased credits per image, so it requires --allow-spend;
-granted or gift credits cannot pay for it. Refused prompts and failed
+sizes). It spends eligible credits per image, so it requires --allow-spend.
+Check hearthroom wallet for the image generation balance. Refused prompts and failed
 generations are not charged.
 
 Results are kept for 7 days. To keep one, save it to your media library with
@@ -37,7 +37,7 @@ hearthroom media generate [flags]
 ## Options
 
 ```
-      --allow-spend              confirm that this generation may spend purchased credits
+      --allow-spend              confirm that this generation may spend credits
   -n, --count int                number of images (up to the model's MAX) (default 1)
       --dir string               save to this media library path, e.g. the card's folder name
       --folder string            save to an existing media library folder, by name or id

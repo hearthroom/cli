@@ -281,6 +281,7 @@ func (a *App) walletCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "wallet",
 		Short: "Show your credit balance and plans",
+		Long:  "Show your credit balance and plans. When the provider reports it, the image generation balance shows the credits you can spend on signed-in image generation.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := a.RequireAuth(); err != nil {
 				return err
@@ -293,11 +294,12 @@ func (a *App) walletCommand() *cobra.Command {
 				return a.Out.JSONValue(raw)
 			}
 			var w struct {
-				Available int64 `json:"available"`
-				Permanent int64 `json:"permanent"`
-				Expiring  int64 `json:"expiring"`
-				Reserved  int64 `json:"reserved"`
-				Ledger    []struct {
+				Available             int64  `json:"available"`
+				ImageCreditsAvailable *int64 `json:"imageCreditsAvailable"`
+				Permanent             int64  `json:"permanent"`
+				Expiring              int64  `json:"expiring"`
+				Reserved              int64  `json:"reserved"`
+				Ledger                []struct {
 					Amount int64  `json:"amount"`
 					At     string `json:"at"`
 					Reason string `json:"reason"`
@@ -311,6 +313,9 @@ func (a *App) walletCommand() *cobra.Command {
 				return err
 			}
 			a.Out.Line("Available credits: %d", w.Available)
+			if w.ImageCreditsAvailable != nil {
+				a.Out.Line("Image generation credits: %d", *w.ImageCreditsAvailable)
+			}
 			if w.Expiring > 0 {
 				a.Out.Line("  expiring:        %d", w.Expiring)
 			}

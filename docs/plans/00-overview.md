@@ -61,7 +61,7 @@ field names stay as the API defines them.
 - CLI output language: English for v0.1. Localized READMEs are a follow-up.
 - Scopes requested: `profile.read email.read role.read role.write chat.play media.generate`.
   `email.read` only identifies the signed-in account in messages;
-  `media.generate` lets `media generate` spend purchased credits on images
+  `media.generate` lets `media generate` spend eligible credits on images
   (a provider must allow it for the CLI's client). Not `referral` or
   `model.invoke`.
 - Trial cards are the default push target: they are private, auto-expiring

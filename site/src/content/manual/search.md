@@ -7,7 +7,11 @@ parent: "hearthroom"
 
 # hearthroom search
 
-Browse or search the community board (no sign-in needed)
+Browse or search the community board (no sign-in needed).
+
+Card statistics show the rounded length of the approved version or the share
+of qualified players who reached the turn threshold. JSON output includes the
+server's qualitySignal when available.
 
 ## Usage
 

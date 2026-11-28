@@ -19,7 +19,37 @@ func init() {
 	})
 }
 
-// site card as the community API lists it; extra fields are kept in Raw.
+// siteCard is the subset used for terminal display. JSON output keeps the original response.
+type siteCardQualitySignal struct {
+	LengthCharacters *int `json:"lengthCharacters"`
+	DeepPlay         *struct {
+		Reached int `json:"reached"`
+		Players int `json:"players"`
+		Turns   int `json:"turns"`
+	} `json:"deepPlay"`
+}
+
+func (s *siteCardQualitySignal) display() string {
+	if s == nil {
+		return ""
+	}
+	if p := s.DeepPlay; p != nil {
+		return fmt.Sprintf("%d/%d reached %d turns", p.Reached, p.Players, p.Turns)
+	}
+	if s.LengthCharacters == nil {
+		return ""
+	}
+	n := *s.LengthCharacters
+	if n == 0 {
+		return "under 1,000 chars"
+	}
+	value := strconv.Itoa(n)
+	for at := len(value) - 3; at > 0; at -= 3 {
+		value = value[:at] + "," + value[at:]
+	}
+	return value + " chars"
+}
+
 type siteCard struct {
 	ID      string   `json:"id"`
 	Name    string   `json:"name"`
@@ -29,7 +59,8 @@ type siteCard struct {
 		Handle string `json:"handle"`
 		Name   string `json:"name"`
 	} `json:"author"`
-	Zone string `json:"zone"`
+	Zone          string                 `json:"zone"`
+	QualitySignal *siteCardQualitySignal `json:"qualitySignal"`
 }
 
 type siteList struct {
@@ -47,7 +78,12 @@ func (a *App) searchCommand() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "search [text]",
 		Short: "Browse or search the community board (no sign-in needed)",
-		Args:  cobra.MaximumNArgs(1),
+		Long: `Browse or search the community board (no sign-in needed).
+
+Card statistics show the rounded length of the approved version or the share
+of qualified players who reached the turn threshold. JSON output includes the
+server's qualitySignal when available.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{"limit": {strconv.Itoa(limit)}, "offset": {strconv.Itoa(offset)}}
 			if len(args) > 0 {
@@ -87,9 +123,9 @@ func (a *App) searchCommand() *cobra.Command {
 				if c.Author != nil {
 					by = c.Author.Handle
 				}
-				rows = append(rows, []string{c.ID, clip(c.Name, 28), by, clip(strings.Join(c.Tags, ","), 30), clip(c.Summary, 48)})
+				rows = append(rows, []string{c.ID, clip(c.Name, 28), by, clip(strings.Join(c.Tags, ","), 30), clip(c.Summary, 48), c.QualitySignal.display()})
 			}
-			a.Out.Table([]string{"ID", "NAME", "AUTHOR", "TAGS", "SUMMARY"}, rows)
+			a.Out.Table([]string{"ID", "NAME", "AUTHOR", "TAGS", "SUMMARY", "CARD STATS"}, rows)
 			if list.HasNext {
 				a.Out.Line("More: --offset %d", offset+limit)
 			}
@@ -110,7 +146,9 @@ func (a *App) cardView() *cobra.Command {
 	return &cobra.Command{
 		Use:   "view <id>",
 		Short: "Show a community card",
-		Args:  cobra.ExactArgs(1),
+		Long: `Show a community card and its public card statistics when available.
+JSON output includes the server's qualitySignal without changing its fields.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var raw json.RawMessage
 			if err := a.Client().SiteGet(cmd.Context(), "/cards/"+url.PathEscape(args[0]), url.Values{"view": {"0"}}, &raw, true); err != nil {
@@ -126,6 +164,12 @@ func (a *App) cardView() *cobra.Command {
 			for _, k := range []string{"id", "name", "zone", "summary", "tags", "author", "createdAt", "updatedAt"} {
 				if v, ok := m[k]; ok {
 					a.Out.Line("%-10s %s", k+":", flat(v))
+				}
+			}
+			var card siteCard
+			if err := json.Unmarshal(raw, &card); err == nil {
+				if value := card.QualitySignal.display(); value != "" {
+					a.Out.Line("%-10s %s", "card stats:", value)
 				}
 			}
 			if op, ok := m["opening"]; ok {

@@ -174,6 +174,7 @@ func (a *App) workshopUpdate() *cobra.Command {
 		Long: `Replace all editable content in an extension draft (not a partial patch).
 Start with "workshop get <workshopId> --json", edit that JSON, and pass the saved
 revision with --expected-revision. Omit DLC package settings to preserve them.
+Author DLC drafts accept up to 10,000 packages in lorePacks.
 Player extensions must omit rules and opening (empty structures from get are safe).
 DLC drafts may also carry contexts and their own card tools; contexts can name only
 those tools. Player extensions omit both.

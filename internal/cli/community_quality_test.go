@@ -11,7 +11,7 @@ import (
 func TestCommunityCardQualitySignal(t *testing.T) {
 	cfg := authTestEnv(t)
 	const length = `{"id":"100001","name":"Card","qualitySignal":{"lengthCharacters":0,"deepPlay":null}}`
-	const deep = `{"id":"100002","name":"Second","qualitySignal":{"lengthCharacters":12000,"deepPlay":{"turns":5,"reached":10,"players":20}}}`
+	const deep = `{"id":"100002","name":"Second","qualitySignal":{"lengthCharacters":12000,"deepPlay":{"rate":82}}}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/cards":
@@ -34,16 +34,21 @@ func TestCommunityCardQualitySignal(t *testing.T) {
 	}
 
 	board := run("search")
-	for _, want := range []string{"under 1,000 chars", "10/20 reached 5 turns", "Older"} {
+	for _, want := range []string{"under 1,000 chars", "82% retention rate", "Older"} {
 		if !strings.Contains(board, want) {
 			t.Errorf("board missing %q: %s", want, board)
 		}
 	}
-	if got := run("card", "view", "100002"); !strings.Contains(got, "10/20 reached 5 turns") {
-		t.Errorf("details missing deep play: %s", got)
+	if got := run("card", "view", "100002"); !strings.Contains(got, "82% retention rate") {
+		t.Errorf("details missing retention rate: %s", got)
 	}
 	var decoded map[string]any
 	if raw := run("card", "view", "100002", "--json"); json.Unmarshal([]byte(raw), &decoded) != nil || decoded["qualitySignal"] == nil {
 		t.Fatalf("JSON lost server projection: %s", raw)
+	}
+	signal := decoded["qualitySignal"].(map[string]any)
+	deepPlay := signal["deepPlay"].(map[string]any)
+	if len(deepPlay) != 1 || deepPlay["rate"] != float64(82) {
+		t.Fatalf("unexpected public retention projection: %#v", deepPlay)
 	}
 }

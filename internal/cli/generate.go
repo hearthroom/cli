@@ -97,7 +97,7 @@ func (a *App) mediaModelsCommand() *cobra.Command {
 					fmt.Sprint(m.Capabilities.MaxImages), fmt.Sprint(m.Capabilities.MaxReferenceImages), m.ContentPolicy.NSFW})
 			}
 			a.Out.Table([]string{"MODEL", "NAME", "LANE", "CREDITS/IMAGE", "SIZES", "MAX", "REFS", "ADULT"}, rows)
-			a.Out.Line("Images are paid from purchased credits only; refused prompts and failures are free.")
+			a.Out.Line("Image generation uses eligible wallet credits. Refused prompts and failures are free.")
 			return nil
 		},
 	}
@@ -132,8 +132,8 @@ func (a *App) mediaGenerateCommand() *cobra.Command {
 		Use:   "generate",
 		Short: "Generate images with a model and optionally save them to your media library",
 		Long: `Generates images from a prompt (see "media models" for models, prices and
-sizes). It spends purchased credits per image, so it requires --allow-spend;
-granted or gift credits cannot pay for it. Refused prompts and failed
+sizes). It spends eligible credits per image, so it requires --allow-spend.
+Check hearthroom wallet for the image generation balance. Refused prompts and failed
 generations are not charged.
 
 Results are kept for 7 days. To keep one, save it to your media library with
@@ -185,7 +185,7 @@ being charged twice.`,
 				}
 			}
 			if !allowSpend {
-				return output.Exitf(3, "media generate spends purchased credits; re-run with --allow-spend to confirm")
+				return output.Exitf(3, "media generate spends credits; re-run with --allow-spend to confirm")
 			}
 			if err := a.RequireAuth(); err != nil {
 				return err
@@ -330,7 +330,7 @@ being charged twice.`,
 	f.StringVar(&folder, "folder", "", "save to an existing media library folder, by name or id")
 	f.StringVar(&outFile, "out", "", "also download to this file; with -n above 1, -1, -2… are added before the extension")
 	f.StringVar(&idemKey, "idempotency-key", "", "reuse a key to resume the same generation without paying twice (default: a new key)")
-	f.BoolVar(&allowSpend, "allow-spend", false, "confirm that this generation may spend purchased credits")
+	f.BoolVar(&allowSpend, "allow-spend", false, "confirm that this generation may spend credits")
 	f.DurationVar(&timeout, "timeout", 10*time.Minute, "how long to wait for a slow generation")
 	return cmd
 }
@@ -449,17 +449,26 @@ func generationError(err error) error {
 	if !errors.As(err, &e) {
 		return err
 	}
-	msg := ""
-	if d, ok := e.Detail.(map[string]any); ok {
-		msg, _ = d["message"].(string)
-	}
+	detail, _ := e.Detail.(map[string]any)
+	msg, _ := detail["message"].(string)
 	switch {
 	case e.Status == http.StatusUnauthorized:
 		return output.Exit(4, hintError{"the sign-in is missing, expired or for another provider; run `hearthroom auth login` again", err})
 	case e.Status == http.StatusForbidden && e.Code == "permission_error":
 		return output.Exit(4, hintError{strings.TrimSpace(msg + " Run `hearthroom auth login` again and approve the requested access; sign-ins from older CLI versions did not ask for image generation."), err})
 	case e.Status == http.StatusPaymentRequired:
-		return hintError{"not enough purchased credits for this generation: images are paid from purchased credits only, granted or gift credits do not count. Top up, then run the command again", err}
+		const help = "Not enough credits for this image generation. Top up, then run the command again."
+		var body struct {
+			Error struct {
+				ImageCreditsAvailable *int64 `json:"imageCreditsAvailable"`
+			} `json:"error"`
+		}
+		if e.Code == "insufficient_quota" && json.Unmarshal(e.Envelope, &body) == nil {
+			if amount := body.Error.ImageCreditsAvailable; amount != nil && *amount >= 0 {
+				return hintError{fmt.Sprintf("Not enough credits for this image generation. Image generation credits: %d. Top up, then run the command again.", *amount), err}
+			}
+		}
+		return hintError{help, err}
 	case e.Code == "content_policy_violation":
 		return hintError{"the prompt is not allowed on this model, so nothing was generated and you were not charged; rephrase it or pick a model whose content policy allows it (`hearthroom media models --json`)", err}
 	case msg != "":

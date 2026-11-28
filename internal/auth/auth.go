@@ -28,7 +28,7 @@ import (
 
 // Scopes requested at registration and login. email.read is included only so
 // the CLI can say which account is signed in (providers have no mandatory
-// nickname); media.generate lets `media generate` spend purchased credits on
+// nickname); media.generate lets `media generate` spend eligible credits on
 // images; referral and model.invoke are deliberately excluded.
 const Scopes = "profile.read email.read role.read role.write chat.play media.generate"
 

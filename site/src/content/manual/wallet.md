@@ -7,7 +7,7 @@ parent: "hearthroom"
 
 # hearthroom wallet
 
-Show your credit balance and plans
+Show your credit balance and plans. When the provider reports it, the image generation balance shows the credits you can spend on signed-in image generation.
 
 ## Usage
 

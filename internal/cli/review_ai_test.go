@@ -233,6 +233,7 @@ func TestReviewEvidenceReads(t *testing.T) {
 		{[]string{"review", "author-cards", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-cards", nil},
 		{[]string{"review", "card", "100123"}, "/v1/review-ai/cards/100123", nil},
 		{[]string{"review", "author-note", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-note", nil},
+		{[]string{"review", "show", "sub-1", "--evidence"}, "/v1/review-ai/submissions/sub-1", url.Values{"evidence": {"1"}}},
 		{[]string{"review", "opening", "sub/1", "--offset", "7999", "--surface", "alternate-1"}, "/v1/review-ai/submissions/sub%2F1/opening", url.Values{"offset": {"7999"}, "surface": {"alternate-1"}}},
 		{[]string{"review", "precedents", "sub-1", "--type", "角色扮演", "--before", "1200"}, "/v1/review-ai/submissions/sub-1/precedents", url.Values{"type": {"角色扮演"}, "before": {"1200"}}},
 		{[]string{"review", "author-history", "sub-1", "--before", "1200"}, "/v1/review-ai/submissions/sub-1/author-history", url.Values{"before": {"1200"}}},

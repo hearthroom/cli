@@ -86,14 +86,21 @@ the --criteria version, when given). --count prints {"count": n} instead of item
 }
 
 func (a *App) reviewShow() *cobra.Command {
-	return &cobra.Command{
+	var evidence bool
+	c := &cobra.Command{
 		Use:   "show <submissionId>",
 		Short: "Read one review submission with its card and the allowed suggestion codes",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.reviewCall(cmd, http.MethodGet, "/review-ai/submissions/"+url.PathEscape(args[0]), nil)
+			path := "/review-ai/submissions/" + url.PathEscape(args[0])
+			if evidence {
+				path += "?evidence=1"
+			}
+			return a.reviewCall(cmd, http.MethodGet, path, nil)
 		},
 	}
+	c.Flags().BoolVar(&evidence, "evidence", false, "include opening observations without caching a diff summary")
+	return c
 }
 
 func (a *App) reviewOriginality() *cobra.Command {

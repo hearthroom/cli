@@ -38,13 +38,12 @@ and the evidence around it, and record an advisory suggestion or flags for one.
 Suggestions do not decide a review. The server decides which accounts may use
 each command.
 
-Evidence: originality (overlap with other authors' cards), author (the author's
-history and pace), author-cards (the author's other cards), card (a card's live
-version) and author-note (your own notes on the author).
+Evidence includes opening, precedents, author-history, diff, originality,
+author, author-cards, card and author-note.
 
 Every command prints the server's JSON response.`,
 	}
-	c.AddCommand(a.reviewQueue(), a.reviewShow(), a.reviewOriginality(), a.reviewAuthor(), a.reviewAuthorCards(),
+	c.AddCommand(a.reviewQueue(), a.reviewShow(), a.reviewOpening(), a.reviewPrecedents(), a.reviewAuthorHistory(), a.reviewDiff(), a.reviewOriginality(), a.reviewAuthor(), a.reviewAuthorCards(),
 		a.reviewCard(), a.reviewAuthorNote(), a.reviewSuggest(), a.reviewTag(), a.reviewReport())
 	return c
 }
@@ -372,22 +371,26 @@ const EnvReviewKey = "HEARTHROOM_REVIEW_KEY"
 // reviewCall sends one community request and prints the response.
 func (a *App) reviewCall(cmd *cobra.Command, method, path string, body any) error {
 	var raw json.RawMessage
-	var err error
-	if key := strings.TrimSpace(os.Getenv(EnvReviewKey)); key != "" && !strings.HasPrefix(path, "/review-ai/report") {
-		err = a.Client().SiteDoKey(cmd.Context(), method, path, http.Header{"X-Review-Agent-Key": {key}}, body, &raw)
-	} else {
-		if err := a.RequireAuth(); err != nil {
-			return err
-		}
-		err = a.Client().SiteDo(cmd.Context(), method, path, body, &raw)
-	}
-	if err != nil {
-		return withErrorField(err)
+	if err := a.reviewRequest(cmd, method, path, body, &raw); err != nil {
+		return err
 	}
 	if len(raw) == 0 {
 		raw = json.RawMessage("null")
 	}
 	return a.Out.JSONValue(raw)
+}
+
+func (a *App) reviewRequest(cmd *cobra.Command, method, path string, body, response any) error {
+	var err error
+	if key := strings.TrimSpace(os.Getenv(EnvReviewKey)); key != "" && !strings.HasPrefix(path, "/review-ai/report") {
+		err = a.Client().SiteDoKey(cmd.Context(), method, path, http.Header{"X-Review-Agent-Key": {key}}, body, response)
+	} else {
+		if err := a.RequireAuth(); err != nil {
+			return err
+		}
+		err = a.Client().SiteDo(cmd.Context(), method, path, body, response)
+	}
+	return withErrorField(err)
 }
 
 // withErrorField copies the response's "field" into the error detail so the

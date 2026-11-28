@@ -224,14 +224,19 @@ func TestReviewEvidenceReads(t *testing.T) {
 	t.Setenv(auth.EnvToken, "tok")
 	srv, got := reviewAIServer(t, 200, `{"ok":true}`)
 	cases := []struct {
-		args []string
-		path string
+		args  []string
+		path  string
+		query url.Values
 	}{
-		{[]string{"review", "originality", "sub/1"}, "/v1/review-ai/submissions/sub%2F1/originality"},
-		{[]string{"review", "author", "sub-1"}, "/v1/review-ai/submissions/sub-1/author"},
-		{[]string{"review", "author-cards", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-cards"},
-		{[]string{"review", "card", "100123"}, "/v1/review-ai/cards/100123"},
-		{[]string{"review", "author-note", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-note"},
+		{[]string{"review", "originality", "sub/1"}, "/v1/review-ai/submissions/sub%2F1/originality", nil},
+		{[]string{"review", "author", "sub-1"}, "/v1/review-ai/submissions/sub-1/author", nil},
+		{[]string{"review", "author-cards", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-cards", nil},
+		{[]string{"review", "card", "100123"}, "/v1/review-ai/cards/100123", nil},
+		{[]string{"review", "author-note", "sub-1"}, "/v1/review-ai/submissions/sub-1/author-note", nil},
+		{[]string{"review", "opening", "sub/1", "--offset", "7999", "--surface", "alternate-1"}, "/v1/review-ai/submissions/sub%2F1/opening", url.Values{"offset": {"7999"}, "surface": {"alternate-1"}}},
+		{[]string{"review", "precedents", "sub-1", "--type", "角色扮演", "--before", "1200"}, "/v1/review-ai/submissions/sub-1/precedents", url.Values{"type": {"角色扮演"}, "before": {"1200"}}},
+		{[]string{"review", "author-history", "sub-1", "--before", "1200"}, "/v1/review-ai/submissions/sub-1/author-history", url.Values{"before": {"1200"}}},
+		{[]string{"review", "diff", "sub-1"}, "/v1/review-ai/submissions/sub-1/diff", nil},
 	}
 	for _, c := range cases {
 		*got = nil
@@ -244,6 +249,9 @@ func TestReviewEvidenceReads(t *testing.T) {
 		}
 		if len(*got) != 1 || (*got)[0].method != "GET" || (*got)[0].path != c.path || (*got)[0].body != nil {
 			t.Fatalf("%v request %+v", c.args, *got)
+		}
+		if (*got)[0].query.Encode() != c.query.Encode() {
+			t.Fatalf("%v query %+v, want %+v", c.args, (*got)[0].query, c.query)
 		}
 	}
 }
